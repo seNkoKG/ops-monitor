@@ -1,0 +1,886 @@
+<Window x:Class="OpsMonitor.Widget.MainWindow"
+        x:Name="WidgetWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:OpsMonitor.Widget.Controls"
+        xmlns:models="clr-namespace:OpsMonitor.Widget.Models"
+        Title="OPS Monitor"
+        Width="196"
+        Height="326"
+        MinWidth="176"
+        MinHeight="150"
+        MaxWidth="1600"
+        MaxHeight="1000"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="{Binding Topmost}"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        WindowStartupLocation="Manual"
+        WindowStyle="None">
+    <Window.Resources>
+        <ItemsPanelTemplate x:Key="VerticalMetricPanel">
+            <StackPanel Orientation="Vertical" />
+        </ItemsPanelTemplate>
+
+        <ItemsPanelTemplate x:Key="DockMetricPanel">
+            <WrapPanel Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+
+        <Style x:Key="IconButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="{Binding TrackBrush}" />
+            <Setter Property="BorderBrush" Value="{Binding BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{Binding TextPrimaryBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Chrome"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="11">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.82" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.62" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActionButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Background" Value="{Binding TrackBrush}" />
+            <Setter Property="BorderBrush" Value="{Binding BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{Binding TextPrimaryBrush}" />
+            <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Chrome"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.82" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.64" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SettingToggleStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Padding" Value="11,6" />
+            <Setter Property="Background" Value="{Binding TrackBrush}" />
+            <Setter Property="BorderBrush" Value="{Binding BorderBrush}" />
+            <Setter Property="Foreground" Value="{Binding TextSecondaryBrush}" />
+            <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Border x:Name="Chrome"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#7848DCF9" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#2E48DCF9" />
+                                <Setter Property="Foreground" Value="{Binding TextPrimaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.82" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SettingLabelStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{Binding TextSecondaryBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="SettingComboStyle" TargetType="{x:Type ComboBox}">
+            <Setter Property="MinWidth" Value="126" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Background" Value="#FF171C27" />
+            <Setter Property="BorderBrush" Value="{Binding BorderBrush}" />
+            <Setter Property="Foreground" Value="{Binding TextPrimaryBrush}" />
+            <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="ItemContainerStyle" Value="{DynamicResource SettingComboItemStyle}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBox}">
+                        <Grid>
+                            <ToggleButton x:Name="DropDownToggle"
+                                          Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="1"
+                                          ClickMode="Press"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                        <Border x:Name="ComboChrome"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="10">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="28" />
+                                                </Grid.ColumnDefinitions>
+                                                <ContentPresenter Margin="10,0,2,0"
+                                                                  VerticalAlignment="Center"
+                                                                  Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType={x:Type ComboBox}}}"
+                                                                  ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType={x:Type ComboBox}}}"
+                                                                  TextElement.Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type ComboBox}}}" />
+                                                <Path Grid.Column="1"
+                                                      Width="8"
+                                                      Height="5"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Data="M1,1 L4,4 L7,1"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type ComboBox}}}"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round"
+                                                      StrokeThickness="1.4" />
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ComboChrome" Property="BorderBrush" Value="#8248DCF9" />
+                                                <Setter TargetName="ComboChrome" Property="Background" Value="#FF1C2532" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup x:Name="PART_Popup"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom"
+                                   PopupAnimation="Fade">
+                                <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="240"
+                                        Margin="0,5,0,0"
+                                        Padding="5"
+                                        Background="#FF141A24"
+                                        BorderBrush="#FF344052"
+                                        BorderThickness="1"
+                                        CornerRadius="11">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="16"
+                                                          Direction="270"
+                                                          Opacity="0.44"
+                                                          ShadowDepth="4"
+                                                          Color="#FF000000" />
+                                    </Border.Effect>
+                                    <ScrollViewer CanContentScroll="True"
+                                                  HorizontalScrollBarVisibility="Disabled"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.48" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SettingComboItemStyle" TargetType="{x:Type ComboBoxItem}">
+            <Setter Property="Padding" Value="9,7" />
+            <Setter Property="Foreground"
+                    Value="{Binding DataContext.TextPrimaryBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                        <Border x:Name="ItemChrome"
+                                Padding="{TemplateBinding Padding}"
+                                Background="Transparent"
+                                CornerRadius="7">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemChrome" Property="Background" Value="#2E48DCF9" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemChrome" Property="Background" Value="#3A58E6B2" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SettingSliderStyle" TargetType="{x:Type Slider}">
+            <Setter Property="Height" Value="20" />
+            <Setter Property="Focusable" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Slider}">
+                        <Grid Margin="1,0">
+                            <Track x:Name="PART_Track"
+                                   VerticalAlignment="Center">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}"
+                                                  Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="{x:Type RepeatButton}">
+                                                <Border Height="4"
+                                                        VerticalAlignment="Center"
+                                                        Background="#FF48DCF9"
+                                                        CornerRadius="2" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.IncreaseLarge}"
+                                                  Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="{x:Type RepeatButton}">
+                                                <Border Height="4"
+                                                        VerticalAlignment="Center"
+                                                        Background="{Binding DataContext.TrackBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                        CornerRadius="2" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="14"
+                                           Height="14"
+                                           Cursor="Hand">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="{x:Type Thumb}">
+                                                <Border x:Name="ThumbChrome"
+                                                        Background="#FFF4FAFF"
+                                                        BorderBrush="#FF48DCF9"
+                                                        BorderThickness="2"
+                                                        CornerRadius="7" />
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ThumbChrome" Property="Background" Value="#FFFFFFFF" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Border x:Name="RootSurface"
+                Background="{Binding SurfaceBrush}"
+                BorderBrush="{Binding BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="25">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="18"
+                                  Direction="270"
+                                  Opacity="0.48"
+                                  ShadowDepth="5"
+                                  Color="#FF000000" />
+            </Border.Effect>
+
+            <Grid ClipToBounds="True">
+                <Border Height="72"
+                        VerticalAlignment="Top"
+                        CornerRadius="25,25,0,0"
+                        Opacity="0.11">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Offset="0" Color="#FF48DCF9" />
+                            <GradientStop Offset="0.55" Color="#0058E6B2" />
+                            <GradientStop Offset="1" Color="#FFFF4FD8" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <Grid x:Name="StandardLayout">
+                    <Grid.Style>
+                        <Style TargetType="{x:Type Grid}">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Layout}"
+                                                   Value="{x:Static models:WidgetLayout.Dock}" />
+                                        <Condition Binding="{Binding Density}"
+                                                   Value="{x:Static models:WidgetDensity.Compact}" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Grid x:Name="DragHeader"
+                          Grid.Row="0"
+                          Margin="16,14,14,10"
+                          Background="Transparent"
+                          Opacity="{Binding ContentOpacity}"
+                          MouseLeftButtonDown="DragHeader_OnMouseLeftButtonDown">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Width="28"
+                                Height="28"
+                                Margin="0,0,9,0"
+                                Background="#2058E6B2"
+                                BorderBrush="#7058E6B2"
+                                BorderThickness="1"
+                                CornerRadius="9">
+                            <Grid>
+                                <Ellipse Width="8" Height="8" Fill="#FF58E6B2" />
+                                <Ellipse Width="18"
+                                         Height="18"
+                                         Stroke="#6658E6B2"
+                                         StrokeThickness="1" />
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock FontFamily="Segoe UI Variable Display, Segoe UI"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Foreground="{Binding TextPrimaryBrush}"
+                                       Text="OPS" />
+                            <TextBlock Margin="0,2,0,0"
+                                       FontFamily="Segoe UI Variable Text, Segoe UI"
+                                       FontSize="12"
+                                       Foreground="{Binding TextSecondaryBrush}"
+                                       Text="{Binding LastUpdatedText}"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+
+                        <Border Grid.Column="2"
+                                Margin="8,0,8,0"
+                                Padding="8,4"
+                                VerticalAlignment="Center"
+                                Background="#2148DCF9"
+                                BorderBrush="#5948DCF9"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="6"
+                                         Height="6"
+                                         Margin="0,0,5,0"
+                                         VerticalAlignment="Center"
+                                         Fill="#FF48DCF9" />
+                                <TextBlock FontFamily="Segoe UI Variable Text, Segoe UI"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{Binding TextPrimaryBrush}"
+                                           Text="{Binding ModeLabel}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Button x:Name="SettingsButton"
+                                Grid.Column="3"
+                                AutomationProperties.Name="Quick settings"
+                                Click="SettingsButton_OnClick"
+                                Style="{StaticResource IconButtonStyle}">
+                            <TextBlock FontFamily="Segoe UI Symbol"
+                                       FontSize="18"
+                                       Text="⚙" />
+                        </Button>
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="1"
+                                  Margin="12,0,12,0"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  PanningMode="VerticalOnly"
+                                  VerticalScrollBarVisibility="Hidden">
+                        <ItemsControl ItemsSource="{Binding Metrics}">
+                            <ItemsControl.Style>
+                                <Style TargetType="{x:Type ItemsControl}">
+                                    <Setter Property="ItemsPanel" Value="{StaticResource VerticalMetricPanel}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Layout}" Value="{x:Static models:WidgetLayout.Dock}">
+                                            <Setter Property="ItemsPanel" Value="{StaticResource DockMetricPanel}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.Style>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <controls:MetricCard Layout="{Binding DataContext.Layout, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                         Density="{Binding DataContext.Density, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                         ContentOpacity="{Binding DataContext.ContentOpacity, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <Grid Grid.Row="2"
+                          Margin="16,8,12,12"
+                          Opacity="{Binding ContentOpacity}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Variable Text, Segoe UI"
+                                   FontSize="12"
+                                   Foreground="{Binding TextSecondaryBrush}"
+                                   Text="{Binding HotkeyHint}"
+                                   TextTrimming="CharacterEllipsis" />
+
+                        <Border x:Name="ResizeGrip"
+                                Grid.Column="1"
+                                Width="26"
+                                Height="26"
+                                Background="Transparent"
+                                Cursor="SizeNWSE"
+                                MouseLeftButtonDown="ResizeGrip_OnMouseLeftButtonDown"
+                                Visibility="{Binding CanResize, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Path Width="14"
+                                  Height="14"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Bottom"
+                                  Data="M2,14 L14,2 M7,14 L14,7 M12,14 L14,12"
+                                  Stretch="Uniform"
+                                  Stroke="{Binding TextSecondaryBrush}"
+                                  StrokeEndLineCap="Round"
+                                  StrokeThickness="1.4" />
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <Grid x:Name="CompactDockLayout"
+                      Margin="12,9,12,9"
+                      Background="Transparent"
+                      MouseLeftButtonDown="DragHeader_OnMouseLeftButtonDown">
+                    <Grid.Style>
+                        <Style TargetType="{x:Type Grid}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Layout}"
+                                                   Value="{x:Static models:WidgetLayout.Dock}" />
+                                        <Condition Binding="{Binding Density}"
+                                                   Value="{x:Static models:WidgetDensity.Compact}" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="132" />
+                        <ColumnDefinition Width="1" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="44" />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0"
+                          Margin="2,0,12,0"
+                          Opacity="{Binding ContentOpacity}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <StackPanel VerticalAlignment="Bottom" Orientation="Horizontal">
+                            <Ellipse Width="9"
+                                     Height="9"
+                                     Margin="0,0,8,0"
+                                     VerticalAlignment="Center"
+                                     Fill="#FF58E6B2" />
+                            <TextBlock VerticalAlignment="Center"
+                                       FontFamily="Segoe UI Variable Display, Segoe UI"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Foreground="{Binding TextPrimaryBrush}"
+                                       Text="OPS DOCK" />
+                        </StackPanel>
+                        <TextBlock Grid.Row="1"
+                                   Margin="17,3,0,0"
+                                   VerticalAlignment="Top"
+                                   FontFamily="Segoe UI Variable Text, Segoe UI"
+                                   FontSize="11"
+                                   Foreground="{Binding TextSecondaryBrush}"
+                                   Text="{Binding LastUpdatedText}"
+                                   TextTrimming="CharacterEllipsis" />
+                    </Grid>
+
+                    <Border Grid.Column="1"
+                            Margin="0,5"
+                            Background="{Binding BorderBrush}" />
+
+                    <ItemsControl Grid.Column="2"
+                                  Margin="12,0,0,0"
+                                  VerticalAlignment="Center"
+                                  ItemsPanel="{StaticResource DockMetricPanel}"
+                                  ItemsSource="{Binding Metrics}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <controls:MetricCard Layout="{Binding DataContext.Layout, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                     Density="{Binding DataContext.Density, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                     ContentOpacity="{Binding DataContext.ContentOpacity, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Grid Grid.Column="3">
+                        <Button x:Name="DockSettingsButton"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="Quick settings"
+                                Click="SettingsButton_OnClick"
+                                Style="{StaticResource IconButtonStyle}">
+                            <TextBlock FontFamily="Segoe UI Symbol"
+                                       FontSize="18"
+                                       Text="⚙" />
+                        </Button>
+
+                        <Border Width="18"
+                                Height="18"
+                                Margin="0,0,-2,-2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Background="Transparent"
+                                Cursor="SizeNWSE"
+                                MouseLeftButtonDown="ResizeGrip_OnMouseLeftButtonDown"
+                                Visibility="{Binding CanResize, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Path Width="9"
+                                  Height="9"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Bottom"
+                                  Data="M2,9 L9,2 M6,9 L9,6"
+                                  Stretch="Uniform"
+                                  Stroke="{Binding TextSecondaryBrush}"
+                                  StrokeEndLineCap="Round"
+                                  StrokeThickness="1.3" />
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <Rectangle Margin="4"
+                           IsHitTestVisible="False"
+                           RadiusX="21"
+                           RadiusY="21"
+                           Stroke="#5548DCF9"
+                           StrokeDashArray="3,3"
+                           StrokeThickness="1"
+                           Visibility="{Binding IsEditMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+            </Grid>
+        </Border>
+
+        <Popup x:Name="QuickSettingsPopup"
+               Width="326"
+               AllowsTransparency="True"
+               HorizontalOffset="-274"
+               IsOpen="{Binding IsSettingsOpen, Mode=TwoWay}"
+               Placement="Bottom"
+               PlacementTarget="{Binding ElementName=SettingsButton}"
+               StaysOpen="False"
+               VerticalOffset="8">
+            <Border Padding="16"
+                    Background="{Binding FlyoutBrush}"
+                    BorderBrush="{Binding BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="18">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20"
+                                      Direction="270"
+                                      Opacity="0.52"
+                                      ShadowDepth="5"
+                                      Color="#FF000000" />
+                </Border.Effect>
+                <ScrollViewer MaxHeight="700"
+                              HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,4,0">
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock FontFamily="Segoe UI Variable Display, Segoe UI"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       Foreground="{Binding TextPrimaryBrush}"
+                                       Text="Quick settings" />
+                            <TextBlock Margin="0,3,0,0"
+                                       FontFamily="Segoe UI Variable Text, Segoe UI"
+                                       FontSize="12"
+                                       Foreground="{Binding TextSecondaryBrush}"
+                                       Text="Layout, density and interaction" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                AutomationProperties.Name="Close quick settings"
+                                Click="CloseSettings_OnClick"
+                                Style="{StaticResource IconButtonStyle}">
+                            <TextBlock FontFamily="Segoe UI Symbol"
+                                       FontSize="15"
+                                       Text="✕" />
+                        </Button>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource SettingLabelStyle}" Text="Layout" />
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding LayoutOptions}"
+                                  SelectedItem="{Binding Layout, Mode=TwoWay}"
+                                  Style="{StaticResource SettingComboStyle}" />
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource SettingLabelStyle}" Text="Information density" />
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding DensityOptions}"
+                                  SelectedItem="{Binding Density, Mode=TwoWay}"
+                                  Style="{StaticResource SettingComboStyle}" />
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource SettingLabelStyle}" Text="Theme" />
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding ThemeOptions}"
+                                  SelectedItem="{Binding ThemeName, Mode=TwoWay}"
+                                  Style="{StaticResource SettingComboStyle}" />
+                    </Grid>
+
+                    <Grid Margin="0,2,0,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource SettingLabelStyle}" Text="Surface opacity" />
+                        <TextBlock Grid.Column="1"
+                                   FontFamily="Segoe UI Variable Display, Segoe UI"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{Binding TextPrimaryBrush}"
+                                   Text="{Binding SurfaceOpacity, StringFormat={}{0:P0}}" />
+                        <Slider Grid.Row="1"
+                                Grid.ColumnSpan="2"
+                                Margin="0,7,0,0"
+                                Minimum="0.28"
+                                Maximum="0.98"
+                                SmallChange="0.02"
+                                LargeChange="0.1"
+                                TickFrequency="0.05"
+                                Style="{StaticResource SettingSliderStyle}"
+                                Value="{Binding SurfaceOpacity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </Grid>
+
+                    <Grid Margin="0,0,0,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource SettingLabelStyle}" Text="Content opacity" />
+                        <TextBlock Grid.Column="1"
+                                   FontFamily="Segoe UI Variable Display, Segoe UI"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{Binding TextPrimaryBrush}"
+                                   Text="{Binding ContentOpacity, StringFormat={}{0:P0}}" />
+                        <Slider Grid.Row="1"
+                                Grid.ColumnSpan="2"
+                                Margin="0,7,0,0"
+                                Minimum="0.65"
+                                Maximum="1"
+                                SmallChange="0.02"
+                                LargeChange="0.1"
+                                TickFrequency="0.05"
+                                Style="{StaticResource SettingSliderStyle}"
+                                Value="{Binding ContentOpacity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </Grid>
+
+                    <Grid Margin="0,0,0,14">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource SettingLabelStyle}" Text="Update frequency" />
+                        <TextBlock Grid.Column="1"
+                                   FontFamily="Segoe UI Variable Display, Segoe UI"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{Binding TextPrimaryBrush}"
+                                   Text="{Binding UpdateCadenceSeconds, StringFormat={}{0:0.0} s}" />
+                        <Slider Grid.Row="1"
+                                Grid.ColumnSpan="2"
+                                Margin="0,7,0,0"
+                                Minimum="0.5"
+                                Maximum="10"
+                                SmallChange="0.5"
+                                LargeChange="1"
+                                TickFrequency="0.5"
+                                IsSnapToTickEnabled="True"
+                                Style="{StaticResource SettingSliderStyle}"
+                                Value="{Binding UpdateCadenceSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </Grid>
+
+                    <TextBlock Margin="0,0,0,7"
+                               Style="{StaticResource SettingLabelStyle}"
+                               Text="Window behavior" />
+                    <UniformGrid Margin="0,0,0,8" Columns="2">
+                        <ToggleButton Margin="0,0,5,0"
+                                       Content="Always on top"
+                                       IsChecked="{Binding Topmost, Mode=TwoWay}"
+                                       Style="{StaticResource SettingToggleStyle}" />
+                        <ToggleButton Margin="5,0,0,0"
+                                      Content="Start with Windows"
+                                      IsChecked="{Binding StartAtSignIn, Mode=TwoWay}"
+                                      Style="{StaticResource SettingToggleStyle}" />
+                    </UniformGrid>
+                    <UniformGrid Margin="0,0,0,8" Columns="2">
+                        <ToggleButton Margin="0,0,5,0"
+                                      Content="Draggable"
+                                      IsChecked="{Binding Draggable, Mode=TwoWay}"
+                                      Style="{StaticResource SettingToggleStyle}" />
+                        <ToggleButton Margin="5,0,0,0"
+                                      Content="Resizable"
+                                      IsChecked="{Binding Resizable, Mode=TwoWay}"
+                                      Style="{StaticResource SettingToggleStyle}" />
+                    </UniformGrid>
+                    <ToggleButton Margin="0,0,0,14"
+                                  Content="Show battery module"
+                                  IsChecked="{Binding ShowBattery, Mode=TwoWay}"
+                                  Style="{StaticResource SettingToggleStyle}" />
+
+                    <TextBlock Margin="0,0,0,7"
+                               Style="{StaticResource SettingLabelStyle}"
+                               Text="Interaction mode" />
+                    <UniformGrid Margin="0,0,0,12" Columns="3">
+                        <Button Margin="0,0,4,0"
+                                Click="EditMode_OnClick"
+                                Content="Edit"
+                                Style="{StaticResource ActionButtonStyle}" />
+                        <Button Margin="4,0"
+                                Click="LockedMode_OnClick"
+                                Content="Locked"
+                                Style="{StaticResource ActionButtonStyle}" />
+                        <Button Margin="4,0,0,0"
+                                Click="ClickThroughMode_OnClick"
+                                Content="Click-through"
+                                Style="{StaticResource ActionButtonStyle}" />
+                    </UniformGrid>
+
+                    <Button Click="LaunchStudio_OnClick"
+                            Content="Open full Studio"
+                            Style="{StaticResource ActionButtonStyle}" />
+
+                    <Border Margin="0,12,0,0"
+                            Padding="10,8"
+                            Background="{Binding TrackBrush}"
+                            CornerRadius="10">
+                        <TextBlock FontFamily="Segoe UI Variable Text, Segoe UI"
+                                   FontSize="12"
+                                   Foreground="{Binding TextSecondaryBrush}"
+                                   Text="{Binding HotkeyHint}"
+                                   TextWrapping="Wrap" />
+                    </Border>
+                </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Popup>
+    </Grid>
+</Window>

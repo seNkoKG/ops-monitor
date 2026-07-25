@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OpsMonitor.Core/OpsMonitor.Core.csproj" />
+    <Project Path="src/OpsMonitor.Studio/OpsMonitor.Studio.csproj" />
+    <Project Path="src/OpsMonitor.Widget/OpsMonitor.Widget.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OpsMonitor.Tests/OpsMonitor.Tests.csproj" />
+  </Folder>
+</Solution>

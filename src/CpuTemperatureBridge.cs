@@ -55,7 +55,28 @@ namespace PerformancePill.SensorBridge
 
         private static bool IsWidgetRunning()
         {
-            return FindWindow(null, "Performance Pill") != IntPtr.Zero;
+            if (FindWindow(null, "Performance Pill") != IntPtr.Zero ||
+                FindWindow(null, "OPS Monitor") != IntPtr.Zero)
+                return true;
+
+            Process[] processes = null;
+            try
+            {
+                processes = Process.GetProcessesByName("OpsMonitor.Widget");
+                return processes.Length > 0;
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                if (processes != null)
+                {
+                    foreach (var process in processes)
+                        process.Dispose();
+                }
+            }
         }
 
         private static bool TryReadRyzenTemperature(out double temperature)

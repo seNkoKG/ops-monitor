@@ -1,0 +1,960 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Security;
+using System.Windows;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Threading;
+using OpsMonitor.Core.Platform;
+using OpsMonitor.Widget.Interop;
+using OpsMonitor.Widget.Models;
+using OpsMonitor.Widget.Services;
+using OpsMonitor.Widget.ViewModels;
+using Drawing = System.Drawing;
+using Forms = System.Windows.Forms;
+using ButtonBase = System.Windows.Controls.Primitives.ButtonBase;
+using MessageBox = System.Windows.MessageBox;
+using Size = System.Windows.Size;
+using JsonSettingsRepository = OpsMonitor.Core.Settings.JsonSettingsRepository;
+
+namespace OpsMonitor.Widget;
+
+[SuppressMessage(
+    "Design",
+    "CA1001",
+    Justification = "WPF Window lifetime owns and disposes tray and telemetry resources in OnClosed.")]
+public partial class MainWindow : Window
+{
+    private static readonly HashSet<string> PersistedViewModelProperties =
+    [
+        nameof(MainWindowViewModel.Layout),
+        nameof(MainWindowViewModel.Density),
+        nameof(MainWindowViewModel.InteractionMode),
+        nameof(MainWindowViewModel.ThemeName),
+        nameof(MainWindowViewModel.Topmost),
+        nameof(MainWindowViewModel.Draggable),
+        nameof(MainWindowViewModel.Resizable),
+        nameof(MainWindowViewModel.ShowBattery),
+        nameof(MainWindowViewModel.StartAtSignIn),
+        nameof(MainWindowViewModel.UpdateCadenceSeconds),
+        nameof(MainWindowViewModel.SurfaceOpacity),
+        nameof(MainWindowViewModel.ContentOpacity)
+    ];
+
+    private readonly WidgetSettings _startupSettings;
+    private readonly MainWindowViewModel _viewModel;
+    private readonly DispatcherTimer _saveTimer;
+    private readonly DebouncedSettingsFileWatcher _settingsWatcher;
+    private readonly WindowsStartupRegistration _startupRegistration =
+        new("OPS Monitor Widget");
+    private Forms.NotifyIcon? _trayIcon;
+    private Forms.ContextMenuStrip? _trayMenu;
+    private Forms.ToolStripMenuItem? _topmostTrayItem;
+    private Forms.ToolStripMenuItem? _lockedTrayItem;
+    private Forms.ToolStripMenuItem? _clickThroughTrayItem;
+    private HwndSource? _windowSource;
+    private HwndSourceHook? _hotkeyHook;
+    private nint _windowHandle;
+    private bool _isLoaded;
+    private bool _isRestoringGeometry;
+    private bool _isApplyingExternalSettings;
+    private bool _isClosing;
+    private bool _hotkeyRegistered;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+
+        _startupSettings = LoadLaunchSettings(Environment.GetCommandLineArgs().Skip(1));
+        _viewModel = new MainWindowViewModel(CreateTelemetrySource(), _startupSettings);
+        DataContext = _viewModel;
+        _settingsWatcher = new DebouncedSettingsFileWatcher(
+            JsonSettingsRepository.GetDefaultSettingsPath());
+        _settingsWatcher.ReloadRequested += SettingsWatcher_OnReloadRequested;
+
+        _saveTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(450)
+        };
+        _saveTimer.Tick += SaveTimer_OnTick;
+
+        _viewModel.PropertyChanged += ViewModel_OnPropertyChanged;
+        Loaded += MainWindow_OnLoaded;
+        LocationChanged += WindowGeometry_OnChanged;
+        SizeChanged += WindowGeometry_OnChanged;
+
+        ApplyInitialGeometry();
+        UpdateWindowConstraints();
+        if (!_startupSettings.Width.HasValue || !_startupSettings.Height.HasValue)
+        {
+            ApplySuggestedSize();
+        }
+    }
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+
+        _windowHandle = new WindowInteropHelper(this).Handle;
+        _windowSource = HwndSource.FromHwnd(_windowHandle);
+        _hotkeyHook = NativeMethods.CreateHotkeyHook(RestoreEditMode);
+        _windowSource?.AddHook(_hotkeyHook);
+        _hotkeyRegistered = NativeMethods.RegisterEditHotkey(_windowHandle);
+        ApplyInteractionMode();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _isClosing = true;
+        SaveNow();
+        _settingsWatcher.ReloadRequested -= SettingsWatcher_OnReloadRequested;
+        _settingsWatcher.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        _saveTimer.Stop();
+        _viewModel.PropertyChanged -= ViewModel_OnPropertyChanged;
+        _viewModel.Dispose();
+
+        if (_windowSource is not null && _hotkeyHook is not null)
+        {
+            _windowSource.RemoveHook(_hotkeyHook);
+        }
+
+        if (_hotkeyRegistered && _windowHandle != 0)
+        {
+            NativeMethods.UnregisterEditHotkey(_windowHandle);
+        }
+
+        if (_trayIcon is not null)
+        {
+            _trayIcon.Visible = false;
+            _trayIcon.Icon?.Dispose();
+            _trayIcon.Dispose();
+        }
+
+        _trayMenu?.Dispose();
+        base.OnClosed(e);
+    }
+
+    [SuppressMessage(
+        "Performance",
+        "CA1859",
+        Justification = "The interface is the deliberate seam for the production Core telemetry adapter.")]
+    private static ITelemetrySource CreateTelemetrySource()
+    {
+        var isDemo = Environment.GetCommandLineArgs().Any(argument =>
+            argument.Equals("--demo", StringComparison.OrdinalIgnoreCase));
+        return isDemo
+            ? new DemoTelemetrySource()
+            : new CoreTelemetrySource();
+    }
+
+    private static WidgetSettings LoadLaunchSettings(IEnumerable<string> launchArguments)
+    {
+        var arguments = launchArguments.ToArray();
+        var resetRequested = arguments.Any(argument =>
+            argument.Equals("--reset-ui", StringComparison.OrdinalIgnoreCase));
+        var settings = resetRequested ? new WidgetSettings() : WidgetSettingsStore.Reload();
+
+        foreach (var argument in arguments)
+        {
+            if (TryReadArgument(argument, "--layout", out var layout) &&
+                Enum.TryParse<WidgetLayout>(layout, true, out var parsedLayout))
+            {
+                settings.Layout = parsedLayout;
+            }
+            else if (TryReadArgument(argument, "--density", out var density) &&
+                     Enum.TryParse<WidgetDensity>(density, true, out var parsedDensity))
+            {
+                settings.Density = parsedDensity;
+            }
+            else if (TryReadArgument(argument, "--theme", out var theme))
+            {
+                settings.Theme = theme;
+            }
+            else if (argument.Equals("--show-battery", StringComparison.OrdinalIgnoreCase))
+            {
+                settings.ShowBattery = true;
+                if (!settings.EnabledModules.Contains(
+                        WidgetModuleCatalog.Battery,
+                        StringComparer.Ordinal))
+                {
+                    settings.EnabledModules.Add(WidgetModuleCatalog.Battery);
+                }
+            }
+            else if (argument.Equals("--demo", StringComparison.OrdinalIgnoreCase))
+            {
+                // Explicitly recognized for deterministic visual QA.
+            }
+        }
+
+        return settings;
+    }
+
+    private static bool TryReadArgument(string argument, string name, out string value)
+    {
+        var prefix = name + "=";
+        if (argument.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            value = argument[prefix.Length..];
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
+    private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+
+        InitializeTrayIcon();
+        EnsureVisibleOnScreen();
+        _isLoaded = true;
+        _viewModel.Start();
+        ApplyInteractionMode();
+        _ = StartSettingsWatcherAsync();
+        ScheduleSave();
+    }
+
+    private void ApplyInitialGeometry()
+    {
+        _isRestoringGeometry = true;
+        try
+        {
+            var suggested = GetSuggestedSize(
+                _startupSettings.Layout,
+                _startupSettings.Density,
+                _startupSettings.ShowBattery);
+            Width = _startupSettings.Width ?? suggested.Width;
+            Height = _startupSettings.Height ?? suggested.Height;
+
+            if (_startupSettings.Left is { } left && _startupSettings.Top is { } top)
+            {
+                Left = left;
+                Top = top;
+            }
+        }
+        finally
+        {
+            _isRestoringGeometry = false;
+        }
+    }
+
+    private void EnsureVisibleOnScreen()
+    {
+        if (!double.IsFinite(Left) || !double.IsFinite(Top))
+        {
+            PlaceNearTopRight();
+            return;
+        }
+
+        var virtualLeft = SystemParameters.VirtualScreenLeft;
+        var virtualTop = SystemParameters.VirtualScreenTop;
+        var virtualRight = virtualLeft + SystemParameters.VirtualScreenWidth;
+        var virtualBottom = virtualTop + SystemParameters.VirtualScreenHeight;
+        var visibleMargin = 48;
+
+        var isOffScreen =
+            Left + visibleMargin > virtualRight ||
+            Top + visibleMargin > virtualBottom ||
+            Left + Width - visibleMargin < virtualLeft ||
+            Top + Height - visibleMargin < virtualTop;
+
+        if (isOffScreen)
+        {
+            PlaceNearTopRight();
+        }
+    }
+
+    private void PlaceNearTopRight()
+    {
+        var workArea = SystemParameters.WorkArea;
+        Left = Math.Max(workArea.Left + 16, workArea.Right - Width - 24);
+        Top = workArea.Top + 72;
+    }
+
+    private void InitializeTrayIcon()
+    {
+        if (_trayIcon is not null)
+        {
+            return;
+        }
+
+        _trayMenu = new Forms.ContextMenuStrip();
+        _trayMenu.Items.Add(CreateTrayItem("Show and edit", (_, _) => Dispatch(RestoreEditMode)));
+        _trayMenu.Items.Add(new Forms.ToolStripSeparator());
+
+        var layoutMenu = new Forms.ToolStripMenuItem("Layout");
+        foreach (var layout in Enum.GetValues<WidgetLayout>())
+        {
+            var layoutItem = CreateTrayItem(
+                layout.ToString(),
+                (_, _) => Dispatch(() => _viewModel.Layout = layout));
+            layoutItem.Tag = layout;
+            layoutMenu.DropDownItems.Add(layoutItem);
+        }
+
+        _trayMenu.Items.Add(layoutMenu);
+        _topmostTrayItem = CreateTrayItem(
+            "Always on top",
+            (_, _) => Dispatch(() => _viewModel.Topmost = !_viewModel.Topmost));
+        _lockedTrayItem = CreateTrayItem(
+            "Lock position",
+            (_, _) => Dispatch(() =>
+                _viewModel.InteractionMode = _viewModel.InteractionMode == WidgetInteractionMode.Locked
+                    ? WidgetInteractionMode.Edit
+                    : WidgetInteractionMode.Locked));
+        _clickThroughTrayItem = CreateTrayItem(
+            "Click-through",
+            (_, _) => Dispatch(() =>
+                _viewModel.InteractionMode = _viewModel.InteractionMode == WidgetInteractionMode.ClickThrough
+                    ? WidgetInteractionMode.Edit
+                    : WidgetInteractionMode.ClickThrough));
+
+        _trayMenu.Items.Add(_topmostTrayItem);
+        _trayMenu.Items.Add(_lockedTrayItem);
+        _trayMenu.Items.Add(_clickThroughTrayItem);
+        _trayMenu.Items.Add(new Forms.ToolStripSeparator());
+        _trayMenu.Items.Add(CreateTrayItem("Open Studio", (_, _) => Dispatch(LaunchStudio)));
+        _trayMenu.Items.Add(CreateTrayItem("Exit", (_, _) => Dispatch(Close)));
+        _trayMenu.Opening += TrayMenu_OnOpening;
+
+        _trayIcon = new Forms.NotifyIcon
+        {
+            Icon = LoadApplicationIcon(),
+            Text = "OPS Monitor · Ctrl+Alt+O to edit",
+            ContextMenuStrip = _trayMenu,
+            Visible = true
+        };
+        _trayIcon.DoubleClick += (_, _) => Dispatch(RestoreEditMode);
+    }
+
+    private static Drawing.Icon LoadApplicationIcon()
+    {
+        var executablePath = Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(executablePath))
+        {
+            var icon = Drawing.Icon.ExtractAssociatedIcon(executablePath);
+            if (icon is not null)
+            {
+                return icon;
+            }
+        }
+
+        return (Drawing.Icon)Drawing.SystemIcons.Application.Clone();
+    }
+
+    private static Forms.ToolStripMenuItem CreateTrayItem(
+        string text,
+        EventHandler handler)
+    {
+        var item = new Forms.ToolStripMenuItem(text);
+        item.Click += handler;
+        return item;
+    }
+
+    private void TrayMenu_OnOpening(object? sender, CancelEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+
+        if (_topmostTrayItem is not null)
+        {
+            _topmostTrayItem.Checked = _viewModel.Topmost;
+        }
+
+        if (_lockedTrayItem is not null)
+        {
+            _lockedTrayItem.Checked = _viewModel.InteractionMode == WidgetInteractionMode.Locked;
+        }
+
+        if (_clickThroughTrayItem is not null)
+        {
+            _clickThroughTrayItem.Checked =
+                _viewModel.InteractionMode == WidgetInteractionMode.ClickThrough;
+        }
+
+        if (_trayMenu?.Items.OfType<Forms.ToolStripMenuItem>()
+                .FirstOrDefault(item => item.Text == "Layout") is { } layoutMenu)
+        {
+            foreach (var item in layoutMenu.DropDownItems.OfType<Forms.ToolStripMenuItem>())
+            {
+                item.Checked = item.Tag is WidgetLayout layout && layout == _viewModel.Layout;
+            }
+        }
+    }
+
+    private void Dispatch(Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        _ = Dispatcher.BeginInvoke(action);
+    }
+
+    private void ViewModel_OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        _ = sender;
+
+        switch (e.PropertyName)
+        {
+            case nameof(MainWindowViewModel.Layout):
+            case nameof(MainWindowViewModel.Density):
+                UpdateWindowConstraints();
+                if (_isLoaded && !_isApplyingExternalSettings)
+                {
+                    ApplySuggestedSize();
+                }
+
+                break;
+            case nameof(MainWindowViewModel.InteractionMode):
+                ApplyInteractionMode();
+                break;
+            case nameof(MainWindowViewModel.Topmost):
+                Topmost = _viewModel.Topmost;
+                break;
+            case nameof(MainWindowViewModel.ShowBattery):
+                if (_isLoaded)
+                {
+                    ApplySuggestedSize();
+                }
+
+                break;
+        }
+
+        if (!_isApplyingExternalSettings &&
+            e.PropertyName is not null &&
+            PersistedViewModelProperties.Contains(e.PropertyName))
+        {
+            ScheduleSave();
+        }
+    }
+
+    private void UpdateWindowConstraints()
+    {
+        switch (_viewModel.Layout, _viewModel.Density)
+        {
+            case (WidgetLayout.Dock, WidgetDensity.Compact):
+                MinWidth = 880;
+                MinHeight = 108;
+                break;
+            case (WidgetLayout.Dock, _):
+                MinWidth = 760;
+                MinHeight = 198;
+                break;
+            case (WidgetLayout.Pill, WidgetDensity.Compact):
+                MinWidth = 228;
+                MinHeight = 420;
+                break;
+            case (WidgetLayout.Pill, _):
+                MinWidth = 228;
+                MinHeight = 520;
+                break;
+            case (WidgetLayout.Rail, WidgetDensity.Compact):
+                MinWidth = 204;
+                MinHeight = 326;
+                break;
+            default:
+                MinWidth = 216;
+                MinHeight = 520;
+                break;
+        }
+    }
+
+    private void ApplySuggestedSize()
+    {
+        var suggested = GetSuggestedSize(
+            _viewModel.Layout,
+            _viewModel.Density,
+            _viewModel.ShowBattery);
+        var workArea = SystemParameters.WorkArea;
+        Width = Math.Clamp(suggested.Width, MinWidth, Math.Min(MaxWidth, workArea.Width - 32));
+        Height = Math.Clamp(suggested.Height, MinHeight, Math.Min(MaxHeight, workArea.Height - 32));
+        EnsureVisibleOnScreen();
+    }
+
+    private static Size GetSuggestedSize(
+        WidgetLayout layout,
+        WidgetDensity density,
+        bool showBattery)
+    {
+        var baseline = (layout, density) switch
+        {
+            (WidgetLayout.Dock, WidgetDensity.Compact) => new Size(880, 118),
+            (WidgetLayout.Dock, WidgetDensity.Normal) => new Size(940, 238),
+            (WidgetLayout.Dock, WidgetDensity.Detail) => new Size(1_100, 292),
+            (WidgetLayout.Pill, WidgetDensity.Compact) => new Size(240, 420),
+            (WidgetLayout.Pill, WidgetDensity.Normal) => new Size(290, 660),
+            (WidgetLayout.Pill, WidgetDensity.Detail) => new Size(320, 820),
+            (WidgetLayout.Rail, WidgetDensity.Normal) => new Size(250, 660),
+            (WidgetLayout.Rail, WidgetDensity.Detail) => new Size(276, 820),
+            _ => new Size(204, 326)
+        };
+
+        if (!showBattery)
+        {
+            return baseline;
+        }
+
+        return layout switch
+        {
+            WidgetLayout.Dock => new Size(baseline.Width + 160, baseline.Height),
+            WidgetLayout.Rail when density == WidgetDensity.Compact =>
+                new Size(baseline.Width, baseline.Height + 48),
+            WidgetLayout.Pill when density == WidgetDensity.Compact =>
+                new Size(baseline.Width, baseline.Height + 70),
+            _ => new Size(baseline.Width, Math.Min(1_000, baseline.Height + 112))
+        };
+    }
+
+    private void ApplyInteractionMode()
+    {
+        if (_windowHandle == 0)
+        {
+            return;
+        }
+
+        var clickThrough = _viewModel.InteractionMode == WidgetInteractionMode.ClickThrough;
+        NativeMethods.SetClickThrough(_windowHandle, clickThrough);
+        if (!clickThrough)
+        {
+            IsHitTestVisible = true;
+        }
+    }
+
+    private void RestoreEditMode()
+    {
+        _viewModel.InteractionMode = WidgetInteractionMode.Edit;
+        NativeMethods.SetClickThrough(_windowHandle, false);
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+        (_viewModel.Layout == WidgetLayout.Dock
+            ? DockSettingsButton
+            : SettingsButton).Focus();
+    }
+
+    private void DragHeader_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _ = sender;
+
+        if (!_viewModel.CanDrag ||
+            e.LeftButton != MouseButtonState.Pressed ||
+            FindVisualAncestor<ButtonBase>(e.OriginalSource as DependencyObject) is not null)
+        {
+            return;
+        }
+
+        DragMove();
+    }
+
+    private void ResizeGrip_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _ = sender;
+
+        if (!_viewModel.CanResize || _windowHandle == 0)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        NativeMethods.BeginBottomRightResize(_windowHandle);
+    }
+
+    private static T? FindVisualAncestor<T>(DependencyObject? element)
+        where T : DependencyObject
+    {
+        while (element is not null)
+        {
+            if (element is T match)
+            {
+                return match;
+            }
+
+            element = VisualTreeHelper.GetParent(element);
+        }
+
+        return null;
+    }
+
+    private void SettingsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = e;
+        if (sender is ButtonBase placementTarget)
+        {
+            QuickSettingsPopup.PlacementTarget = placementTarget;
+        }
+
+        _viewModel.IsSettingsOpen = !_viewModel.IsSettingsOpen;
+    }
+
+    private void CloseSettings_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        _viewModel.IsSettingsOpen = false;
+    }
+
+    private void EditMode_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        _viewModel.InteractionMode = WidgetInteractionMode.Edit;
+    }
+
+    private void LockedMode_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        _viewModel.InteractionMode = WidgetInteractionMode.Locked;
+        _viewModel.IsSettingsOpen = false;
+    }
+
+    private void ClickThroughMode_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        _viewModel.IsSettingsOpen = false;
+        _viewModel.InteractionMode = WidgetInteractionMode.ClickThrough;
+
+        if (_trayIcon is not null)
+        {
+            _trayIcon.BalloonTipTitle = "Click-through enabled";
+            _trayIcon.BalloonTipText = _hotkeyRegistered
+                ? "Press Ctrl+Alt+O or use the tray menu to return to Edit mode."
+                : "Use the OPS Monitor tray menu to return to Edit mode.";
+            _trayIcon.ShowBalloonTip(3_500);
+        }
+    }
+
+    private void LaunchStudio_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        LaunchStudio();
+    }
+
+    private void LaunchStudio()
+    {
+        var executable = FindStudioExecutable();
+        if (executable is not null)
+        {
+            StartProcess(new ProcessStartInfo(executable)
+            {
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(executable)
+            });
+            return;
+        }
+
+        var project = FindStudioProject();
+        if (project is not null)
+        {
+            var startInfo = new ProcessStartInfo("dotnet")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetDirectoryName(project)
+            };
+            startInfo.ArgumentList.Add("run");
+            startInfo.ArgumentList.Add("--project");
+            startInfo.ArgumentList.Add(project);
+            StartProcess(startInfo);
+            return;
+        }
+
+        MessageBox.Show(
+            this,
+            "OPS Monitor Studio is not installed beside the widget yet.",
+            "OPS Monitor",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
+    private static void StartProcess(ProcessStartInfo startInfo)
+    {
+        try
+        {
+            using var process = Process.Start(startInfo);
+        }
+        catch (Win32Exception)
+        {
+            // The shell or dotnet host could not start. The widget remains usable.
+        }
+        catch (InvalidOperationException)
+        {
+            // Invalid launch configuration should not take down the widget.
+        }
+    }
+
+    private static string? FindStudioExecutable()
+    {
+        var besideWidget = Path.Combine(AppContext.BaseDirectory, "OpsMonitor.Studio.exe");
+        if (File.Exists(besideWidget))
+        {
+            return besideWidget;
+        }
+
+        var project = FindStudioProject();
+        var binDirectory = project is null
+            ? null
+            : Path.Combine(Path.GetDirectoryName(project)!, "bin");
+        if (binDirectory is null || !Directory.Exists(binDirectory))
+        {
+            return null;
+        }
+
+        try
+        {
+            return Directory
+                .EnumerateFiles(binDirectory, "OpsMonitor.Studio.exe", SearchOption.AllDirectories)
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static string? FindStudioProject()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        for (var depth = 0; depth < 8 && directory is not null; depth++, directory = directory.Parent)
+        {
+            if (!directory.Name.Equals("OpsMonitor.Widget", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var candidate = Path.Combine(
+                directory.Parent?.FullName ?? string.Empty,
+                "OpsMonitor.Studio",
+                "OpsMonitor.Studio.csproj");
+            return File.Exists(candidate) ? candidate : null;
+        }
+
+        return null;
+    }
+
+    private void WindowGeometry_OnChanged(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+
+        if (!_isRestoringGeometry)
+        {
+            ScheduleSave();
+        }
+    }
+
+    private void ScheduleSave()
+    {
+        if (!_isLoaded)
+        {
+            return;
+        }
+
+        _saveTimer.Stop();
+        _saveTimer.Start();
+    }
+
+    private void SaveTimer_OnTick(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        _saveTimer.Stop();
+        SaveNow();
+    }
+
+    private async Task StartSettingsWatcherAsync()
+    {
+        try
+        {
+            await _settingsWatcher.StartAsync().ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            // The window closed before the watcher finished starting.
+        }
+        catch (IOException)
+        {
+            // Explicit Studio restart/apply remains available.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // A restricted profile must not take down the widget.
+        }
+    }
+
+    private void SettingsWatcher_OnReloadRequested(
+        object? sender,
+        SettingsReloadRequestedEventArgs eventArgs)
+    {
+        _ = sender;
+        _ = eventArgs;
+
+        var settings = WidgetSettingsStore.Reload();
+        _ = Dispatcher.BeginInvoke(() => ApplyExternalSettings(settings));
+        if (_viewModel.TelemetrySource is CoreTelemetrySource core)
+        {
+            core.ReloadSettings();
+        }
+    }
+
+    private void ApplyExternalSettings(WidgetSettings settings)
+    {
+        _isApplyingExternalSettings = true;
+        _isRestoringGeometry = true;
+        try
+        {
+            _viewModel.Layout = settings.Layout;
+            _viewModel.Density = settings.Density;
+            _viewModel.InteractionMode = settings.InteractionMode;
+            _viewModel.ThemeName = settings.Theme;
+            _viewModel.Topmost = settings.Topmost;
+            _viewModel.Draggable = settings.Draggable;
+            _viewModel.Resizable = settings.Resizable;
+            _viewModel.ApplyModuleConfiguration(
+                settings.ModuleOrder,
+                settings.EnabledModules);
+            _viewModel.StartAtSignIn = settings.StartAtSignIn;
+            _viewModel.UpdateCadenceSeconds = settings.UpdateCadenceSeconds;
+            _viewModel.SurfaceOpacity = settings.SurfaceOpacity;
+            _viewModel.ContentOpacity = settings.ContentOpacity;
+
+            UpdateWindowConstraints();
+            if (settings.Width is { } width)
+            {
+                Width = Math.Clamp(width, MinWidth, MaxWidth);
+            }
+
+            if (settings.Height is { } height)
+            {
+                Height = Math.Clamp(height, MinHeight, MaxHeight);
+            }
+
+            if (settings.Left is { } left && settings.Top is { } top)
+            {
+                Left = left;
+                Top = top;
+            }
+
+            EnsureVisibleOnScreen();
+            ApplyInteractionMode();
+            SynchronizeStartupRegistration(settings.StartAtSignIn);
+        }
+        finally
+        {
+            _isRestoringGeometry = false;
+            _isApplyingExternalSettings = false;
+        }
+    }
+
+    private void SaveNow()
+    {
+        var settings = new WidgetSettings
+        {
+            Layout = _viewModel.Layout,
+            Density = _viewModel.Density,
+            InteractionMode = _viewModel.InteractionMode,
+            Theme = _viewModel.ThemeName,
+            Topmost = _viewModel.Topmost,
+            Draggable = _viewModel.Draggable,
+            Resizable = _viewModel.Resizable,
+            ShowBattery = _viewModel.ShowBattery,
+            ModuleOrder = [.. _viewModel.GetModuleOrder()],
+            EnabledModules = [.. _viewModel.GetEnabledModules()],
+            StartAtSignIn = _viewModel.StartAtSignIn,
+            UpdateCadenceSeconds = _viewModel.UpdateCadenceSeconds,
+            SurfaceOpacity = _viewModel.SurfaceOpacity,
+            ContentOpacity = _viewModel.ContentOpacity,
+            Left = RestoreBounds.Left,
+            Top = RestoreBounds.Top,
+            Width = RestoreBounds.Width,
+            Height = RestoreBounds.Height
+        };
+
+        IDisposable? suppression = null;
+        try
+        {
+            if (_settingsWatcher.IsRunning)
+            {
+                suppression = _settingsWatcher.SuppressNotifications();
+            }
+
+            if (WidgetSettingsStore.Save(settings))
+            {
+                SynchronizeStartupRegistration(settings.StartAtSignIn);
+                if (!_isClosing &&
+                    _viewModel.TelemetrySource is CoreTelemetrySource core)
+                {
+                    core.ReloadSettings();
+                }
+            }
+        }
+        finally
+        {
+            suppression?.Dispose();
+        }
+    }
+
+    private void SynchronizeStartupRegistration(bool enabled)
+    {
+        try
+        {
+            if (!enabled)
+            {
+                _ = _startupRegistration.Remove();
+                return;
+            }
+
+            var executablePath = FindCurrentWidgetExecutable();
+            if (executablePath is null ||
+                _startupRegistration.IsRegisteredFor(executablePath))
+            {
+                return;
+            }
+
+            _ = _startupRegistration.Register(executablePath);
+        }
+        catch (Exception exception) when (
+            exception is IOException or
+            UnauthorizedAccessException or
+            SecurityException or
+            ArgumentException or
+            PlatformNotSupportedException)
+        {
+            // Startup registration is optional and must not disrupt monitoring.
+        }
+    }
+
+    private static string? FindCurrentWidgetExecutable()
+    {
+        var processPath = Environment.ProcessPath;
+        if (processPath is not null && IsWidgetExecutable(processPath))
+        {
+            return Path.GetFullPath(processPath);
+        }
+
+        var appHostPath = Path.ChangeExtension(
+            typeof(MainWindow).Assembly.Location,
+            ".exe");
+        return IsWidgetExecutable(appHostPath)
+            ? Path.GetFullPath(appHostPath)
+            : null;
+    }
+
+    private static bool IsWidgetExecutable(string? path) =>
+        !string.IsNullOrWhiteSpace(path) &&
+        Path.GetFileName(path).Equals(
+            "OpsMonitor.Widget.exe",
+            StringComparison.OrdinalIgnoreCase) &&
+        File.Exists(path);
+}

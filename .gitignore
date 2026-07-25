@@ -4,3 +4,9 @@ opacity-*.png
 settings-preview.png
 CpuTemperatureBridge.exe
 *.log
+.vs/
+**/bin/
+**/obj/
+native/artifacts/
+*.user
+*.suo
