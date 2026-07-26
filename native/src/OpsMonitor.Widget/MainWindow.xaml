@@ -61,14 +61,15 @@
         </Style>
 
         <Style x:Key="IconButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Width" Value="30" />
-            <Setter Property="Height" Value="30" />
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="28" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Background" Value="{Binding TrackBrush}" />
-            <Setter Property="BorderBrush" Value="{Binding BorderBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Foreground" Value="{Binding TextPrimaryBrush}" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
@@ -84,10 +85,15 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.82" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#1FFFFFFF" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#3348DCF9" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.62" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#3048DCF9" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#6648DCF9" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#9958E6B2" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -445,7 +451,6 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <Grid x:Name="DragHeader"
@@ -666,63 +671,6 @@
                         </ItemsControl>
                     </ScrollViewer>
 
-                    <Grid Grid.Row="2"
-                          Opacity="{Binding ContentOpacity}">
-                        <Grid.Style>
-                            <Style TargetType="{x:Type Grid}">
-                                <Setter Property="Margin" Value="12,3,9,5" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Layout}"
-                                                 Value="{x:Static models:WidgetLayout.Mini}">
-                                        <Setter Property="Margin" Value="8,1,6,2" />
-                                    </DataTrigger>
-                                    <MultiDataTrigger>
-                                        <MultiDataTrigger.Conditions>
-                                            <Condition Binding="{Binding Layout}"
-                                                       Value="{x:Static models:WidgetLayout.Mini}" />
-                                            <Condition Binding="{Binding Density}"
-                                                       Value="{x:Static models:WidgetDensity.Compact}" />
-                                            <Condition Binding="{Binding IsReducedScale}" Value="True" />
-                                        </MultiDataTrigger.Conditions>
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                    </MultiDataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Grid.Style>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
-                        <Border Grid.ColumnSpan="2"
-                                Background="{Binding ReadabilityPlateBrush}"
-                                CornerRadius="8" />
-
-                        <TextBlock VerticalAlignment="Center"
-                                   Foreground="{Binding TextSecondaryBrush}"
-                                   Style="{StaticResource WidgetHeaderMetaTextStyle}"
-                                   Text="{Binding HotkeyHint}"
-                                   TextTrimming="CharacterEllipsis" />
-
-                        <Border x:Name="ResizeGrip"
-                                Grid.Column="1"
-                                Width="20"
-                                Height="20"
-                                Background="Transparent"
-                                Cursor="SizeNWSE"
-                                MouseLeftButtonDown="ResizeGrip_OnMouseLeftButtonDown"
-                                Visibility="{Binding CanResize, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <Path Width="10"
-                                  Height="10"
-                                  HorizontalAlignment="Right"
-                                  VerticalAlignment="Bottom"
-                                  Data="M2,14 L14,2 M7,14 L14,7 M12,14 L14,12"
-                                  Stretch="Uniform"
-                                  Stroke="{Binding TextSecondaryBrush}"
-                                  StrokeEndLineCap="Round"
-                                  StrokeThickness="1.4" />
-                        </Border>
-                    </Grid>
                 </Grid>
 
                 <Grid x:Name="CompactDockLayout"
@@ -806,49 +754,33 @@
                         </ItemsControl>
                     </Viewbox>
 
-                    <Grid Grid.Column="3">
-                        <Button x:Name="DockSettingsButton"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Center"
-                                AutomationProperties.Name="Quick settings"
-                                Click="SettingsButton_OnClick"
-                                Style="{StaticResource IconButtonStyle}">
-                            <TextBlock FontFamily="Segoe UI Symbol"
-                                       FontSize="16"
-                                       Text="⚙" />
-                        </Button>
-
-                        <Border Width="18"
-                                Height="18"
-                                Margin="0,0,-2,-2"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Bottom"
-                                Background="Transparent"
-                                Cursor="SizeNWSE"
-                                MouseLeftButtonDown="ResizeGrip_OnMouseLeftButtonDown"
-                                Visibility="{Binding CanResize, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <Path Width="9"
-                                  Height="9"
-                                  HorizontalAlignment="Right"
-                                  VerticalAlignment="Bottom"
-                                  Data="M2,9 L9,2 M6,9 L9,6"
-                                  Stretch="Uniform"
-                                  Stroke="{Binding TextSecondaryBrush}"
-                                  StrokeEndLineCap="Round"
-                                  StrokeThickness="1.3" />
-                        </Border>
-                    </Grid>
+                    <Button x:Name="DockSettingsButton"
+                            Grid.Column="3"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="Quick settings"
+                            Click="SettingsButton_OnClick"
+                            Style="{StaticResource IconButtonStyle}">
+                        <TextBlock FontFamily="Segoe UI Symbol"
+                                   FontSize="16"
+                                   Text="⚙" />
+                    </Button>
                 </Grid>
 
-                <Rectangle Margin="4"
-                           IsHitTestVisible="False"
-                           Opacity="0.48"
-                           RadiusX="17"
-                           RadiusY="17"
-                           Stroke="#6648DCF9"
-                           StrokeDashArray="4,4"
-                           StrokeThickness="1"
-                           Visibility="{Binding IsEditMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <!-- Deliberately invisible: resizing stays discoverable through the
+                     SizeNWSE cursor without adding permanent corner decoration. -->
+                <Border x:Name="ResizeGrip"
+                        Width="18"
+                        Height="18"
+                        Margin="0,0,2,2"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+                        Panel.ZIndex="20"
+                        AutomationProperties.Name="Resize widget"
+                        Background="Transparent"
+                        Cursor="SizeNWSE"
+                        MouseLeftButtonDown="ResizeGrip_OnMouseLeftButtonDown"
+                        Visibility="{Binding CanResize, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </Grid>
         </Border>
 

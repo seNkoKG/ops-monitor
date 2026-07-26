@@ -1,0 +1,227 @@
+using System.Globalization;
+using OpsMonitor.Core.Metrics;
+using OpsMonitor.Core.Providers;
+using OpsMonitor.SensorBridge;
+
+var tests = new (string Name, Func<Task> Run)[]
+{
+    ("AMD Tctl/Tdie wins deterministic sensor selection", TestAmdSelectionAsync),
+    ("zero and implausible temperatures are rejected", TestPlausibilityAsync),
+    ("bridge payload is consumed by Core", TestPayloadAsync),
+    ("atomic writer replaces complete payloads", TestAtomicWriteAsync),
+    ("widget return cancels a pending bridge shutdown", TestShutdownRaceAsync),
+    ("command line options are clamped and explicit", TestOptionsAsync)
+};
+
+var failures = new List<string>();
+foreach (var test in tests)
+{
+    try
+    {
+        await test.Run();
+        Console.WriteLine($"PASS  {test.Name}");
+    }
+    catch (Exception exception)
+    {
+        failures.Add($"{test.Name}: {exception.Message}");
+        Console.WriteLine($"FAIL  {test.Name}");
+        Console.WriteLine(exception);
+    }
+}
+
+return failures.Count == 0 ? 0 : 1;
+
+static Task TestAmdSelectionAsync()
+{
+    var candidates = new[]
+    {
+        Candidate("CCD1 (Tdie)", "/amdcpu/0/temperature/3", 58.5),
+        Candidate("Core (Tctl)", "/amdcpu/0/temperature/0", 70),
+        Candidate("Core (Tctl/Tdie)", "/amdcpu/0/temperature/2", 61.875),
+        Candidate("CPU Package", "/intelcpu/0/temperature/0", 39)
+    };
+
+    CpuTemperatureSensorCandidate? selected =
+        LibreHardwareMonitorCpuProbe.SelectPreferredSensor(candidates);
+    CpuTemperatureSensorCandidate actual =
+        selected ?? throw new InvalidOperationException("no sensor selected");
+    Assert(
+        actual.SensorName == "Core (Tctl/Tdie)",
+        $"wrong sensor selected: {actual.SensorName}");
+    Assert(
+        actual.SensorIdentifier == "/amdcpu/0/temperature/2",
+        $"wrong identifier selected: {actual.SensorIdentifier}");
+    return Task.CompletedTask;
+}
+
+static Task TestPlausibilityAsync()
+{
+    var candidates = new[]
+    {
+        Candidate("Core (Tctl/Tdie)", "/amdcpu/0/temperature/2", 0),
+        Candidate("CPU Package", "/intelcpu/0/temperature/0", 126),
+        Candidate("Core (Tdie)", "/amdcpu/0/temperature/1", null)
+    };
+
+    Assert(
+        LibreHardwareMonitorCpuProbe.SelectPreferredSensor(candidates) is null,
+        "an unavailable or implausible sensor was selected");
+    return Task.CompletedTask;
+}
+
+static async Task TestPayloadAsync()
+{
+    var timestamp = DateTimeOffset.Parse(
+        "2026-07-26T04:15:00Z",
+        CultureInfo.InvariantCulture);
+    var result = new CpuTemperatureProbeResult
+    {
+        TimestampUtc = timestamp,
+        TemperatureCelsius = 61.875,
+        HardwareIdentifier = "/amdcpu/0",
+        SensorName = "Core (Tctl/Tdie)",
+        SensorIdentifier = "/amdcpu/0/temperature/2",
+        Message = "Core (Tctl/Tdie) is live."
+    };
+
+    string payload = SensorBridgeHost.FormatPayload(result);
+    string[] fields = payload.Split('|');
+    Assert(fields.Length == 2, "payload field count changed");
+    Assert(
+        double.TryParse(
+            fields[0],
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out double value) &&
+        value == 61.875,
+        "payload temperature is not invariant");
+    Assert(
+        long.TryParse(
+            fields[1],
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out long ticks) &&
+        ticks == timestamp.UtcDateTime.Ticks,
+        "payload timestamp is not UTC ticks");
+
+    string firstState = SensorBridgeDiagnostics.GetStateKey(result);
+    string secondState = SensorBridgeDiagnostics.GetStateKey(result with
+    {
+        TimestampUtc = timestamp.AddSeconds(3),
+        TemperatureCelsius = 62.125
+    });
+    Assert(
+        firstState == secondState,
+        "live value changes would cause unnecessary diagnostic disk writes");
+
+    var directory = Directory.CreateTempSubdirectory("OpsMonitorSensorContract-");
+    try
+    {
+        string path = Path.Combine(directory.FullName, "cpu-temperature.txt");
+        await AtomicTextFile.WriteAsync(path, payload, CancellationToken.None);
+        await using var provider = new CpuTemperatureBridgeProvider(
+            new CpuTemperatureBridgeOptions
+            {
+                ReadingPath = path
+            });
+        ProviderPollResult poll = await provider.PollAsync(
+            new MetricProviderContext
+            {
+                TimestampUtc = timestamp.AddSeconds(1),
+                LatestSamples = new Dictionary<MetricId, MetricSample>()
+            },
+            CancellationToken.None);
+        MetricSample sample = poll.Samples.Single();
+        Assert(sample.HasUsableValue, "Core rejected a fresh bridge payload");
+        Assert(
+            sample.Value == 61.875,
+            $"Core changed the published value to {sample.Value}");
+    }
+    finally
+    {
+        directory.Delete(recursive: true);
+    }
+}
+
+static async Task TestAtomicWriteAsync()
+{
+    var directory = Directory.CreateTempSubdirectory("OpsMonitorSensorBridge-");
+    try
+    {
+        string path = Path.Combine(directory.FullName, "cpu-temperature.txt");
+        await AtomicTextFile.WriteAsync(path, "40|1", CancellationToken.None);
+        await AtomicTextFile.WriteAsync(path, "61.875|2", CancellationToken.None);
+
+        Assert(
+            await File.ReadAllTextAsync(path) == "61.875|2",
+            "atomic replacement did not publish the complete latest payload");
+        Assert(
+            directory.GetFiles("*.tmp").Length == 0,
+            "atomic writer left a temporary file behind");
+    }
+    finally
+    {
+        directory.Delete(recursive: true);
+    }
+}
+
+static Task TestShutdownRaceAsync()
+{
+    Assert(
+        !SensorBridgeHost.ShouldExitAfterDelay(4, false, true),
+        "the bridge would exit after the widget returned during its delay");
+    Assert(
+        SensorBridgeHost.ShouldExitAfterDelay(4, false, false),
+        "the bridge did not exit after four confirmed missing-widget polls");
+    Assert(
+        !SensorBridgeHost.ShouldExitAfterDelay(4, true, false),
+        "--stay-alive did not suppress automatic shutdown");
+    return Task.CompletedTask;
+}
+
+static Task TestOptionsAsync()
+{
+    bool parsed = SensorBridgeOptions.TryParse(
+        ["--once", "--interval-ms", "1000", "--output", ".\\reading.txt"],
+        out SensorBridgeOptions options,
+        out string error);
+    Assert(parsed, $"valid options failed: {error}");
+    Assert(options.Once, "--once was not retained");
+    Assert(
+        options.Interval == TimeSpan.FromSeconds(1),
+        "minimum cadence was not retained");
+    Assert(Path.IsPathFullyQualified(options.OutputPath), "output path was not normalized");
+
+    Assert(
+        !SensorBridgeOptions.TryParse(
+            ["--interval-ms", "999"],
+            out _,
+            out _),
+        "sub-second cadence was accepted");
+    Assert(
+        !SensorBridgeOptions.TryParse(
+            ["--once", "--stay-alive"],
+            out _,
+            out _),
+        "conflicting lifetime options were accepted");
+    return Task.CompletedTask;
+}
+
+static CpuTemperatureSensorCandidate Candidate(
+    string sensorName,
+    string sensorIdentifier,
+    double? value) =>
+    new(
+        "AMD Ryzen 7 9800X3D",
+        "/amdcpu/0",
+        sensorName,
+        sensorIdentifier,
+        value);
+
+static void Assert(bool condition, string message)
+{
+    if (!condition)
+    {
+        throw new InvalidOperationException(message);
+    }
+}

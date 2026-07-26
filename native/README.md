@@ -11,7 +11,9 @@ crowding the monitor itself.
 - `OpsMonitor.Widget.exe` — live Pill, Rail, Dock, and Mini overlays
 - `OpsMonitor.Studio.exe` — full visual settings and diagnostics workspace
 - `OpsMonitor.Core.dll` — telemetry, history, alerts, settings, and providers
-- dependency-free behavioral tests for the Core contracts
+- `SensorBridge\OpsMonitor.SensorBridge.exe` — optional isolated CPU sensor
+  broker
+- deterministic behavioral tests for the Core and sensor contracts
 
 Metrics include CPU and NVIDIA GPU load/temperature, memory usage, network
 download/upload, ping, jitter, rolling packet loss, uptime, and battery when the
@@ -31,8 +33,9 @@ Settings are written atomically under `%LOCALAPPDATA%\OPS Monitor`:
 - For building: .NET SDK 10.0.302 or a compatible 10.0 patch
 
 The self-contained package carries the Microsoft runtime and does not require a
-separate .NET installation. OPS Monitor itself has no third-party NuGet runtime
-packages.
+separate .NET installation. Widget and Studio have no third-party runtime
+packages. The optional CPU sensor broker uses LibreHardwareMonitorLib 0.9.6;
+license and source details are in `THIRD-PARTY-NOTICES.md`.
 
 ## Build and verify
 
@@ -108,6 +111,8 @@ shortcuts, and preserves settings during updates:
 Optional switches:
 
 - `-EnableStartup` registers the installed Widget at Windows sign-in.
+- `-EnableCpuTemperature` installs and validates the isolated elevated CPU
+  sensor broker. The signed official PawnIO driver must already be installed.
 - `-DesktopShortcut` adds a desktop shortcut.
 - omit `-SelfContained` to install the smaller framework-dependent package.
 - `-NoBuild` fails instead of building when the requested package is absent.
@@ -118,11 +123,12 @@ install. It refuses to overwrite an installed copy while that copy is running.
 Uninstall from the Start menu, or run:
 
 ```powershell
-.\Uninstall.ps1 -StopRunningApps
+.\Uninstall.ps1 -StopRunningApps -RemoveCpuSensor
 ```
 
 User settings are retained by default. Add `-RemoveUserData` only when the saved
-configuration and local history should also be deleted.
+configuration and local history should also be deleted. Sensor cleanup preserves
+PawnIO because another hardware-monitoring app may use it.
 
 ## Runtime behavior and sensor availability
 
@@ -130,11 +136,13 @@ configuration and local history should also be deleted.
 - History is bounded and downsampled; rendering is coalesced to the selected UI
   cadence. Dragging and resizing do not restart telemetry providers.
 - NVIDIA data uses NVML first and a bounded `nvidia-smi` fallback.
-- CPU temperature is read from the isolated CPU sensor bridge when available.
-  Every bridge sample is timestamped. Expired samples become `TEMP N/A`; OPS
-  Monitor never keeps displaying an old temperature as if it were live.
-  Firmware, vendor-version, and security-policy differences can make this sensor
-  unavailable while the rest of the widget continues normally.
+- CPU temperature is read from an isolated broker installed under
+  `%ProgramFiles%\OPS Monitor Sensor`. Widget and Studio remain non-elevated.
+  The broker selects the real AMD `Core (Tctl/Tdie)` package/control sensor,
+  rejects zero or implausible values, and publishes only a value plus UTC
+  timestamp to the current user's read-only `Data\<SID>` folder beneath that
+  protected install. Expired samples become `TEMP N/A`; OPS Monitor never
+  presents an old or invented value as live.
 - Launch-at-sign-in is a per-user value named `OPS Monitor Widget` under
   `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 - `Ctrl+Alt+O` returns a locked or click-through Widget to Edit mode.
@@ -144,14 +152,24 @@ state CPU and memory sample, use `tools\Measure-AppImpact.ps1`.
 
 ### CPU temperature troubleshooting
 
-OPS Monitor intentionally does not install or silently replace a kernel sensor
-driver. On AMD systems, test **CPU temperature bridge** from Studio's
-**Sensors** page. `Available` means a fresh timestamped value is
-being published; `Stale reading` or `Not connected` means the widget will show
-`TEMP N/A`.
+Ryzen 9000 temperature access requires the separately installed, digitally
+signed official PawnIO edition from <https://pawnio.eu/>. OPS Monitor never
+disables Memory Integrity and never uses WinRing0. After installing PawnIO, run
+**Enable CPU Temperature** from the OPS Monitor Start menu, or:
 
-If an installed Ryzen Master Monitoring SDK no longer supports the processor,
-update it only from
-[AMD's official developer download page](https://www.amd.com/en/developer/ryzen-master-monitoring-sdk.html),
-then restart the CPU temperature bridge. Updating a system sensor driver can
-require administrator approval and should remain an explicit user action.
+```powershell
+.\Enable-CpuTemperature.ps1
+```
+
+The one-time setup requests administrator approval because it writes the broker
+to Program Files and registers an on-demand Local System task. Its action and
+per-user output both stay under the administrator-protected Program Files copy.
+The installing user receives read/run access to the task and read-only access to
+the live sample, never edit/delete access. It does not run code from Desktop,
+Downloads, `%TEMP%`, or another user-writable location. Widget startup requests
+the task on demand, and the broker exits automatically after the Widget closes.
+
+`Available` in Studio means a fresh, plausible package temperature is being
+published. `Stale reading` or `Not connected` means the Widget correctly shows
+`TEMP N/A`. Use **Disable CPU Temperature** to remove the task and broker while
+leaving PawnIO installed for any other applications.

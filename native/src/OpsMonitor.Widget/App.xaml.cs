@@ -4,6 +4,7 @@ using System.Windows.Threading;
 using OpsMonitor.Core.Diagnostics;
 using OpsMonitor.Core.Platform;
 using OpsMonitor.Widget.Interop;
+using OpsMonitor.Widget.Services;
 using Application = System.Windows.Application;
 
 namespace OpsMonitor.Widget;
@@ -28,6 +29,7 @@ public partial class App : Application
         }
 
         AppDiagnostics.Initialize("widget");
+        CpuSensorBridgeLauncher.TryStartInBackground();
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;

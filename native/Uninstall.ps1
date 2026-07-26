@@ -2,7 +2,9 @@
 param(
     [switch]$RemoveUserData,
 
-    [switch]$StopRunningApps
+    [switch]$StopRunningApps,
+
+    [switch]$RemoveCpuSensor
 )
 
 $ErrorActionPreference = 'Stop'
@@ -61,16 +63,42 @@ if ($installedProcesses.Count -gt 0 -and -not $StopRunningApps) {
 
 foreach ($process in $installedProcesses) {
     try {
-        if ($process.MainWindowHandle -ne 0) {
-            [void]$process.CloseMainWindow()
-        }
-        if (-not $process.WaitForExit(2000)) {
-            Stop-Process -Id $process.Id -Force
-            $process.WaitForExit(2000)
+        if ($PSCmdlet.ShouldProcess(
+                "$($process.ProcessName) ($($process.Id))",
+                'Stop installed OPS Monitor process')) {
+            if ($process.MainWindowHandle -ne 0) {
+                [void]$process.CloseMainWindow()
+            }
+            if (-not $process.WaitForExit(2000)) {
+                Stop-Process -Id $process.Id -Force
+                $process.WaitForExit(2000)
+            }
         }
     }
     finally {
         $process.Dispose()
+    }
+}
+
+if ($RemoveCpuSensor -and
+    $PSCmdlet.ShouldProcess(
+        'OPS Monitor CPU sensor',
+        'Remove scheduled tasks, secure broker, and live reading')) {
+    $disableCpuSensorScript = Join-Path $resolvedInstall 'Disable-CpuTemperature.ps1'
+    if (Test-Path -LiteralPath $disableCpuSensorScript) {
+        $powerShell = (Get-Process -Id $PID).Path
+        $sensorCleanup = Start-Process `
+            -FilePath $powerShell `
+            -ArgumentList (
+                '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}"' -f
+                $disableCpuSensorScript
+            ) `
+            -Wait `
+            -PassThru
+        if ($sensorCleanup.ExitCode -ne 0) {
+            throw "CPU sensor cleanup exited with code $($sensorCleanup.ExitCode)."
+        }
+        $sensorCleanup.Dispose()
     }
 }
 
@@ -147,4 +175,9 @@ if ($RemoveUserData) {
     }
 }
 
-Write-Host 'OPS Monitor was uninstalled. Saved settings were preserved unless -RemoveUserData was used.' -ForegroundColor Green
+if ($WhatIfPreference) {
+    Write-Host 'OPS Monitor uninstall preview completed; nothing was removed.' -ForegroundColor Cyan
+}
+else {
+    Write-Host 'OPS Monitor was uninstalled. Saved settings were preserved unless -RemoveUserData was used.' -ForegroundColor Green
+}

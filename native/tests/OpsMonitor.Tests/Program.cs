@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Principal;
 using System.Text.Json;
 using OpsMonitor.Core.Alerts;
 using OpsMonitor.Core.Diagnostics;
@@ -25,6 +26,8 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("metric store publishes only meaningful changes", TestMetricStoreAsync),
     ("stale CPU bridge readings are never presented as live values", TestStaleCpuTemperatureAsync),
+    ("invalid and future CPU bridge readings are rejected", TestInvalidCpuTemperatureAsync),
+    ("CPU bridge defaults to protected per-user sensor data", TestCpuBridgeDefaultPathAsync),
     ("history is bounded and downsamples deterministically", TestHistoryAsync),
     ("alerts honor pending, hysteresis, and cooldown", TestAlertsAsync),
     ("settings save atomically and round-trip", TestSettingsRoundTripAsync),
@@ -642,6 +645,74 @@ static async Task TestStaleCpuTemperatureAsync()
     }
 }
 
+static async Task TestInvalidCpuTemperatureAsync()
+{
+    var directory = Directory.CreateTempSubdirectory("OpsMonitorCpuTempValidation-");
+    try
+    {
+        var readingPath = Path.Combine(directory.FullName, "cpu-temperature.txt");
+        var now = DateTimeOffset.Parse(
+            "2026-07-25T20:00:00Z",
+            CultureInfo.InvariantCulture);
+        await using var provider = new CpuTemperatureBridgeProvider(
+            new CpuTemperatureBridgeOptions
+            {
+                ReadingPath = readingPath,
+                MaximumFutureSkew = TimeSpan.FromSeconds(5)
+            });
+        var context = new MetricProviderContext
+        {
+            TimestampUtc = now,
+            LatestSamples = new Dictionary<MetricId, MetricSample>()
+        };
+
+        await File.WriteAllTextAsync(
+            readingPath,
+            $"NaN|{now.UtcDateTime.Ticks}");
+        var nonFinite = await provider.PollAsync(context, CancellationToken.None);
+        Assert.Equal(
+            MetricAvailability.Error,
+            nonFinite.Samples.Single().Availability,
+            "NaN temperature availability");
+        Assert.False(
+            nonFinite.Samples.Single().HasUsableValue,
+            "NaN temperature must never be usable");
+
+        await File.WriteAllTextAsync(
+            readingPath,
+            $"61.4|{now.AddMinutes(1).UtcDateTime.Ticks}");
+        var future = await provider.PollAsync(context, CancellationToken.None);
+        Assert.Equal(
+            MetricAvailability.Error,
+            future.Samples.Single().Availability,
+            "future timestamp availability");
+        Assert.False(
+            future.Samples.Single().HasUsableValue,
+            "future temperature must never be usable");
+    }
+    finally
+    {
+        directory.Delete(recursive: true);
+    }
+}
+
+static Task TestCpuBridgeDefaultPathAsync()
+{
+    using var identity = WindowsIdentity.GetCurrent();
+    var userSid = identity.User?.Value ??
+        throw new InvalidOperationException("Current Windows SID is unavailable.");
+    var expectedSuffix = Path.Combine(
+        "OPS Monitor Sensor",
+        "Data",
+        userSid,
+        "cpu-temperature.txt");
+    var actual = CpuTemperatureBridgeProvider.GetDefaultReadingPath();
+    Assert.True(
+        actual.EndsWith(expectedSuffix, StringComparison.OrdinalIgnoreCase),
+        $"protected CPU bridge path mismatch: {actual}");
+    return Task.CompletedTask;
+}
+
 static Task TestHistoryAsync()
 {
     var source = TestSource();
@@ -1047,7 +1118,7 @@ static Task TestWidgetSizingAsync()
         5,
         100);
     Assert.Equal(184d, pillFive.SuggestedWidth, "classic Pill width");
-    Assert.Equal(396d, pillFive.SuggestedHeight, "classic Pill height");
+    Assert.Equal(368d, pillFive.SuggestedHeight, "footer-free Pill height");
 
     var pillThree = LiveWidgetSizingPolicy.Calculate(
         WidgetLayout.Pill,
@@ -1059,8 +1130,8 @@ static Task TestWidgetSizingAsync()
         OpsMonitor.Widget.Models.WidgetDensity.Compact,
         7,
         100);
-    Assert.Equal(276d, pillThree.SuggestedHeight, "three-module Pill height");
-    Assert.Equal(516d, pillSeven.SuggestedHeight, "seven-module Pill height");
+    Assert.Equal(248d, pillThree.SuggestedHeight, "three-module Pill height");
+    Assert.Equal(488d, pillSeven.SuggestedHeight, "seven-module Pill height");
 
     var pillEighty = LiveWidgetSizingPolicy.Calculate(
         WidgetLayout.Pill,
@@ -1068,7 +1139,7 @@ static Task TestWidgetSizingAsync()
         5,
         80);
     Assert.Equal(176d, pillEighty.SuggestedWidth, "80% readable width clamp");
-    Assert.Equal(317d, pillEighty.SuggestedHeight, "80% Pill footprint");
+    Assert.Equal(294d, pillEighty.SuggestedHeight, "80% Pill footprint");
 
     var pillNinety = LiveWidgetSizingPolicy.Calculate(
         WidgetLayout.Pill,
@@ -1076,7 +1147,7 @@ static Task TestWidgetSizingAsync()
         5,
         90);
     Assert.Equal(176d, pillNinety.SuggestedWidth, "90% readable width clamp");
-    Assert.Equal(356d, pillNinety.SuggestedHeight, "90% Pill footprint");
+    Assert.Equal(331d, pillNinety.SuggestedHeight, "90% Pill footprint");
 
     var miniFive = LiveWidgetSizingPolicy.Calculate(
         WidgetLayout.Mini,
@@ -1084,7 +1155,14 @@ static Task TestWidgetSizingAsync()
         5,
         100);
     Assert.Equal(176d, miniFive.SuggestedWidth, "Mini width");
-    Assert.Equal(220d, miniFive.SuggestedHeight, "Mini height");
+    Assert.Equal(198d, miniFive.SuggestedHeight, "footer-free Mini height");
+
+    var miniEighty = LiveWidgetSizingPolicy.Calculate(
+        WidgetLayout.Mini,
+        OpsMonitor.Widget.Models.WidgetDensity.Compact,
+        5,
+        80);
+    Assert.Equal(176d, miniEighty.SuggestedHeight, "80% Mini readable height floor");
 
     var dockFive = LiveWidgetSizingPolicy.Calculate(
         WidgetLayout.Dock,
@@ -1128,7 +1206,7 @@ static Task TestWidgetSizingAsync()
         5,
         100);
     Assert.Equal(184d, railFive.SuggestedWidth, "compact Rail width");
-    Assert.Equal(286d, railFive.SuggestedHeight, "compact Rail height");
+    Assert.Equal(258d, railFive.SuggestedHeight, "footer-free compact Rail height");
     return Task.CompletedTask;
 }
 

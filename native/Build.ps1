@@ -49,6 +49,14 @@ if ($LASTEXITCODE -ne 0) {
     throw 'Tests failed.'
 }
 
+& $dotnet run `
+    --project (Join-Path $root 'tests\OpsMonitor.SensorBridge.Tests\OpsMonitor.SensorBridge.Tests.csproj') `
+    --configuration $Configuration `
+    --no-build
+if ($LASTEXITCODE -ne 0) {
+    throw 'CPU sensor bridge tests failed.'
+}
+
 if ($Publish) {
     $packageKind = if ($SelfContained) {
         'win-x64-self-contained'
@@ -100,18 +108,60 @@ if ($Publish) {
                 -Force
         }
 
+        $sensorProject = Join-Path $root 'src\OpsMonitor.SensorBridge\OpsMonitor.SensorBridge.csproj'
+        $sensorOutput = Join-Path $stagingRoot 'OpsMonitor.SensorBridge'
+        $sensorRuntimeArguments = if ($SelfContained) {
+            @('--runtime', 'win-x64', '--self-contained', 'true')
+        }
+        else {
+            @('--runtime', 'win-x64', '--self-contained', 'false')
+        }
+        & $dotnet publish $sensorProject `
+            --configuration $Configuration `
+            --output $sensorOutput `
+            @sensorRuntimeArguments `
+            -p:PublishReadyToRun=$publishReadyToRun `
+            -p:PublishSingleFile=false
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Publishing OpsMonitor.SensorBridge failed.'
+        }
+
+        $sensorPackage = Join-Path $stagingPackage 'SensorBridge'
+        New-Item -ItemType Directory -Path $sensorPackage -Force | Out-Null
+        Copy-Item `
+            -Path (Join-Path $sensorOutput '*') `
+            -Destination $sensorPackage `
+            -Recurse `
+            -Force
+
         foreach ($requiredExecutable in @('OpsMonitor.Widget.exe', 'OpsMonitor.Studio.exe')) {
             if (-not (Test-Path -LiteralPath (Join-Path $stagingPackage $requiredExecutable))) {
                 throw "The publish package is incomplete: $requiredExecutable is missing."
             }
         }
+        if (-not (Test-Path -LiteralPath (
+                    Join-Path $sensorPackage 'OpsMonitor.SensorBridge.exe'
+                ))) {
+            throw 'The publish package is incomplete: OpsMonitor.SensorBridge.exe is missing.'
+        }
 
-        foreach ($supportFile in @('Install.ps1', 'Uninstall.ps1', 'README.md')) {
+        foreach ($supportFile in @(
+                'Install.ps1',
+                'Uninstall.ps1',
+                'Enable-CpuTemperature.ps1',
+                'Disable-CpuTemperature.ps1',
+                'README.md',
+                'THIRD-PARTY-NOTICES.md'
+            )) {
             $supportPath = Join-Path $root $supportFile
             if (Test-Path -LiteralPath $supportPath) {
                 Copy-Item -LiteralPath $supportPath -Destination $stagingPackage -Force
             }
         }
+        Copy-Item `
+            -LiteralPath (Join-Path $root 'THIRD-PARTY-NOTICES.md') `
+            -Destination $sensorPackage `
+            -Force
 
         New-Item -ItemType Directory -Path $publishRoot -Force | Out-Null
         if (Test-Path -LiteralPath $output) {

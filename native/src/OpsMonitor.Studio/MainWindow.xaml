@@ -364,32 +364,23 @@
                                             ClipToBounds="True">
                                         <Grid Margin="8,6">
                                             <Grid.RowDefinitions>
-                                                <RowDefinition>
-                                                    <RowDefinition.Style>
-                                                        <Style TargetType="RowDefinition">
-                                                            <Setter Property="Height" Value="40"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
-                                                                    <Setter Property="Height" Value="0"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </RowDefinition.Style>
-                                                </RowDefinition>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition>
-                                                    <RowDefinition.Style>
-                                                        <Style TargetType="RowDefinition">
-                                                            <Setter Property="Height" Value="14"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
-                                                                    <Setter Property="Height" Value="0"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </RowDefinition.Style>
-                                                </RowDefinition>
-                                            </Grid.RowDefinitions>
+                                                 <RowDefinition>
+                                                     <RowDefinition.Style>
+                                                         <Style TargetType="RowDefinition">
+                                                             <Setter Property="Height" Value="40"/>
+                                                             <Style.Triggers>
+                                                                 <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
+                                                                     <Setter Property="Height" Value="0"/>
+                                                                 </DataTrigger>
+                                                                 <DataTrigger Binding="{Binding SelectedLayout}" Value="Mini">
+                                                                     <Setter Property="Height" Value="30"/>
+                                                                 </DataTrigger>
+                                                             </Style.Triggers>
+                                                         </Style>
+                                                     </RowDefinition.Style>
+                                                 </RowDefinition>
+                                                 <RowDefinition Height="*"/>
+                                             </Grid.RowDefinitions>
 
                                             <Grid Opacity="{Binding ContentOpacity}">
                                                 <Grid.Style>
@@ -413,9 +404,9 @@
                                                     </StackPanel>
                                                     <TextBlock Margin="16,4,0,0" Text="Updated now" FontSize="10" Foreground="#FF8793A6"/>
                                                 </StackPanel>
-                                                <Border Grid.Column="1" Width="30" Height="30" Background="#182C3647" BorderBrush="{Binding PreviewBorderBrush}" BorderThickness="1" CornerRadius="15">
-                                                    <TextBlock Text="⚙" FontSize="15" Foreground="#FFC3CDDA" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                </Border>
+                                                 <Border Grid.Column="1" Width="28" Height="28" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="10">
+                                                     <TextBlock Text="⚙" FontSize="15" Foreground="#FFC3CDDA" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                 </Border>
                                             </Grid>
 
                                             <ItemsControl Grid.Row="1"
@@ -640,25 +631,7 @@
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
 
-                                            <Grid Grid.Row="2" Margin="2,2,2,0" Opacity="{Binding ContentOpacity}">
-                                                <Grid.Style>
-                                                    <Style TargetType="Grid">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Grid.Style>
-                                                <TextBlock Text="DRAG TO MOVE" FontSize="9" FontWeight="SemiBold" Foreground="#FF697588" VerticalAlignment="Center"/>
-                                                <TextBlock HorizontalAlignment="Right" FontSize="9" Foreground="#FF697588" VerticalAlignment="Center">
-                                                    <Run Text="{Binding SelectedLayout, Mode=OneWay}"/>
-                                                    <Run Text=" · "/>
-                                                    <Run Text="{Binding BackgroundOpacity, Mode=OneWay, StringFormat={}{0:P0}}"/>
-                                                </TextBlock>
-                                            </Grid>
-                                        </Grid>
+                                         </Grid>
                                     </Border>
                                 </Viewbox>
                             </Grid>

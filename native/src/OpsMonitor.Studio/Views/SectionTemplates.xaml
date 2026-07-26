@@ -563,7 +563,7 @@
                                 <Grid>
                                     <StackPanel>
                                         <TextBlock Text="Resizable" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,58,0" Text="Show and accept the corner resize handle" Style="{StaticResource CaptionText}"/>
+                                        <TextBlock Margin="0,3,58,0" Text="Resize from the clean bottom-right corner hit area" Style="{StaticResource CaptionText}"/>
                                     </StackPanel>
                                     <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding Resizable}" Style="{StaticResource ToggleSwitch}"/>
                                 </Grid>
@@ -648,7 +648,7 @@
                                 </StackPanel>
                             </Grid>
                             <TextBlock Margin="0,10,0,0"
-                                       Text="Manual dimensions are clamped to readable bounds. The live widget can also be resized from its corner handle."
+                                       Text="Manual dimensions are clamped to readable bounds. The live widget can also be resized from its invisible bottom-right hit area."
                                        Style="{StaticResource CaptionText}"
                                        TextWrapping="Wrap"
                                        TextTrimming="None"/>

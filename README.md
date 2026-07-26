@@ -10,7 +10,7 @@ The Widget provides four persistent layouts:
 - **Pill** — the original 184×396 stacked glass design
 - **Rail** — a borderless 184×286 vertical readout
 - **Dock** — an 84-pixel-tall one-row desktop strip
-- **Mini** — a 176×220 capsule with a 176×176 minimum preset
+- **Mini** — a 176×198 capsule with a 176×176 minimum preset
 
 All layouts show separate CPU, GPU, RAM, network throughput, and
 ping/packet-loss modules. Settings cover layout, density, theme, module

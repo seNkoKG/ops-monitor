@@ -6,6 +6,8 @@ param(
 
     [switch]$DesktopShortcut,
 
+    [switch]$EnableCpuTemperature,
+
     [switch]$Launch,
 
     [switch]$NoBuild
@@ -225,16 +227,38 @@ if ($installed) {
                 -WorkingDirectory $resolvedInstall `
                 -Description 'Customize OPS Monitor'
 
+            $powerShell = (Get-Process -Id $PID).Path
             $uninstallScript = Join-Path $resolvedInstall 'Uninstall.ps1'
             if (Test-Path -LiteralPath $uninstallScript) {
-                $powerShell = (Get-Process -Id $PID).Path
                 New-Shortcut `
                     -Shell $shell `
                     -Path (Join-Path $startMenuFolder 'Uninstall OPS Monitor.lnk') `
                     -TargetPath $powerShell `
-                    -Arguments ('-NoProfile -ExecutionPolicy Bypass -File "{0}" -StopRunningApps' -f $uninstallScript) `
+                    -Arguments ('-NoProfile -ExecutionPolicy Bypass -File "{0}" -StopRunningApps -RemoveCpuSensor' -f $uninstallScript) `
                     -WorkingDirectory $env:TEMP `
                     -Description 'Uninstall OPS Monitor'
+            }
+
+            $enableCpuSensorScript = Join-Path $resolvedInstall 'Enable-CpuTemperature.ps1'
+            if (Test-Path -LiteralPath $enableCpuSensorScript) {
+                New-Shortcut `
+                    -Shell $shell `
+                    -Path (Join-Path $startMenuFolder 'Enable CPU Temperature.lnk') `
+                    -TargetPath $powerShell `
+                    -Arguments ('-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $enableCpuSensorScript) `
+                    -WorkingDirectory $resolvedInstall `
+                    -Description 'Enable the secure OPS Monitor CPU temperature sensor'
+            }
+
+            $disableCpuSensorScript = Join-Path $resolvedInstall 'Disable-CpuTemperature.ps1'
+            if (Test-Path -LiteralPath $disableCpuSensorScript) {
+                New-Shortcut `
+                    -Shell $shell `
+                    -Path (Join-Path $startMenuFolder 'Disable CPU Temperature.lnk') `
+                    -TargetPath $powerShell `
+                    -Arguments ('-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $disableCpuSensorScript) `
+                    -WorkingDirectory $resolvedInstall `
+                    -Description 'Remove the OPS Monitor CPU sensor task and broker'
             }
 
             if ($DesktopShortcut) {
@@ -271,6 +295,26 @@ if ($installed) {
             if ($launchedProcess.WaitForExit(4000)) {
                 throw "The installed Widget exited during its startup check with code $($launchedProcess.ExitCode)."
             }
+        }
+
+        if ($EnableCpuTemperature) {
+            $enableCpuSensorScript = Join-Path $resolvedInstall 'Enable-CpuTemperature.ps1'
+            if (-not (Test-Path -LiteralPath $enableCpuSensorScript)) {
+                throw 'The installed CPU sensor setup script is missing.'
+            }
+
+            $sensorSetup = Start-Process `
+                -FilePath $powerShell `
+                -ArgumentList (
+                    '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}"' -f
+                    $enableCpuSensorScript
+                ) `
+                -Wait `
+                -PassThru
+            if ($sensorSetup.ExitCode -ne 0) {
+                throw "CPU temperature sensor setup exited with code $($sensorSetup.ExitCode)."
+            }
+            $sensorSetup.Dispose()
         }
 
         if ($backupCreated -and (Test-Path -LiteralPath $backup)) {

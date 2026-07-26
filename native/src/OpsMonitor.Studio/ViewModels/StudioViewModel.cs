@@ -8,6 +8,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using OpsMonitor.Core.Platform;
+using OpsMonitor.Core.Providers;
 using OpsMonitor.Studio.Infrastructure;
 using OpsMonitor.Studio.Models;
 using OpsMonitor.Studio.Services;
@@ -951,12 +952,12 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     {
         var probe = ProbeCpuTemperatureBridge();
         return new ProviderItem(
-            "CPU temperature bridge",
-            "AMD package temperature from an isolated elevated reader",
+            "CPU temperature sensor",
+            "Validated Ryzen package temperature from the secure broker",
             probe.Status,
             probe.Detail,
             probe.IsAvailable ? "1 metric" : "0 live metrics",
-            "Optional bridge",
+            "Optional sensor",
             true,
             Brush(probe.IsAvailable ? "#FF63E6A6" : "#FFFFC95C"));
     }
@@ -1156,7 +1157,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 $"{Environment.ProcessorCount} logical CPUs",
                 true),
             "NVIDIA NVML" => ProbeNvidia(),
-            "CPU temperature bridge" => ProbeCpuTemperatureBridge(),
+            "CPU temperature sensor" => ProbeCpuTemperatureBridge(),
             "Network quality" => ProbeNetwork(),
             "LibreHardwareMonitor" => ProbeOptionalProcess("LibreHardwareMonitor"),
             _ => new ProviderProbeResult("Unknown provider", "No probe", false)
@@ -1192,13 +1193,22 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     private static ProviderProbeResult ProbeCpuTemperatureBridge()
     {
-        var readingPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "PerformancePill",
-            "cpu-temperature.txt");
+        var readingPath = CpuTemperatureBridgeProvider.GetDefaultReadingPath();
         if (!File.Exists(readingPath))
         {
-            return new ProviderProbeResult("Not connected", "No reading published", false);
+            var brokerPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                "OPS Monitor Sensor",
+                "OpsMonitor.SensorBridge.exe");
+            return File.Exists(brokerPath)
+                ? new ProviderProbeResult(
+                    "Ready",
+                    "Secure broker installed; open the Widget to start it",
+                    false)
+                : new ProviderProbeResult(
+                    "Setup required",
+                    "Run Enable CPU Temperature from the Start menu",
+                    false);
         }
 
         try
@@ -1214,7 +1224,9 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                     fields[1],
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
-                    out var ticks))
+                    out var ticks) ||
+                !double.IsFinite(temperature) ||
+                temperature is < 5 or > 125)
             {
                 return new ProviderProbeResult("Invalid reading", "Bridge data malformed", false);
             }

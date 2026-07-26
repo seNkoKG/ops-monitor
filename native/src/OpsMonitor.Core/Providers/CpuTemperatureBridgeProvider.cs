@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Principal;
 using OpsMonitor.Core.Metrics;
 
 namespace OpsMonitor.Core.Providers;
@@ -7,6 +8,7 @@ public sealed record CpuTemperatureBridgeOptions
 {
     public string? ReadingPath { get; init; }
     public TimeSpan MaximumAge { get; init; } = TimeSpan.FromSeconds(20);
+    public TimeSpan MaximumFutureSkew { get; init; } = TimeSpan.FromSeconds(5);
     public TimeSpan Cadence { get; init; } = TimeSpan.FromSeconds(3);
     public double MinimumTemperatureCelsius { get; init; } = 5;
     public double MaximumTemperatureCelsius { get; init; } = 125;
@@ -39,6 +41,9 @@ public sealed class CpuTemperatureBridgeProvider : MetricProviderBase
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
             _options.MaximumAge,
             TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThan(
+            _options.MaximumFutureSkew,
+            TimeSpan.Zero);
         if (_options.MaximumTemperatureCelsius <= _options.MinimumTemperatureCelsius)
         {
             throw new ArgumentException(
@@ -46,13 +51,37 @@ public sealed class CpuTemperatureBridgeProvider : MetricProviderBase
                 nameof(options));
         }
 
-        ReadingPath = _options.ReadingPath ?? Path.Combine(
+        ReadingPath = _options.ReadingPath ?? GetDefaultReadingPath();
+    }
+
+    public string ReadingPath { get; }
+
+    public static string GetDefaultReadingPath()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            var userSid = identity.User?.Value;
+            if (!string.IsNullOrWhiteSpace(userSid))
+            {
+                var programFiles =
+                    Environment.GetEnvironmentVariable("ProgramW6432") ??
+                    Environment.GetFolderPath(
+                        Environment.SpecialFolder.ProgramFiles);
+                return Path.Combine(
+                    programFiles,
+                    "OPS Monitor Sensor",
+                    "Data",
+                    userSid,
+                    "cpu-temperature.txt");
+            }
+        }
+
+        return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "PerformancePill",
             "cpu-temperature.txt");
     }
-
-    public string ReadingPath { get; }
 
     public override string Id => "cpu.temperature.bridge";
     public override string DisplayName => "CPU temperature bridge";
@@ -68,8 +97,8 @@ public sealed class CpuTemperatureBridgeProvider : MetricProviderBase
     {
         var source = new MetricSource
         {
-            Id = "amd.ryzenmaster.bridge",
-            DisplayName = "AMD Ryzen Master sensor bridge",
+            Id = "opsmonitor.cpu.sensor",
+            DisplayName = "OPS Monitor CPU sensor",
             ProviderId = Id,
             Kind = MetricSourceKind.HardwareBridge,
             RequiresElevation = true,
@@ -105,6 +134,7 @@ public sealed class CpuTemperatureBridgeProvider : MetricProviderBase
                     NumberStyles.Float,
                     CultureInfo.InvariantCulture,
                     out var temperature) ||
+                !double.IsFinite(temperature) ||
                 !long.TryParse(
                     fields[1],
                     NumberStyles.Integer,
@@ -134,6 +164,16 @@ public sealed class CpuTemperatureBridgeProvider : MetricProviderBase
 
             var publishedUtc = new DateTimeOffset(new DateTime(ticks, DateTimeKind.Utc));
             var age = context.TimestampUtc - publishedUtc;
+            if (age < -_options.MaximumFutureSkew)
+            {
+                return Missing(
+                    context.TimestampUtc,
+                    source,
+                    MetricAvailability.Error,
+                    MetricUnavailableReason.InvalidData,
+                    "The bridge timestamp is unexpectedly far in the future.");
+            }
+
             if (age < TimeSpan.Zero)
             {
                 age = TimeSpan.Zero;
