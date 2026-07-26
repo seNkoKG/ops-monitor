@@ -2,12 +2,13 @@
 
 OPS Monitor is a native Windows 11 performance widget with a separate visual
 configuration app. The Widget is optimized for an always-on desktop footprint;
-Studio exposes layouts, themes, module visibility, opacity, update cadence,
-window behavior, startup, and alerts without crowding the monitor itself.
+Studio exposes layouts, themes, module visibility and presentation, opacity,
+scale, update cadence, window behavior, startup, and diagnostics without
+crowding the monitor itself.
 
 ## What is included
 
-- `OpsMonitor.Widget.exe` — live Pill, Rail, and Dock overlays
+- `OpsMonitor.Widget.exe` — live Pill, Rail, Dock, and Mini overlays
 - `OpsMonitor.Studio.exe` — full visual settings and diagnostics workspace
 - `OpsMonitor.Core.dll` — telemetry, history, alerts, settings, and providers
 - dependency-free behavioral tests for the Core contracts
@@ -82,9 +83,12 @@ Useful deterministic visual-QA arguments:
 .\Run.ps1 -Application Widget -ArgumentList '--demo','--reset-ui','--layout=Rail','--density=Compact'
 ```
 
-Supported layout values are `Pill`, `Rail`, and `Dock`; density values are
-`Compact`, `Normal`, and `Detail`. `--show-battery` enables the battery module for
-that launch.
+Supported layout values are `Pill`, `Rail`, `Dock`, and `Mini`; density values
+are `Compact`, `Normal`, and `Detail`. `--scale=80` exercises the minimum
+readable footprint. `--show-storage` and `--show-battery` enable the two
+optional modules for full-width visual checks. Demo/reset launches are
+ephemeral and never overwrite the user's saved settings or startup
+registration.
 
 Run the optional live provider probe:
 
@@ -124,7 +128,7 @@ configuration and local history should also be deleted.
 
 - Telemetry providers run on adaptive, non-overlapping schedules.
 - History is bounded and downsampled; rendering is coalesced to the selected UI
-  cadence.
+  cadence. Dragging and resizing do not restart telemetry providers.
 - NVIDIA data uses NVML first and a bounded `nvidia-smi` fallback.
 - CPU temperature is read from the isolated CPU sensor bridge when available.
   Every bridge sample is timestamped. Expired samples become `TEMP N/A`; OPS
@@ -142,7 +146,7 @@ state CPU and memory sample, use `tools\Measure-AppImpact.ps1`.
 
 OPS Monitor intentionally does not install or silently replace a kernel sensor
 driver. On AMD systems, test **CPU temperature bridge** from Studio's
-**Providers & Integrations** page. `Available` means a fresh timestamped value is
+**Sensors** page. `Available` means a fresh timestamped value is
 being published; `Stale reading` or `Not connected` means the widget will show
 `TEMP N/A`.
 

@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\OpsMonitor.Core\OpsMonitor.Core.csproj" />
+    <ProjectReference Include="..\..\src\OpsMonitor.Studio\OpsMonitor.Studio.csproj" />
     <ProjectReference Include="..\..\src\OpsMonitor.Widget\OpsMonitor.Widget.csproj" />
   </ItemGroup>
 

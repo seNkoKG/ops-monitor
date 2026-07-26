@@ -14,12 +14,11 @@ using OpsMonitor.Widget.Interop;
 using OpsMonitor.Widget.Models;
 using OpsMonitor.Widget.Services;
 using OpsMonitor.Widget.ViewModels;
+using ButtonBase = System.Windows.Controls.Primitives.ButtonBase;
 using Drawing = System.Drawing;
 using Forms = System.Windows.Forms;
-using ButtonBase = System.Windows.Controls.Primitives.ButtonBase;
-using MessageBox = System.Windows.MessageBox;
-using Size = System.Windows.Size;
 using JsonSettingsRepository = OpsMonitor.Core.Settings.JsonSettingsRepository;
+using MessageBox = System.Windows.MessageBox;
 
 namespace OpsMonitor.Widget;
 
@@ -40,6 +39,7 @@ public partial class MainWindow : Window
         nameof(MainWindowViewModel.Resizable),
         nameof(MainWindowViewModel.ShowBattery),
         nameof(MainWindowViewModel.StartAtSignIn),
+        nameof(MainWindowViewModel.ScalePercent),
         nameof(MainWindowViewModel.UpdateCadenceSeconds),
         nameof(MainWindowViewModel.SurfaceOpacity),
         nameof(MainWindowViewModel.ContentOpacity)
@@ -49,6 +49,7 @@ public partial class MainWindow : Window
     private readonly MainWindowViewModel _viewModel;
     private readonly DispatcherTimer _saveTimer;
     private readonly DebouncedSettingsFileWatcher _settingsWatcher;
+    private readonly bool _isEphemeralSession;
     private readonly WindowsStartupRegistration _startupRegistration =
         new("OPS Monitor Widget");
     private Forms.NotifyIcon? _trayIcon;
@@ -64,12 +65,16 @@ public partial class MainWindow : Window
     private bool _isApplyingExternalSettings;
     private bool _isClosing;
     private bool _hotkeyRegistered;
+    private double _lastRuntimeCadenceSeconds;
 
     public MainWindow()
     {
         InitializeComponent();
 
-        _startupSettings = LoadLaunchSettings(Environment.GetCommandLineArgs().Skip(1));
+        var launchArguments = Environment.GetCommandLineArgs().Skip(1).ToArray();
+        _isEphemeralSession = IsEphemeralLaunch(launchArguments);
+        _startupSettings = LoadLaunchSettings(launchArguments);
+        _lastRuntimeCadenceSeconds = _startupSettings.UpdateCadenceSeconds;
         _viewModel = new MainWindowViewModel(CreateTelemetrySource(), _startupSettings);
         DataContext = _viewModel;
         _settingsWatcher = new DebouncedSettingsFileWatcher(
@@ -104,13 +109,17 @@ public partial class MainWindow : Window
         _hotkeyHook = NativeMethods.CreateHotkeyHook(RestoreEditMode);
         _windowSource?.AddHook(_hotkeyHook);
         _hotkeyRegistered = NativeMethods.RegisterEditHotkey(_windowHandle);
+        _viewModel.EditHotkeyAvailable = _hotkeyRegistered;
         ApplyInteractionMode();
     }
 
     protected override void OnClosed(EventArgs e)
     {
         _isClosing = true;
-        SaveNow();
+        if (!_isEphemeralSession)
+        {
+            SaveNow();
+        }
         _settingsWatcher.ReloadRequested -= SettingsWatcher_OnReloadRequested;
         _settingsWatcher.DisposeAsync().AsTask().GetAwaiter().GetResult();
         _saveTimer.Stop();
@@ -151,7 +160,7 @@ public partial class MainWindow : Window
             : new CoreTelemetrySource();
     }
 
-    private static WidgetSettings LoadLaunchSettings(IEnumerable<string> launchArguments)
+    internal static WidgetSettings LoadLaunchSettings(IEnumerable<string> launchArguments)
     {
         var arguments = launchArguments.ToArray();
         var resetRequested = arguments.Any(argument =>
@@ -174,6 +183,15 @@ public partial class MainWindow : Window
             {
                 settings.Theme = theme;
             }
+            else if (TryReadArgument(argument, "--scale", out var scale) &&
+                     int.TryParse(
+                         scale,
+                         System.Globalization.NumberStyles.Integer,
+                         System.Globalization.CultureInfo.InvariantCulture,
+                         out var parsedScale))
+            {
+                settings.ScalePercent = Math.Clamp(parsedScale, 80, 160);
+            }
             else if (argument.Equals("--show-battery", StringComparison.OrdinalIgnoreCase))
             {
                 settings.ShowBattery = true;
@@ -184,6 +202,15 @@ public partial class MainWindow : Window
                     settings.EnabledModules.Add(WidgetModuleCatalog.Battery);
                 }
             }
+            else if (argument.Equals("--show-storage", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!settings.EnabledModules.Contains(
+                        WidgetModuleCatalog.Storage,
+                        StringComparer.Ordinal))
+                {
+                    settings.EnabledModules.Add(WidgetModuleCatalog.Storage);
+                }
+            }
             else if (argument.Equals("--demo", StringComparison.OrdinalIgnoreCase))
             {
                 // Explicitly recognized for deterministic visual QA.
@@ -191,6 +218,14 @@ public partial class MainWindow : Window
         }
 
         return settings;
+    }
+
+    internal static bool IsEphemeralLaunch(IEnumerable<string> launchArguments)
+    {
+        ArgumentNullException.ThrowIfNull(launchArguments);
+        return launchArguments.Any(argument =>
+            argument.Equals("--demo", StringComparison.OrdinalIgnoreCase) ||
+            argument.Equals("--reset-ui", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool TryReadArgument(string argument, string name, out string value)
@@ -216,8 +251,11 @@ public partial class MainWindow : Window
         _isLoaded = true;
         _viewModel.Start();
         ApplyInteractionMode();
-        _ = StartSettingsWatcherAsync();
-        ScheduleSave();
+        if (!_isEphemeralSession)
+        {
+            _ = StartSettingsWatcherAsync();
+            ScheduleSave();
+        }
     }
 
     private void ApplyInitialGeometry()
@@ -225,12 +263,13 @@ public partial class MainWindow : Window
         _isRestoringGeometry = true;
         try
         {
-            var suggested = GetSuggestedSize(
-                _startupSettings.Layout,
-                _startupSettings.Density,
-                _startupSettings.ShowBattery);
-            Width = _startupSettings.Width ?? suggested.Width;
-            Height = _startupSettings.Height ?? suggested.Height;
+            var suggested = WidgetSizingPolicy.Calculate(
+                _viewModel.Layout,
+                _viewModel.Density,
+                _viewModel.VisibleModuleCount,
+                _viewModel.ScalePercent);
+            Width = _startupSettings.Width ?? suggested.SuggestedWidth;
+            Height = _startupSettings.Height ?? suggested.SuggestedHeight;
 
             if (_startupSettings.Left is { } left && _startupSettings.Top is { } top)
             {
@@ -402,6 +441,7 @@ public partial class MainWindow : Window
         {
             case nameof(MainWindowViewModel.Layout):
             case nameof(MainWindowViewModel.Density):
+            case nameof(MainWindowViewModel.ScalePercent):
                 UpdateWindowConstraints();
                 if (_isLoaded && !_isApplyingExternalSettings)
                 {
@@ -415,8 +455,9 @@ public partial class MainWindow : Window
             case nameof(MainWindowViewModel.Topmost):
                 Topmost = _viewModel.Topmost;
                 break;
-            case nameof(MainWindowViewModel.ShowBattery):
-                if (_isLoaded)
+            case nameof(MainWindowViewModel.VisibleModuleCount):
+                UpdateWindowConstraints();
+                if (_isLoaded && !_isApplyingExternalSettings)
                 {
                     ApplySuggestedSize();
                 }
@@ -434,79 +475,45 @@ public partial class MainWindow : Window
 
     private void UpdateWindowConstraints()
     {
-        switch (_viewModel.Layout, _viewModel.Density)
-        {
-            case (WidgetLayout.Dock, WidgetDensity.Compact):
-                MinWidth = 880;
-                MinHeight = 108;
-                break;
-            case (WidgetLayout.Dock, _):
-                MinWidth = 760;
-                MinHeight = 198;
-                break;
-            case (WidgetLayout.Pill, WidgetDensity.Compact):
-                MinWidth = 228;
-                MinHeight = 420;
-                break;
-            case (WidgetLayout.Pill, _):
-                MinWidth = 228;
-                MinHeight = 520;
-                break;
-            case (WidgetLayout.Rail, WidgetDensity.Compact):
-                MinWidth = 204;
-                MinHeight = 326;
-                break;
-            default:
-                MinWidth = 216;
-                MinHeight = 520;
-                break;
-        }
+        var recommendation = WidgetSizingPolicy.Calculate(
+            _viewModel.Layout,
+            _viewModel.Density,
+            _viewModel.VisibleModuleCount,
+            _viewModel.ScalePercent);
+        var workArea = SystemParameters.WorkArea;
+        var maximumUsableWidth = Math.Max(
+            160,
+            Math.Min(MaxWidth, workArea.Width - 32));
+        var maximumUsableHeight = Math.Max(
+            140,
+            Math.Min(MaxHeight, workArea.Height - 32));
+        MinWidth = Math.Min(recommendation.MinimumWidth, maximumUsableWidth);
+        MinHeight = Math.Min(recommendation.MinimumHeight, maximumUsableHeight);
     }
 
     private void ApplySuggestedSize()
     {
-        var suggested = GetSuggestedSize(
+        var recommendation = WidgetSizingPolicy.Calculate(
             _viewModel.Layout,
             _viewModel.Density,
-            _viewModel.ShowBattery);
+            _viewModel.VisibleModuleCount,
+            _viewModel.ScalePercent);
         var workArea = SystemParameters.WorkArea;
-        Width = Math.Clamp(suggested.Width, MinWidth, Math.Min(MaxWidth, workArea.Width - 32));
-        Height = Math.Clamp(suggested.Height, MinHeight, Math.Min(MaxHeight, workArea.Height - 32));
+        var maximumUsableWidth = Math.Max(
+            MinWidth,
+            Math.Min(MaxWidth, workArea.Width - 32));
+        var maximumUsableHeight = Math.Max(
+            MinHeight,
+            Math.Min(MaxHeight, workArea.Height - 32));
+        Width = Math.Clamp(
+            recommendation.SuggestedWidth,
+            MinWidth,
+            maximumUsableWidth);
+        Height = Math.Clamp(
+            recommendation.SuggestedHeight,
+            MinHeight,
+            maximumUsableHeight);
         EnsureVisibleOnScreen();
-    }
-
-    private static Size GetSuggestedSize(
-        WidgetLayout layout,
-        WidgetDensity density,
-        bool showBattery)
-    {
-        var baseline = (layout, density) switch
-        {
-            (WidgetLayout.Dock, WidgetDensity.Compact) => new Size(880, 118),
-            (WidgetLayout.Dock, WidgetDensity.Normal) => new Size(940, 238),
-            (WidgetLayout.Dock, WidgetDensity.Detail) => new Size(1_100, 292),
-            (WidgetLayout.Pill, WidgetDensity.Compact) => new Size(240, 420),
-            (WidgetLayout.Pill, WidgetDensity.Normal) => new Size(290, 660),
-            (WidgetLayout.Pill, WidgetDensity.Detail) => new Size(320, 820),
-            (WidgetLayout.Rail, WidgetDensity.Normal) => new Size(250, 660),
-            (WidgetLayout.Rail, WidgetDensity.Detail) => new Size(276, 820),
-            _ => new Size(204, 326)
-        };
-
-        if (!showBattery)
-        {
-            return baseline;
-        }
-
-        return layout switch
-        {
-            WidgetLayout.Dock => new Size(baseline.Width + 160, baseline.Height),
-            WidgetLayout.Rail when density == WidgetDensity.Compact =>
-                new Size(baseline.Width, baseline.Height + 48),
-            WidgetLayout.Pill when density == WidgetDensity.Compact =>
-                new Size(baseline.Width, baseline.Height + 70),
-            _ => new Size(baseline.Width, Math.Min(1_000, baseline.Height + 112))
-        };
     }
 
     private void ApplyInteractionMode()
@@ -547,7 +554,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        DragMove();
+        try
+        {
+            DragMove();
+        }
+        catch (InvalidOperationException)
+        {
+            // Mouse capture can be lost when a popup or another window activates.
+        }
     }
 
     private void ResizeGrip_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -638,6 +652,9 @@ public partial class MainWindow : Window
 
     private void LaunchStudio()
     {
+        _saveTimer.Stop();
+        SaveNow();
+
         var executable = FindStudioExecutable();
         if (executable is not null)
         {
@@ -756,7 +773,7 @@ public partial class MainWindow : Window
 
     private void ScheduleSave()
     {
-        if (!_isLoaded)
+        if (!_isLoaded || _isEphemeralSession)
         {
             return;
         }
@@ -817,15 +834,21 @@ public partial class MainWindow : Window
             _viewModel.Layout = settings.Layout;
             _viewModel.Density = settings.Density;
             _viewModel.InteractionMode = settings.InteractionMode;
-            _viewModel.ThemeName = settings.Theme;
+            _viewModel.ApplyThemeConfiguration(
+                settings.Theme,
+                settings.CoreThemeId,
+                settings.RuntimeThemes);
             _viewModel.Topmost = settings.Topmost;
             _viewModel.Draggable = settings.Draggable;
             _viewModel.Resizable = settings.Resizable;
             _viewModel.ApplyModuleConfiguration(
                 settings.ModuleOrder,
-                settings.EnabledModules);
+                settings.EnabledModules,
+                settings.ModulePresentation);
             _viewModel.StartAtSignIn = settings.StartAtSignIn;
+            _viewModel.ScalePercent = settings.ScalePercent;
             _viewModel.UpdateCadenceSeconds = settings.UpdateCadenceSeconds;
+            _lastRuntimeCadenceSeconds = _viewModel.UpdateCadenceSeconds;
             _viewModel.SurfaceOpacity = settings.SurfaceOpacity;
             _viewModel.ContentOpacity = settings.ContentOpacity;
 
@@ -859,19 +882,27 @@ public partial class MainWindow : Window
 
     private void SaveNow()
     {
+        if (_isEphemeralSession)
+        {
+            return;
+        }
+
         var settings = new WidgetSettings
         {
             Layout = _viewModel.Layout,
             Density = _viewModel.Density,
             InteractionMode = _viewModel.InteractionMode,
             Theme = _viewModel.ThemeName,
+            CoreThemeId = _viewModel.CoreThemeId,
             Topmost = _viewModel.Topmost,
             Draggable = _viewModel.Draggable,
             Resizable = _viewModel.Resizable,
             ShowBattery = _viewModel.ShowBattery,
             ModuleOrder = [.. _viewModel.GetModuleOrder()],
             EnabledModules = [.. _viewModel.GetEnabledModules()],
+            ModulePresentation = _viewModel.GetModulePresentation(),
             StartAtSignIn = _viewModel.StartAtSignIn,
+            ScalePercent = _viewModel.ScalePercent,
             UpdateCadenceSeconds = _viewModel.UpdateCadenceSeconds,
             SurfaceOpacity = _viewModel.SurfaceOpacity,
             ContentOpacity = _viewModel.ContentOpacity,
@@ -893,8 +924,12 @@ public partial class MainWindow : Window
             {
                 SynchronizeStartupRegistration(settings.StartAtSignIn);
                 if (!_isClosing &&
-                    _viewModel.TelemetrySource is CoreTelemetrySource core)
+                    _viewModel.TelemetrySource is CoreTelemetrySource core &&
+                    RuntimeCadenceChanged(
+                        _lastRuntimeCadenceSeconds,
+                        settings.UpdateCadenceSeconds))
                 {
+                    _lastRuntimeCadenceSeconds = settings.UpdateCadenceSeconds;
                     core.ReloadSettings();
                 }
             }
@@ -904,6 +939,11 @@ public partial class MainWindow : Window
             suppression?.Dispose();
         }
     }
+
+    internal static bool RuntimeCadenceChanged(double previous, double current) =>
+        !double.IsFinite(previous) ||
+        !double.IsFinite(current) ||
+        Math.Abs(previous - current) >= 0.001;
 
     private void SynchronizeStartupRegistration(bool enabled)
     {

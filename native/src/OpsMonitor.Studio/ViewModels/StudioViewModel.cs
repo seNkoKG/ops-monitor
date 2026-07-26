@@ -7,6 +7,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using OpsMonitor.Core.Platform;
 using OpsMonitor.Studio.Infrastructure;
 using OpsMonitor.Studio.Models;
 using OpsMonitor.Studio.Services;
@@ -17,10 +18,13 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 {
     private readonly IStudioSettingsSink _settingsSink;
     private readonly DispatcherTimer _applyTimer;
+    private readonly Dispatcher _dispatcher;
+    private readonly DebouncedSettingsFileWatcher? _runtimeSettingsWatcher;
     private readonly Stack<EditorState> _undo = new();
     private readonly Stack<EditorState> _redo = new();
     private bool _isInitializing = true;
     private bool _isRestoring;
+    private bool _isApplyingLayoutMetrics;
     private double _telemetryPhase;
     private NavigationItem? _selectedNavigation;
     private ModuleItem? _selectedModule;
@@ -32,25 +36,15 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     private double _contentOpacity = 1;
     private double _blurStrength = 24;
     private double _fontScale = 1;
-    private string _density = "Comfortable";
+    private string _density = "Compact";
     private bool _alwaysOnTop = true;
     private bool _positionLocked;
     private bool _clickThrough;
     private bool _draggable = true;
     private bool _resizable = true;
     private bool _startAtSignIn = true;
-    private bool _snapToGrid = true;
-    private bool _showAllDesktops;
-    private bool _hideFullscreen = true;
-    private bool _alertsEnabled = true;
-    private bool _historyEnabled = true;
     private bool _reducedMotion;
-    private bool _contrastGuard = true;
-    private bool _largeTargets;
-    private bool _useSystemTextScale = true;
-    private bool _redundantColorCues = true;
     private bool _demoMetrics = true;
-    private double _gridSize = 8;
     private int _widgetScalePercent = 100;
     private string _updateRate = "2 seconds";
     private string _performanceMode = "Balanced";
@@ -74,23 +68,21 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     private string _impactLabel = "LIVE";
     private DateTimeOffset? _lastResourceSampleUtc;
     private TimeSpan _lastResourceProcessorTime;
+    private bool _disposed;
 
     public StudioViewModel(IStudioSettingsSink? settingsSink = null)
     {
+        _dispatcher = Dispatcher.CurrentDispatcher;
         _settingsSink = settingsSink ?? new StudioCoreSettingsSink();
         _settingsSink.SettingsChanged += (_, snapshot) => SettingsChanged?.Invoke(this, snapshot);
 
         Navigation = new ObservableCollection<NavigationItem>
         {
             new("overview", "Overview", "Health and quick actions", "⌂"),
-            new("widgets", "Widgets & Scenes", "Layouts and workspaces", "▦"),
-            new("modules", "Modules", "Metrics and visualizations", "◫"),
-            new("appearance", "Appearance", "Theme, glass and density", "✦"),
-            new("window", "Window & Input", "Placement and interaction", "⌗"),
-            new("alerts", "Alerts & Automation", "Rules and actions", "◌"),
-            new("history", "History & Data", "Retention and export", "⌁"),
-            new("providers", "Providers & Integrations", "Sensors and extensions", "◇"),
-            new("accessibility", "Accessibility", "Readability and motion", "◐"),
+            new("widgets", "Layout & Modules", "Form, order and visibility", "▦"),
+            new("appearance", "Appearance", "Theme, opacity and density", "✦"),
+            new("window", "Window & Startup", "Size, interaction and sign-in", "⌗"),
+            new("providers", "Sensors", "Providers and polling", "◇"),
             new("diagnostics", "Diagnostics & About", "Impact, logs and version", "ⓘ"),
         };
 
@@ -111,16 +103,16 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             new("Pill", "Pill", "Slim vertical focus", "▯"),
             new("Rail", "Rail", "Compact single column", "▥"),
             new("Dock", "Dock", "Horizontal desktop strip", "▬"),
-            new("Canvas", "Canvas", "Flexible metric board", "▦"),
+            new("Mini", "Mini", "Tiny essentials capsule", "▫"),
         };
 
         Themes = new ObservableCollection<ThemePreset>
         {
-            new("abyss", "Abyss", "Near-black glass with mint signals", Color.FromRgb(5, 8, 13), Color.FromRgb(13, 19, 28), Color.FromRgb(42, 56, 73), Color.FromRgb(67, 231, 210)),
-            new("graphite", "Graphite", "Neutral charcoal and ice-blue detail", Color.FromRgb(15, 17, 21), Color.FromRgb(27, 30, 36), Color.FromRgb(59, 65, 75), Color.FromRgb(102, 187, 255)),
-            new("violet", "Ultraviolet", "Deep indigo with electric violet", Color.FromRgb(12, 8, 24), Color.FromRgb(27, 18, 46), Color.FromRgb(71, 54, 102), Color.FromRgb(191, 112, 255)),
-            new("ember", "Ember", "Warm graphite with amber highlights", Color.FromRgb(17, 11, 9), Color.FromRgb(34, 23, 19), Color.FromRgb(78, 54, 43), Color.FromRgb(255, 190, 92)),
-            new("frost", "Frost", "Cool navy glass with crisp cyan", Color.FromRgb(7, 15, 23), Color.FromRgb(13, 31, 44), Color.FromRgb(41, 76, 96), Color.FromRgb(91, 221, 255)),
+            new("void", "Void", "Near-black glass with cyan and magenta signals", Color.FromRgb(8, 11, 18), Color.FromRgb(15, 21, 33), Color.FromRgb(54, 66, 88), Color.FromRgb(72, 220, 249)),
+            new("aurora", "Aurora", "Deep violet glass with electric color", Color.FromRgb(14, 10, 27), Color.FromRgb(25, 19, 45), Color.FromRgb(76, 62, 111), Color.FromRgb(86, 226, 255)),
+            new("slate", "Slate / High Contrast", "Brighter borders and text for difficult desktops", Color.FromRgb(18, 24, 31), Color.FromRgb(27, 36, 47), Color.FromRgb(67, 83, 101), Color.FromRgb(72, 207, 234)),
+            new("ember", "Ember", "Warm graphite with amber highlights", Color.FromRgb(22, 14, 15), Color.FromRgb(38, 23, 25), Color.FromRgb(93, 56, 60), Color.FromRgb(255, 172, 72)),
+            new("contrast", "Contrast", "Maximum contrast with crisp cyan and magenta signals", Color.FromRgb(2, 3, 5), Color.FromRgb(7, 9, 13), Color.FromRgb(148, 170, 198), Color.FromRgb(71, 229, 255)),
         };
 
         Modules = new ObservableCollection<ModuleItem>
@@ -131,7 +123,6 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             NewModule("net", "Network", "↕", "Network", "Download and upload throughput", "Active network adapter", "#62A7FF", "937K / 27K", "KB/s  ↓ / ↑", 36),
             NewModule("latency", "Latency", "⌁", "Network", "Ping, jitter and packet loss", "ICMP health probe", "#FFC95C", "26 ms", "0% loss · 3 ms jitter", 22),
             NewModule("disk", "Storage", "◫", "Storage", "Disk activity and remaining capacity", "Optional provider", "#63E6A6", "8%", "1.2 TB free", 8, false),
-            NewModule("fps", "Frame rate", "◉", "Gaming", "FPS, frame time and 1% low", "PresentMon integration", "#A88BFF", "144 FPS", "6.9 ms · 118 low", 73, false),
             NewModule("battery", "Power", "▥", "Power", "Battery, draw and remaining time", "Windows power API", "#8EEA78", "86%", "2h 48m · 17 W", 86, false),
         };
 
@@ -141,23 +132,16 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         };
         foreach (var module in Modules)
         {
+            module.EditorValueChanging += OnModuleEditorValueChanging;
             module.PropertyChanged += OnModulePropertyChanged;
         }
 
         Scenes = new ObservableCollection<SceneItem>
         {
             new("daily", "Daily driver", "Pill", "Quiet desktop essentials", "Ctrl + Alt + 1", Brush("#43E7D2")) { IsActive = true },
-            new("gaming", "Gaming guard", "Dock", "FPS, temperatures and frame time", "Ctrl + Alt + 2", Brush("#F05AD6")),
-            new("stream", "Stream check", "Rail", "Encoder, network and dropped frames", "Ctrl + Alt + 3", Brush("#62A7FF")),
-            new("debug", "Thermal audit", "Canvas", "Expanded sensors and history", "Ctrl + Alt + 4", Brush("#FFC95C")),
-        };
-
-        AlertRules = new ObservableCollection<AlertRuleItem>
-        {
-            new("CPU thermal headroom", "CPU package", "above", "88 °C", "for 10 seconds", "Critical", Brush("#FFFF6B81"), true),
-            new("GPU sustained load", "GPU 3D", "above", "95%", "for 2 minutes", "Warning", Brush("#FFFFC95C"), true),
-            new("Network quality", "Packet loss", "above", "3%", "for 15 seconds", "Warning", Brush("#FFFFC95C"), true),
-            new("Memory pressure", "Memory used", "above", "90%", "for 1 minute", "Info", Brush("#FF62A7FF"), false),
+            new("gaming", "Gaming guard", "Dock", "Wide temperatures and network view", "Ctrl + Alt + 2", Brush("#F05AD6")),
+            new("stream", "Stream check", "Rail", "Network quality and system load", "Ctrl + Alt + 3", Brush("#62A7FF")),
+            new("debug", "Thermal audit", "Rail", "Temperatures and packet loss", "Ctrl + Alt + 4", Brush("#FFC95C")),
         };
 
         Providers = new ObservableCollection<ProviderItem>
@@ -167,7 +151,6 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             CreateCpuTemperatureProviderItem(),
             new("Network quality", "Ping, jitter and rolling packet loss", "Enabled", "Adaptive", "3 quality metrics", "Built in", false, Brush("#FF63E6A6")),
             new("LibreHardwareMonitor", "Additional temperatures, fans and voltage", "Not connected", "—", "0 metrics", "Optional connector", true, Brush("#FF778397")),
-            new("PresentMon", "FPS, frame time and 1% lows", "Not connected", "—", "0 metrics", "Roadmap connector", false, Brush("#FF778397")),
         };
 
         Activities = new ObservableCollection<ActivityItem>
@@ -177,19 +160,29 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             new("Local", "Configuration stored on this PC", SettingsPath, "✓", Brush("#FF62A7FF")),
         };
 
-        SelectLayoutCommand = new RelayCommand(SelectLayout);
+        SelectLayoutCommand = new RelayCommand(
+            SelectLayout,
+            parameter => parameter is string layout &&
+                         !layout.Equals(SelectedLayout, StringComparison.Ordinal));
+        SetScaleCommand = new RelayCommand(SetScale);
         NavigateCommand = new RelayCommand(Navigate);
-        ApplyThemeCommand = new RelayCommand(ApplyTheme);
-        ActivateSceneCommand = new RelayCommand(ActivateScene);
-        MoveModuleUpCommand = new RelayCommand(parameter => MoveModule(parameter as ModuleItem, -1));
-        MoveModuleDownCommand = new RelayCommand(parameter => MoveModule(parameter as ModuleItem, 1));
+        ApplyThemeCommand = new RelayCommand(
+            ApplyTheme,
+            parameter => parameter is ThemePreset theme && theme != SelectedTheme);
+        ActivateSceneCommand = new RelayCommand(
+            ActivateScene,
+            parameter => parameter is SceneItem scene &&
+                         (!scene.IsActive ||
+                          !scene.Name.Equals(ActiveScene, StringComparison.Ordinal)));
+        MoveModuleUpCommand = new RelayCommand(
+            parameter => MoveModule(parameter as ModuleItem, -1),
+            parameter => CanMoveModule(parameter as ModuleItem, -1));
+        MoveModuleDownCommand = new RelayCommand(
+            parameter => MoveModule(parameter as ModuleItem, 1),
+            parameter => CanMoveModule(parameter as ModuleItem, 1));
         AddModuleCommand = new RelayCommand(AddModule);
-        DuplicateModuleCommand = new RelayCommand(_ => DuplicateSelectedModule(), _ => SelectedModule is not null);
-        DeleteModuleCommand = new RelayCommand(_ => DeleteSelectedModule(), _ => SelectedModule is not null);
-        EqualizeCommand = new RelayCommand(_ => EqualizeModules());
         UndoCommand = new RelayCommand(_ => Undo(), _ => _undo.Count > 0);
         RedoCommand = new RelayCommand(_ => Redo(), _ => _redo.Count > 0);
-        AddAlertCommand = new RelayCommand(_ => AddAlert());
         TestProviderCommand = new RelayCommand(TestProvider);
         CopyDiagnosticsCommand = new RelayCommand(_ => CopyDiagnostics());
         ResetDemoCommand = new RelayCommand(_ => ResetDemo());
@@ -201,6 +194,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         SelectedModule = Modules[0];
         SelectedTheme = Themes[0];
         SelectedTheme.IsSelected = true;
+        Layouts[0].IsSelected = true;
         ApplyLayoutMetrics();
         RefreshPreviewBrushes();
 
@@ -217,7 +211,18 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         _isInitializing = false;
         ReloadSettings();
         RefreshWidgetStatus();
-        QueueLiveApply();
+        if (!string.IsNullOrWhiteSpace(RuntimeSettingsPath))
+        {
+            _runtimeSettingsWatcher = new DebouncedSettingsFileWatcher(
+                RuntimeSettingsPath,
+                new DebouncedSettingsFileWatcherOptions
+                {
+                    DebounceInterval = TimeSpan.FromMilliseconds(150),
+                });
+            _runtimeSettingsWatcher.ReloadRequested +=
+                RuntimeSettingsWatcher_OnReloadRequested;
+            _ = StartRuntimeSettingsWatcherAsync();
+        }
     }
 
     public event EventHandler<StudioSettingsSnapshot>? SettingsChanged;
@@ -230,17 +235,14 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     public ObservableCollection<ModuleItem> Modules { get; }
     public ListCollectionView VisibleModulesView { get; }
     public ObservableCollection<SceneItem> Scenes { get; }
-    public ObservableCollection<AlertRuleItem> AlertRules { get; }
     public ObservableCollection<ProviderItem> Providers { get; }
     public ObservableCollection<ActivityItem> Activities { get; }
-    public IReadOnlyList<string> ModuleSizes { get; } = ["Small", "Medium", "Large"];
-    public IReadOnlyList<string> Visualizations { get; } = ["Number only", "Bar", "Sparkline", "Bar + sparkline", "Dial"];
-    public IReadOnlyList<string> PrecisionOptions { get; } = ["Whole numbers", "1 decimal", "2 decimals", "Adaptive"];
+    public IReadOnlyList<string> Visualizations { get; } =
+        ["Number only", "Bar", "Sparkline", "Bar + sparkline"];
+    public IReadOnlyList<string> PrecisionOptions { get; } =
+        ["Whole numbers", "1 decimal", "2 decimals", "Adaptive"];
     public IReadOnlyList<string> DensityOptions { get; } = ["Compact", "Comfortable", "Airy"];
-    public IReadOnlyList<string> MonitorOptions { get; } = ["Primary display", "Display 1 · 2560 × 1440", "Display 2 · 1920 × 1080", "Follow active display"];
-    public IReadOnlyList<string> AnchorOptions { get; } = ["Remember exact position", "Top right", "Top left", "Bottom right", "Bottom left", "Screen edge"];
-    public IReadOnlyList<string> RetentionOptions { get; } = ["Off", "1 hour", "24 hours", "7 days", "30 days"];
-    public IReadOnlyList<string> UpdateRates { get; } = ["0.5 seconds", "1 second", "2 seconds", "5 seconds", "Adaptive"];
+    public IReadOnlyList<string> UpdateRates { get; } = ["0.5 seconds", "1 second", "2 seconds", "5 seconds", "10 seconds"];
     public IReadOnlyList<string> PerformanceModes { get; } = ["Performance", "Balanced", "Efficiency"];
     public string SettingsPath => _settingsSink.SettingsPath;
     public string RuntimeSettingsPath => _settingsSink.RuntimeSettingsPath;
@@ -251,18 +253,15 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     }
 
     public ICommand SelectLayoutCommand { get; }
+    public ICommand SetScaleCommand { get; }
     public ICommand NavigateCommand { get; }
     public ICommand ApplyThemeCommand { get; }
     public ICommand ActivateSceneCommand { get; }
     public ICommand MoveModuleUpCommand { get; }
     public ICommand MoveModuleDownCommand { get; }
     public ICommand AddModuleCommand { get; }
-    public ICommand DuplicateModuleCommand { get; }
-    public ICommand DeleteModuleCommand { get; }
-    public ICommand EqualizeCommand { get; }
     public ICommand UndoCommand { get; }
     public ICommand RedoCommand { get; }
-    public ICommand AddAlertCommand { get; }
     public ICommand TestProviderCommand { get; }
     public ICommand CopyDiagnosticsCommand { get; }
     public ICommand ResetDemoCommand { get; }
@@ -308,6 +307,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _selectedTheme, value) && value is not null)
             {
                 RefreshPreviewBrushes();
+                (ApplyThemeCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 QueueLiveApply();
             }
         }
@@ -320,7 +320,21 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         {
             if (SetProperty(ref _selectedLayout, value))
             {
+                foreach (var layout in Layouts)
+                {
+                    layout.IsSelected = layout.Id.Equals(value, StringComparison.Ordinal);
+                }
+
+                if (!CanChangeDensity &&
+                    !_density.Equals("Compact", StringComparison.Ordinal))
+                {
+                    _density = "Compact";
+                    OnPropertyChanged(nameof(Density));
+                }
+
+                OnPropertyChanged(nameof(CanChangeDensity));
                 ApplyLayoutMetrics();
+                (SelectLayoutCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 QueueLiveApply();
             }
         }
@@ -334,6 +348,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _activeScene, value))
             {
                 OnPropertyChanged(nameof(PreviewTitle));
+                (ActivateSceneCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 QueueLiveApply();
             }
         }
@@ -358,7 +373,9 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         get => _backgroundOpacity;
         set
         {
-            if (SetProperty(ref _backgroundOpacity, value))
+            if (SetEditorProperty(
+                    ref _backgroundOpacity,
+                    Math.Clamp(value, 0.08, 1)))
             {
                 RefreshPreviewBrushes();
                 QueueLiveApply();
@@ -371,7 +388,9 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         get => _contentOpacity;
         set
         {
-            if (SetProperty(ref _contentOpacity, value))
+            if (SetEditorProperty(
+                    ref _contentOpacity,
+                    Math.Clamp(value, 0.82, 1)))
             {
                 QueueLiveApply();
             }
@@ -383,7 +402,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         get => _blurStrength;
         set
         {
-            if (SetProperty(ref _blurStrength, value))
+            if (SetEditorProperty(ref _blurStrength, value))
             {
                 QueueLiveApply();
             }
@@ -395,7 +414,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         get => _fontScale;
         set
         {
-            if (SetProperty(ref _fontScale, value))
+            if (SetEditorProperty(ref _fontScale, value))
             {
                 QueueLiveApply();
             }
@@ -407,7 +426,11 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         get => _density;
         set
         {
-            if (SetProperty(ref _density, value))
+            var normalized = CanChangeDensity &&
+                             DensityOptions.Contains(value)
+                ? value
+                : "Compact";
+            if (SetEditorProperty(ref _density, normalized))
             {
                 ApplyLayoutMetrics();
                 QueueLiveApply();
@@ -415,34 +438,69 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         }
     }
 
+    public bool CanChangeDensity =>
+        !SelectedLayout.Equals("Dock", StringComparison.Ordinal);
+
     public bool AlwaysOnTop { get => _alwaysOnTop; set => SetAndQueue(ref _alwaysOnTop, value); }
-    public bool PositionLocked { get => _positionLocked; set => SetAndQueue(ref _positionLocked, value); }
-    public bool ClickThrough { get => _clickThrough; set => SetAndQueue(ref _clickThrough, value); }
+    public bool PositionLocked
+    {
+        get => _positionLocked;
+        set
+        {
+            if (!SetEditorProperty(ref _positionLocked, value))
+            {
+                return;
+            }
+
+            if (value && _clickThrough)
+            {
+                _clickThrough = false;
+                OnPropertyChanged(nameof(ClickThrough));
+            }
+
+            QueueLiveApply();
+        }
+    }
+
+    public bool ClickThrough
+    {
+        get => _clickThrough;
+        set
+        {
+            if (!SetEditorProperty(ref _clickThrough, value))
+            {
+                return;
+            }
+
+            if (value && _positionLocked)
+            {
+                _positionLocked = false;
+                OnPropertyChanged(nameof(PositionLocked));
+            }
+
+            QueueLiveApply();
+        }
+    }
+
     public bool Draggable { get => _draggable; set => SetAndQueue(ref _draggable, value); }
     public bool Resizable { get => _resizable; set => SetAndQueue(ref _resizable, value); }
     public bool StartAtSignIn { get => _startAtSignIn; set => SetAndQueue(ref _startAtSignIn, value); }
-    public bool SnapToGrid { get => _snapToGrid; set => SetAndQueue(ref _snapToGrid, value); }
-    public bool ShowAllDesktops { get => _showAllDesktops; set => SetAndQueue(ref _showAllDesktops, value); }
-    public bool HideFullscreen { get => _hideFullscreen; set => SetAndQueue(ref _hideFullscreen, value); }
-    public bool AlertsEnabled { get => _alertsEnabled; set => SetAndQueue(ref _alertsEnabled, value); }
-    public bool HistoryEnabled { get => _historyEnabled; set => SetAndQueue(ref _historyEnabled, value); }
     public bool ReducedMotion { get => _reducedMotion; set => SetAndQueue(ref _reducedMotion, value); }
-    public bool ContrastGuard { get => _contrastGuard; set => SetAndQueue(ref _contrastGuard, value); }
-    public bool LargeTargets { get => _largeTargets; set => SetAndQueue(ref _largeTargets, value); }
-    public bool UseSystemTextScale { get => _useSystemTextScale; set => SetAndQueue(ref _useSystemTextScale, value); }
-    public bool RedundantColorCues { get => _redundantColorCues; set => SetAndQueue(ref _redundantColorCues, value); }
-    public bool DemoMetrics { get => _demoMetrics; set => SetProperty(ref _demoMetrics, value); }
-
-    public double GridSize
-    {
-        get => _gridSize;
-        set => SetAndQueue(ref _gridSize, value);
-    }
+    public bool DemoMetrics { get => _demoMetrics; set => SetAndQueue(ref _demoMetrics, value); }
 
     public int WidgetScalePercent
     {
         get => _widgetScalePercent;
-        set => SetAndQueue(ref _widgetScalePercent, Math.Clamp(value, 80, 160));
+        set
+        {
+            if (SetEditorProperty(
+                    ref _widgetScalePercent,
+                    Math.Clamp(value, 80, 160)))
+            {
+                ApplyLayoutMetrics();
+                QueueLiveApply();
+            }
+        }
     }
 
     public string UpdateRate
@@ -500,7 +558,11 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         get => _previewWidth;
         set
         {
-            if (SetProperty(ref _previewWidth, Math.Clamp(value, 112, 1_600), nameof(WidgetWidth)))
+            var normalized = Math.Clamp(value, 176, 1_600);
+            var changed = _isApplyingLayoutMetrics
+                ? SetProperty(ref _previewWidth, normalized, nameof(WidgetWidth))
+                : SetEditorProperty(ref _previewWidth, normalized, nameof(WidgetWidth));
+            if (changed)
             {
                 OnPropertyChanged(nameof(PreviewWidth));
                 QueueLiveApply();
@@ -513,7 +575,11 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         get => _previewHeight;
         set
         {
-            if (SetProperty(ref _previewHeight, Math.Clamp(value, 140, 1_200), nameof(WidgetHeight)))
+            var normalized = Math.Clamp(value, 140, 1_000);
+            var changed = _isApplyingLayoutMetrics
+                ? SetProperty(ref _previewHeight, normalized, nameof(WidgetHeight))
+                : SetEditorProperty(ref _previewHeight, normalized, nameof(WidgetHeight));
+            if (changed)
             {
                 OnPropertyChanged(nameof(PreviewHeight));
                 QueueLiveApply();
@@ -576,7 +642,6 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         UpdateModule("net", 38 + Math.Sin(_telemetryPhase * 1.42) * 27, value => $"{Math.Max(44, 980 + Math.Sin(_telemetryPhase) * 420):0}K / {Math.Max(8, 31 + Math.Cos(_telemetryPhase * 1.4) * 14):0}K", _ => "KB/s  ↓ / ↑");
         UpdateModule("latency", 22 + Math.Sin(_telemetryPhase * 0.87) * 6, value => $"{value:0} ms", _ => "0% loss · 3 ms jitter");
         UpdateModule("disk", 12 + Math.Sin(_telemetryPhase * 1.9) * 8, value => $"{value:0}%", _ => "1.2 TB free");
-        UpdateModule("fps", 72 + Math.Sin(_telemetryPhase * 0.8) * 10, value => $"{value * 2:0} FPS", value => $"{1000 / Math.Max(1, value * 2):0.0} ms · 118 low");
         UpdateModule("battery", 86 - (_telemetryPhase % 8) * 0.05, value => $"{value:0}%", _ => "2h 48m · 17 W");
     }
 
@@ -653,6 +718,11 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     public void FlushSettings()
     {
+        if (!_applyTimer.IsEnabled)
+        {
+            return;
+        }
+
         _applyTimer.Stop();
         SaveSettings();
     }
@@ -667,9 +737,81 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         _applyTimer.Stop();
+        foreach (var module in Modules)
+        {
+            module.EditorValueChanging -= OnModuleEditorValueChanging;
+            module.PropertyChanged -= OnModulePropertyChanged;
+        }
+
+        if (_runtimeSettingsWatcher is not null)
+        {
+            _runtimeSettingsWatcher.ReloadRequested -=
+                RuntimeSettingsWatcher_OnReloadRequested;
+            _runtimeSettingsWatcher.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+
         _settingsSink.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    private async Task StartRuntimeSettingsWatcherAsync()
+    {
+        if (_runtimeSettingsWatcher is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _runtimeSettingsWatcher.StartAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception) when (
+            exception is IOException or
+                UnauthorizedAccessException or
+                ObjectDisposedException)
+        {
+            _ = _dispatcher.BeginInvoke(() =>
+            {
+                if (!_disposed)
+                {
+                    StatusMessage =
+                        $"Live settings sync is unavailable: {exception.Message}";
+                }
+            });
+        }
+    }
+
+    private void RuntimeSettingsWatcher_OnReloadRequested(
+        object? sender,
+        SettingsReloadRequestedEventArgs eventArgs)
+    {
+        _ = sender;
+        _ = eventArgs;
+        if (_disposed)
+        {
+            return;
+        }
+
+        _ = _dispatcher.BeginInvoke(
+            DispatcherPriority.Background,
+            () =>
+            {
+                if (_disposed || _applyTimer.IsEnabled)
+                {
+                    return;
+                }
+
+                ReloadSettings();
+                StatusMessage = "External widget changes synchronized";
+                LastAppliedText = "Synced from widget";
+            });
     }
 
     public void ReloadSettings()
@@ -677,76 +819,74 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         var snapshot = _settingsSink.Reload();
         if (snapshot is null)
         {
+            ResetDemo();
+            _applyTimer.Stop();
             StatusMessage = "Using polished defaults";
             LastAppliedText = "Defaults ready";
             return;
         }
 
         _isRestoring = true;
-        SelectedLayout = Layouts.Any(layout => layout.Id == snapshot.Layout) ? snapshot.Layout : "Pill";
-        ActiveScene = snapshot.Scene;
-        BackgroundOpacity = Math.Clamp(snapshot.BackgroundOpacity, 0.3, 1);
-        ContentOpacity = Math.Clamp(snapshot.ContentOpacity, 0.72, 1);
-        BlurStrength = Math.Clamp(snapshot.BlurStrength, 0, 40);
-        Density = DensityOptions.Contains(snapshot.Density) ? snapshot.Density : "Comfortable";
-        FontScale = Math.Clamp(snapshot.FontScale, 0.9, 1.35);
-        AlwaysOnTop = snapshot.AlwaysOnTop;
-        PositionLocked = snapshot.PositionLocked;
-        ClickThrough = snapshot.ClickThrough;
-        StartAtSignIn = snapshot.StartAtSignIn;
-        SnapToGrid = snapshot.SnapToGrid;
-        Draggable = snapshot.Draggable;
-        Resizable = snapshot.Resizable;
-        WidgetWidth = snapshot.WidgetWidth;
-        WidgetHeight = snapshot.WidgetHeight;
-        WidgetScalePercent = snapshot.WidgetScalePercent;
-        UpdateRate = RateLabel(snapshot.UpdateCadenceSeconds);
-        PerformanceMode = PerformanceModes.Contains(snapshot.PerformanceMode)
-            ? snapshot.PerformanceMode
-            : "Balanced";
-        AlertsEnabled = snapshot.AlertsEnabled;
-        ReducedMotion = snapshot.ReducedMotion;
-
-        var theme = Themes.FirstOrDefault(item => item.Id == snapshot.Theme) ?? Themes[0];
-        foreach (var item in Themes)
+        try
         {
-            item.IsSelected = item == theme;
-        }
-        SelectedTheme = theme;
+            SelectedLayout = Layouts.Any(layout => layout.Id == snapshot.Layout)
+                ? snapshot.Layout
+                : "Pill";
+            ActiveScene = snapshot.Scene;
+            BackgroundOpacity = Math.Clamp(snapshot.BackgroundOpacity, 0.08, 1);
+            ContentOpacity = Math.Clamp(snapshot.ContentOpacity, 0.82, 1);
+            BlurStrength = Math.Clamp(snapshot.BlurStrength, 0, 40);
+            Density = DensityOptions.Contains(snapshot.Density) ? snapshot.Density : "Compact";
+            FontScale = Math.Clamp(snapshot.FontScale, 0.9, 1.35);
+            AlwaysOnTop = snapshot.AlwaysOnTop;
+            PositionLocked = snapshot.PositionLocked;
+            ClickThrough = snapshot.ClickThrough;
+            StartAtSignIn = snapshot.StartAtSignIn;
+            Draggable = snapshot.Draggable;
+            Resizable = snapshot.Resizable;
+            WidgetScalePercent = snapshot.WidgetScalePercent;
+            WidgetWidth = snapshot.WidgetWidth;
+            WidgetHeight = snapshot.WidgetHeight;
+            UpdateRate = RateLabel(snapshot.UpdateCadenceSeconds);
+            PerformanceMode = PerformanceModes.Contains(snapshot.PerformanceMode)
+                ? snapshot.PerformanceMode
+                : "Balanced";
+            ReducedMotion = snapshot.ReducedMotion;
+            DemoMetrics = snapshot.DemoMetrics;
 
-        foreach (var module in Modules)
-        {
-            module.IsVisible = snapshot.VisibleModules.Contains(module.Id);
-        }
-        ApplyModuleSnapshots(snapshot.Modules);
-
-        if (snapshot.Scenes is not null)
-        {
-            foreach (var scene in Scenes)
+            var theme = Themes.FirstOrDefault(item => item.Id == snapshot.Theme) ?? Themes[0];
+            foreach (var item in Themes)
             {
-                var mapped = snapshot.Scenes.FirstOrDefault(item =>
-                    item.Id.Equals(scene.Id, StringComparison.Ordinal) ||
-                    item.Name.Equals(scene.Name, StringComparison.OrdinalIgnoreCase));
-                scene.IsActive = mapped?.IsActive ?? false;
+                item.IsSelected = item == theme;
             }
-        }
+            SelectedTheme = theme;
 
-        if (snapshot.Alerts is not null)
-        {
-            foreach (var alert in AlertRules)
+            foreach (var module in Modules)
             {
-                var mapped = snapshot.Alerts.FirstOrDefault(item =>
-                    item.Name.Equals(alert.Name, StringComparison.OrdinalIgnoreCase));
-                if (mapped is not null)
+                module.IsVisible = snapshot.VisibleModules.Contains(module.Id);
+            }
+            ApplyModuleSnapshots(snapshot.Modules);
+
+            if (snapshot.Scenes is not null)
+            {
+                foreach (var scene in Scenes)
                 {
-                    alert.IsEnabled = mapped.Enabled;
+                    var mapped = snapshot.Scenes.FirstOrDefault(item =>
+                        item.Id.Equals(scene.Id, StringComparison.Ordinal) ||
+                        item.Name.Equals(scene.Name, StringComparison.OrdinalIgnoreCase));
+                    scene.IsActive = mapped?.IsActive ?? false;
                 }
             }
         }
-
-        _isRestoring = false;
+        finally
+        {
+            _isRestoring = false;
+        }
         VisibleModulesView.Refresh();
         RefreshPreviewBrushes();
+        _undo.Clear();
+        _redo.Clear();
+        RaiseEditorCommandState();
         StatusMessage = string.IsNullOrWhiteSpace(_settingsSink.LastWarning)
             ? "Editor and shared runtime settings reloaded"
             : _settingsSink.LastWarning;
@@ -760,8 +900,15 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             return;
         }
 
+        _applyTimer.Stop();
+        IDisposable? suppression = null;
         try
         {
+            if (_runtimeSettingsWatcher?.IsRunning == true)
+            {
+                suppression = _runtimeSettingsWatcher.SuppressNotifications();
+            }
+
             var snapshot = CaptureSettings();
             _settingsSink.Save(snapshot);
             StatusMessage = string.IsNullOrWhiteSpace(_settingsSink.LastWarning)
@@ -778,6 +925,10 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         {
             StatusMessage = "Settings folder is not writable";
             LastAppliedText = "Save blocked";
+        }
+        finally
+        {
+            suppression?.Dispose();
         }
     }
 
@@ -812,7 +963,20 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     private static SolidColorBrush Brush(string value)
     {
-        var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(value));
+        Color color;
+        try
+        {
+            color = ColorConverter.ConvertFromString(value) is Color parsed
+                ? parsed
+                : Color.FromRgb(67, 231, 210);
+        }
+        catch (Exception exception) when (
+            exception is FormatException or NotSupportedException)
+        {
+            color = Color.FromRgb(67, 231, 210);
+        }
+
+        var brush = new SolidColorBrush(color);
         brush.Freeze();
         return brush;
     }
@@ -850,6 +1014,18 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         PushUndo();
         SelectedLayout = layout;
         StatusMessage = $"{layout} preview active";
+    }
+
+    private void SetScale(object? parameter)
+    {
+        if (parameter is not string text ||
+            !int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scale))
+        {
+            return;
+        }
+
+        WidgetScalePercent = scale;
+        StatusMessage = $"{WidgetScalePercent}% widget scale applied";
     }
 
     private void ApplyTheme(object? parameter)
@@ -894,7 +1070,6 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             return;
         }
 
-        PushUndo();
         module.IsVisible = true;
         SelectedModule = module;
         StatusMessage = $"{module.Name} added to {SelectedLayout}";
@@ -919,67 +1094,19 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         VisibleModulesView.Refresh();
         StatusMessage = $"{module.Name} reordered";
         QueueLiveApply();
+        RaiseEditorCommandState();
     }
 
-    private void DuplicateSelectedModule()
+    private bool CanMoveModule(ModuleItem? module, int direction)
     {
-        if (SelectedModule is null)
+        if (module is null)
         {
-            return;
+            return false;
         }
 
-        PushUndo();
-        var clone = SelectedModule.Clone((Modules.Count + 1).ToString(CultureInfo.InvariantCulture));
-        clone.PropertyChanged += OnModulePropertyChanged;
-        Modules.Insert(Math.Min(Modules.IndexOf(SelectedModule) + 1, Modules.Count), clone);
-        SelectedModule = clone;
-        VisibleModulesView.Refresh();
-        StatusMessage = $"{clone.Name} created";
-        QueueLiveApply();
-    }
-
-    private void DeleteSelectedModule()
-    {
-        if (SelectedModule is null)
-        {
-            return;
-        }
-
-        PushUndo();
-        var index = Modules.IndexOf(SelectedModule);
-        var name = SelectedModule.Name;
-        SelectedModule.PropertyChanged -= OnModulePropertyChanged;
-        Modules.Remove(SelectedModule);
-        SelectedModule = Modules.Count == 0 ? null : Modules[Math.Clamp(index, 0, Modules.Count - 1)];
-        VisibleModulesView.Refresh();
-        StatusMessage = $"{name} removed";
-        QueueLiveApply();
-    }
-
-    private void EqualizeModules()
-    {
-        PushUndo();
-        foreach (var module in Modules.Where(item => item.IsVisible))
-        {
-            module.Size = "Medium";
-        }
-
-        StatusMessage = "Visible modules equalized";
-        QueueLiveApply();
-    }
-
-    private void AddAlert()
-    {
-        AlertRules.Insert(0, new AlertRuleItem(
-            "New metric guardrail",
-            "Choose metric",
-            "above",
-            "80%",
-            "for 30 seconds",
-            "Info",
-            Brush("#FF62A7FF"),
-            true));
-        StatusMessage = "Alert rule added";
+        var current = Modules.IndexOf(module);
+        var target = current + direction;
+        return current >= 0 && target >= 0 && target < Modules.Count;
     }
 
     private void TestProvider(object? parameter)
@@ -1032,7 +1159,6 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             "CPU temperature bridge" => ProbeCpuTemperatureBridge(),
             "Network quality" => ProbeNetwork(),
             "LibreHardwareMonitor" => ProbeOptionalProcess("LibreHardwareMonitor"),
-            "PresentMon" => ProbeOptionalProcess("PresentMon"),
             _ => new ProviderProbeResult("Unknown provider", "No probe", false)
         };
 
@@ -1179,31 +1305,62 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     private void ResetDemo()
     {
         _isRestoring = true;
-        SelectedLayout = "Pill";
         BackgroundOpacity = 0.82;
         ContentOpacity = 1;
         BlurStrength = 24;
         FontScale = 1;
-        Density = "Comfortable";
+        Density = "Compact";
+        SelectedLayout = "Pill";
         AlwaysOnTop = true;
         PositionLocked = false;
         ClickThrough = false;
-        SnapToGrid = true;
         Draggable = true;
         Resizable = true;
+        StartAtSignIn = true;
         WidgetScalePercent = 100;
         UpdateRate = "2 seconds";
         PerformanceMode = "Balanced";
+        ReducedMotion = false;
+        DemoMetrics = true;
+
+        var defaultOrder = new[] { "cpu", "gpu", "ram", "net", "latency", "disk", "battery" };
+        for (var targetIndex = 0; targetIndex < defaultOrder.Length; targetIndex++)
+        {
+            var module = Modules.First(item => item.Id == defaultOrder[targetIndex]);
+            var currentIndex = Modules.IndexOf(module);
+            if (currentIndex != targetIndex)
+            {
+                Modules.Move(currentIndex, targetIndex);
+            }
+        }
+
         foreach (var module in Modules)
         {
             module.IsVisible = module.Id is "cpu" or "gpu" or "ram" or "net" or "latency";
             module.Size = module.Id is "cpu" or "gpu" ? "Large" : "Medium";
+            module.Visualization = "Bar + sparkline";
+            module.ShowLabel = true;
+            module.ShowSparkline = true;
+            module.ShowTemperature = true;
+            module.Precision = "Whole numbers";
         }
+
+        foreach (var scene in Scenes)
+        {
+            scene.IsActive = scene.Id == "daily";
+        }
+
+        ActiveScene = "Daily driver";
+        SelectedModule = Modules[0];
         ApplyTheme(Themes[0]);
+        ApplyLayoutMetrics();
         _isRestoring = false;
+        _undo.Clear();
+        _redo.Clear();
+        RaiseEditorCommandState();
         VisibleModulesView.Refresh();
         RefreshPreviewBrushes();
-        StatusMessage = "Demo defaults restored";
+        StatusMessage = "Studio defaults restored";
         QueueLiveApply();
     }
 
@@ -1214,43 +1371,17 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var builtInIds = new HashSet<string>(
-            ["cpu", "gpu", "ram", "net", "latency", "disk", "fps", "battery"],
-            StringComparer.Ordinal);
-        var snapshotIds = snapshots.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
-        foreach (var staleClone in Modules.Where(item =>
-                     !builtInIds.Contains(item.Id) && !snapshotIds.Contains(item.Id)).ToArray())
-        {
-            staleClone.PropertyChanged -= OnModulePropertyChanged;
-            Modules.Remove(staleClone);
-        }
+        var supportedIds = Modules.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
+        var applicable = snapshots
+            .Where(item => supportedIds.Contains(item.Id))
+            .OrderBy(item => item.Order)
+            .ToArray();
+        var snapshotIds = applicable.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
 
-        foreach (var snapshot in snapshots.OrderBy(item => item.Order))
+        foreach (var snapshot in applicable)
         {
-            var module = Modules.FirstOrDefault(item =>
+            var module = Modules.First(item =>
                 item.Id.Equals(snapshot.Id, StringComparison.Ordinal));
-            if (module is null)
-            {
-                var baseId = snapshot.Id.Split('-', 2)[0];
-                var template = Modules.FirstOrDefault(item =>
-                                   item.Id.Equals(baseId, StringComparison.Ordinal))
-                               ?? Modules[0];
-                module = new ModuleItem(
-                    snapshot.Id,
-                    snapshot.Name,
-                    snapshot.Icon,
-                    template.Category,
-                    template.Description,
-                    template.Source,
-                    Brush(snapshot.Accent),
-                    template.PrimaryValue,
-                    template.SecondaryValue,
-                    template.UsagePercent,
-                    snapshot.Enabled,
-                    snapshot.Size);
-                module.PropertyChanged += OnModulePropertyChanged;
-                Modules.Add(module);
-            }
 
             module.Name = snapshot.Name;
             module.Icon = snapshot.Icon;
@@ -1264,7 +1395,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             module.Precision = snapshot.Precision;
         }
 
-        var ordered = snapshots.OrderBy(item => item.Order)
+        var ordered = applicable
             .Select(item => Modules.First(module =>
                 module.Id.Equals(item.Id, StringComparison.Ordinal)))
             .Concat(Modules.Where(module => !snapshotIds.Contains(module.Id)))
@@ -1292,7 +1423,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             "0.5 seconds" => 0.5,
             "1 second" => 1,
             "5 seconds" => 5,
-            "Adaptive" => 2,
+            "10 seconds" => 10,
             _ => 2,
         };
 
@@ -1308,6 +1439,11 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             return "1 second";
         }
 
+        if (seconds >= 7.5)
+        {
+            return "10 seconds";
+        }
+
         if (seconds >= 4)
         {
             return "5 seconds";
@@ -1321,6 +1457,10 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         if (e.PropertyName == nameof(ModuleItem.IsVisible))
         {
             VisibleModulesView.Refresh();
+            if (!_isRestoring)
+            {
+                ApplyLayoutMetrics();
+            }
         }
 
         if (e.PropertyName is nameof(ModuleItem.UsagePercent)
@@ -1333,9 +1473,33 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         QueueLiveApply();
     }
 
-    private void SetAndQueue<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
+    private void OnModuleEditorValueChanging(object? sender, EventArgs e)
     {
-        if (SetProperty(ref field, value, propertyName))
+        _ = sender;
+        _ = e;
+        PushUndo();
+    }
+
+    private bool SetEditorProperty<T>(
+        ref T field,
+        T value,
+        [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+        {
+            return false;
+        }
+
+        PushUndo();
+        return SetProperty(ref field, value, propertyName);
+    }
+
+    private void SetAndQueue<T>(
+        ref T field,
+        T value,
+        [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
+    {
+        if (SetEditorProperty(ref field, value, propertyName))
         {
             QueueLiveApply();
         }
@@ -1369,7 +1533,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             PositionLocked,
             ClickThrough,
             StartAtSignIn,
-            SnapToGrid,
+            false,
             Modules.Where(item => item.IsVisible).Select(item => item.Id).ToArray(),
             Draggable,
             Resizable,
@@ -1378,7 +1542,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             WidgetScalePercent,
             RateSeconds(UpdateRate),
             PerformanceMode,
-            AlertsEnabled,
+            true,
             ReducedMotion,
             Modules.Select((item, order) => new StudioModuleSnapshot(
                 item.Id,
@@ -1405,15 +1569,8 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 item.Name,
                 item.Layout,
                 item.IsActive)).ToArray(),
-            AlertRules.Select((item, index) => new StudioAlertSnapshot(
-                $"rule-{index.ToString(CultureInfo.InvariantCulture)}",
-                item.Name,
-                item.Metric,
-                item.Condition,
-                item.Threshold,
-                item.Duration,
-                item.Severity,
-                item.IsEnabled)).ToArray());
+            null,
+            DemoMetrics);
     }
 
     private void RefreshPreviewBrushes()
@@ -1424,9 +1581,23 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             return;
         }
 
+        const double guardActivationOpacity = 0.82;
+        const double fullGuardOpacity = 0.55;
+        const double guardedCardOpacity = 0.78;
+        var guardStrength = Math.Clamp(
+            (guardActivationOpacity - BackgroundOpacity) /
+            (guardActivationOpacity - fullGuardOpacity),
+            0,
+            1);
+        var requestedCardOpacity = BackgroundOpacity * 0.68;
+        var cardOpacity = requestedCardOpacity +
+                          ((guardedCardOpacity - requestedCardOpacity) * guardStrength);
+
         PreviewSurfaceBrush = OpacityBrush(theme.Surface, BackgroundOpacity);
-        PreviewCardBrush = OpacityBrush(theme.Card, Math.Min(1, BackgroundOpacity + 0.08));
-        PreviewBorderBrush = OpacityBrush(theme.Border, Math.Min(1, BackgroundOpacity + 0.16));
+        PreviewCardBrush = OpacityBrush(theme.Card, cardOpacity);
+        PreviewBorderBrush = OpacityBrush(
+            theme.Border,
+            Math.Max(BackgroundOpacity * 0.54, 0.5 * guardStrength));
         PreviewAccentBrush = new SolidColorBrush(theme.Accent);
     }
 
@@ -1443,27 +1614,85 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     private void ApplyLayoutMetrics()
     {
-        (WidgetWidth, WidgetHeight, PreviewModuleWidth, PreviewModuleHeight, PreviewCornerRadius) =
-            (SelectedLayout, Density) switch
+        var visibleModuleCount = Modules.Count(item => item.IsVisible);
+        var recommendation = CalculateWidgetSize(
+            SelectedLayout,
+            Density,
+            visibleModuleCount,
+            WidgetScalePercent);
+        var scale = Math.Clamp(WidgetScalePercent, 80, 160) / 100d;
+        var footprintScale = scale < 1 &&
+                             SelectedLayout is "Pill" or "Mini" &&
+                             Density == "Compact"
+            ? scale
+            : Math.Max(1, scale);
+        var moduleHeight = (SelectedLayout, Density) switch
         {
-            ("Rail", "Compact") => (204, 326, 164, 48, 25),
-            ("Rail", "Airy") => (276, 820, 236, 144, 29),
-            ("Rail", _) => (250, 660, 210, 104, 28),
-            ("Dock", "Compact") => (880, 118, 160, 64, 25),
-            ("Dock", "Airy") => (1_100, 292, 180, 144, 30),
-            ("Dock", _) => (940, 238, 180, 104, 30),
-            ("Canvas", _) => (540, 348, 154, 94, 24),
-            ("Pill", "Compact") => (240, 420, 200, 64, 25),
-            ("Pill", "Airy") => (320, 820, 280, 144, 34),
-            _ => (290, 660, 250, 104, 32),
+            ("Rail", "Compact") => 39,
+            ("Rail", "Airy") => 144,
+            ("Rail", _) => 104,
+            ("Dock", _) => 72,
+            ("Mini", "Compact") => 30,
+            ("Mini", "Airy") => 46,
+            ("Mini", _) => 38,
+            ("Pill", "Compact") => 60,
+            ("Pill", "Airy") => 144,
+            _ => 104,
         };
+        var moduleWidth = SelectedLayout == "Dock"
+            ? 132 * footprintScale
+            : Math.Max(112, recommendation.SuggestedWidth - 24);
+        var cornerRadius = SelectedLayout switch
+        {
+            "Dock" => 24,
+            "Pill" => 27,
+            "Mini" => 16,
+            _ => 19
+        };
+        _isApplyingLayoutMetrics = true;
+        try
+        {
+            (WidgetWidth, WidgetHeight, PreviewModuleWidth, PreviewModuleHeight, PreviewCornerRadius) =
+                (recommendation.SuggestedWidth,
+                    recommendation.SuggestedHeight,
+                    moduleWidth,
+                    moduleHeight * footprintScale,
+                    cornerRadius * footprintScale);
+        }
+        finally
+        {
+            _isApplyingLayoutMetrics = false;
+        }
+
         OnPropertyChanged(nameof(WidgetWidth));
         OnPropertyChanged(nameof(WidgetHeight));
     }
 
+    internal static OpsMonitor.Core.Settings.WidgetSizeRecommendation CalculateWidgetSize(
+        string layout,
+        string density,
+        int visibleModuleCount,
+        int scalePercent)
+        => OpsMonitor.Core.Settings.WidgetSizingPolicy.Calculate(
+            layout switch
+            {
+                "Dock" => OpsMonitor.Core.Settings.WidgetDesign.Dock,
+                "Rail" => OpsMonitor.Core.Settings.WidgetDesign.Rail,
+                "Mini" => OpsMonitor.Core.Settings.WidgetDesign.Canvas,
+                _ => OpsMonitor.Core.Settings.WidgetDesign.Pill
+            },
+            density switch
+            {
+                "Compact" => OpsMonitor.Core.Settings.WidgetDensity.Compact,
+                "Airy" => OpsMonitor.Core.Settings.WidgetDensity.Comfortable,
+                _ => OpsMonitor.Core.Settings.WidgetDensity.Normal
+            },
+            visibleModuleCount,
+            scalePercent);
+
     private void PushUndo()
     {
-        if (_isRestoring)
+        if (_isInitializing || _isRestoring)
         {
             return;
         }
@@ -1476,46 +1705,112 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     private EditorState CaptureEditorState()
         => new(
             SelectedLayout,
-            SelectedTheme?.Id ?? "abyss",
-            Modules.Select(item => new ModuleState(item.Id, item.IsVisible, item.Size)).ToArray());
+            ActiveScene,
+            SelectedTheme?.Id ?? "void",
+            BackgroundOpacity,
+            ContentOpacity,
+            BlurStrength,
+            FontScale,
+            Density,
+            AlwaysOnTop,
+            PositionLocked,
+            ClickThrough,
+            Draggable,
+            Resizable,
+            StartAtSignIn,
+            ReducedMotion,
+            DemoMetrics,
+            WidgetScalePercent,
+            UpdateRate,
+            PerformanceMode,
+            WidgetWidth,
+            WidgetHeight,
+            Modules.Select(item => new ModuleState(
+                item.Id,
+                item.IsVisible,
+                item.Size,
+                item.Visualization,
+                item.Precision,
+                item.ShowLabel,
+                item.ShowSparkline,
+                item.ShowTemperature)).ToArray());
 
     private void RestoreEditorState(EditorState state)
     {
         _isRestoring = true;
-        SelectedLayout = state.Layout;
-        var theme = Themes.FirstOrDefault(item => item.Id == state.ThemeId) ?? Themes[0];
-        foreach (var item in Themes)
+        try
         {
-            item.IsSelected = item == theme;
-        }
-        SelectedTheme = theme;
-
-        var stateById = state.Modules.ToDictionary(item => item.Id);
-        foreach (var module in Modules)
-        {
-            if (stateById.TryGetValue(module.Id, out var moduleState))
+            SelectedLayout = state.Layout;
+            BackgroundOpacity = state.BackgroundOpacity;
+            ContentOpacity = state.ContentOpacity;
+            BlurStrength = state.BlurStrength;
+            FontScale = state.FontScale;
+            Density = state.Density;
+            AlwaysOnTop = state.AlwaysOnTop;
+            PositionLocked = state.PositionLocked;
+            ClickThrough = state.ClickThrough;
+            Draggable = state.Draggable;
+            Resizable = state.Resizable;
+            StartAtSignIn = state.StartAtSignIn;
+            ReducedMotion = state.ReducedMotion;
+            DemoMetrics = state.DemoMetrics;
+            WidgetScalePercent = state.WidgetScalePercent;
+            UpdateRate = state.UpdateRate;
+            PerformanceMode = state.PerformanceMode;
+            var theme = Themes.FirstOrDefault(item => item.Id == state.ThemeId) ?? Themes[0];
+            foreach (var item in Themes)
             {
-                module.IsVisible = moduleState.Visible;
-                module.Size = moduleState.Size;
+                item.IsSelected = item == theme;
             }
-        }
 
-        var ordered = state.Modules
-            .Select(item => Modules.FirstOrDefault(module => module.Id == item.Id))
-            .Where(module => module is not null)
-            .Cast<ModuleItem>()
-            .Concat(Modules.Where(module => state.Modules.All(item => item.Id != module.Id)))
-            .ToArray();
-        for (var index = 0; index < ordered.Length; index++)
-        {
-            var current = Modules.IndexOf(ordered[index]);
-            if (current != index)
+            SelectedTheme = theme;
+            ActiveScene = state.ActiveScene;
+            foreach (var scene in Scenes)
             {
-                Modules.Move(current, index);
+                scene.IsActive = scene.Name.Equals(
+                    state.ActiveScene,
+                    StringComparison.OrdinalIgnoreCase);
             }
+
+            var stateById = state.Modules.ToDictionary(item => item.Id);
+            foreach (var module in Modules)
+            {
+                if (stateById.TryGetValue(module.Id, out var moduleState))
+                {
+                    module.IsVisible = moduleState.Visible;
+                    module.Size = moduleState.Size;
+                    module.Visualization = moduleState.Visualization;
+                    module.Precision = moduleState.Precision;
+                    module.ShowLabel = moduleState.ShowLabel;
+                    module.ShowSparkline = moduleState.ShowSparkline;
+                    module.ShowTemperature = moduleState.ShowTemperature;
+                }
+            }
+
+            var ordered = state.Modules
+                .Select(item => Modules.FirstOrDefault(module => module.Id == item.Id))
+                .Where(module => module is not null)
+                .Cast<ModuleItem>()
+                .Concat(Modules.Where(module => state.Modules.All(item => item.Id != module.Id)))
+                .ToArray();
+            for (var index = 0; index < ordered.Length; index++)
+            {
+                var current = Modules.IndexOf(ordered[index]);
+                if (current != index)
+                {
+                    Modules.Move(current, index);
+                }
+            }
+
+            ApplyLayoutMetrics();
+            WidgetWidth = state.WidgetWidth;
+            WidgetHeight = state.WidgetHeight;
+        }
+        finally
+        {
+            _isRestoring = false;
         }
 
-        _isRestoring = false;
         VisibleModulesView.Refresh();
         RefreshPreviewBrushes();
         QueueLiveApply();
@@ -1551,10 +1846,44 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     {
         (UndoCommand as RelayCommand)?.RaiseCanExecuteChanged();
         (RedoCommand as RelayCommand)?.RaiseCanExecuteChanged();
-        (DuplicateModuleCommand as RelayCommand)?.RaiseCanExecuteChanged();
-        (DeleteModuleCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (SelectLayoutCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (ApplyThemeCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (ActivateSceneCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (MoveModuleUpCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (MoveModuleDownCommand as RelayCommand)?.RaiseCanExecuteChanged();
     }
 
-    private sealed record ModuleState(string Id, bool Visible, string Size);
-    private sealed record EditorState(string Layout, string ThemeId, IReadOnlyList<ModuleState> Modules);
+    private sealed record ModuleState(
+        string Id,
+        bool Visible,
+        string Size,
+        string Visualization,
+        string Precision,
+        bool ShowLabel,
+        bool ShowSparkline,
+        bool ShowTemperature);
+
+    private sealed record EditorState(
+        string Layout,
+        string ActiveScene,
+        string ThemeId,
+        double BackgroundOpacity,
+        double ContentOpacity,
+        double BlurStrength,
+        double FontScale,
+        string Density,
+        bool AlwaysOnTop,
+        bool PositionLocked,
+        bool ClickThrough,
+        bool Draggable,
+        bool Resizable,
+        bool StartAtSignIn,
+        bool ReducedMotion,
+        bool DemoMetrics,
+        int WidgetScalePercent,
+        string UpdateRate,
+        string PerformanceMode,
+        double WidgetWidth,
+        double WidgetHeight,
+        IReadOnlyList<ModuleState> Modules);
 }

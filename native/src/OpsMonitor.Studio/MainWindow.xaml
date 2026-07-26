@@ -82,7 +82,7 @@
                                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource StudioTextBox}"
                                  Padding="34,7,34,7"
-                                 ToolTip="Search Studio settings (Ctrl+K)"/>
+                                 ToolTip="Find a Studio page (Ctrl+K)"/>
                         <TextBlock Margin="12,0,0,0"
                                    Text="⌕"
                                    Foreground="{StaticResource Brush.TextMuted}"
@@ -91,7 +91,7 @@
                                    VerticalAlignment="Center"
                                    IsHitTestVisible="False"/>
                         <TextBlock Margin="34,0,64,0"
-                                   Text="Search settings"
+                                   Text="Find a page"
                                    Foreground="{StaticResource Brush.TextMuted}"
                                    FontSize="12"
                                    VerticalAlignment="Center"
@@ -300,9 +300,9 @@
                                 <StackPanel VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
                                         <Ellipse Width="8" Height="8" Fill="{StaticResource Brush.Success}" Margin="0,4,8,0"/>
-                                        <TextBlock Text="INTERACTIVE PREVIEW" Style="{StaticResource EyebrowText}" Foreground="{StaticResource Brush.Success}"/>
+                                        <TextBlock Text="DESIGN PREVIEW" Style="{StaticResource EyebrowText}" Foreground="{StaticResource Brush.Success}"/>
                                     </StackPanel>
-                                    <TextBlock Margin="0,7,0,0" Text="Surface alpha and content are independent." Style="{StaticResource CaptionText}"/>
+                                    <TextBlock Margin="0,7,0,0" Text="Sample values animate locally; edits apply live." Style="{StaticResource CaptionText}"/>
                                 </StackPanel>
                                 <Border Grid.Column="1" Width="35" Height="35" Background="{StaticResource Brush.Surface2}" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" CornerRadius="10" VerticalAlignment="Center">
                                     <TextBlock Text="◎" FontSize="17" Foreground="{StaticResource Brush.TextSecondary}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -320,7 +320,7 @@
                             <Button Grid.Column="0" Content="Pill" Command="{Binding SelectLayoutCommand}" CommandParameter="Pill" Style="{StaticResource StudioButton}" Margin="0,0,5,0" Padding="5,7"/>
                             <Button Grid.Column="1" Content="Rail" Command="{Binding SelectLayoutCommand}" CommandParameter="Rail" Style="{StaticResource StudioButton}" Margin="0,0,5,0" Padding="5,7"/>
                             <Button Grid.Column="2" Content="Dock" Command="{Binding SelectLayoutCommand}" CommandParameter="Dock" Style="{StaticResource StudioButton}" Margin="0,0,5,0" Padding="5,7"/>
-                            <Button Grid.Column="3" Content="Canvas" Command="{Binding SelectLayoutCommand}" CommandParameter="Canvas" Style="{StaticResource StudioButton}" Padding="5,7"/>
+                            <Button Grid.Column="3" Content="Mini" Command="{Binding SelectLayoutCommand}" CommandParameter="Mini" Style="{StaticResource StudioButton}" Padding="5,7"/>
                         </Grid>
 
                         <Border Grid.Row="2"
@@ -362,14 +362,46 @@
                                             CornerRadius="{Binding PreviewCornerRadius}"
                                             SnapsToDevicePixels="True"
                                             ClipToBounds="True">
-                                        <Grid Margin="16,14">
+                                        <Grid Margin="8,6">
                                             <Grid.RowDefinitions>
-                                                <RowDefinition Height="48"/>
+                                                <RowDefinition>
+                                                    <RowDefinition.Style>
+                                                        <Style TargetType="RowDefinition">
+                                                            <Setter Property="Height" Value="40"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
+                                                                    <Setter Property="Height" Value="0"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </RowDefinition.Style>
+                                                </RowDefinition>
                                                 <RowDefinition Height="*"/>
-                                                <RowDefinition Height="22"/>
+                                                <RowDefinition>
+                                                    <RowDefinition.Style>
+                                                        <Style TargetType="RowDefinition">
+                                                            <Setter Property="Height" Value="14"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
+                                                                    <Setter Property="Height" Value="0"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </RowDefinition.Style>
+                                                </RowDefinition>
                                             </Grid.RowDefinitions>
 
                                             <Grid Opacity="{Binding ContentOpacity}">
+                                                <Grid.Style>
+                                                    <Style TargetType="Grid">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Grid.Style>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
@@ -399,13 +431,34 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="4"
-                                                                Padding="10,7"
+                                                        <Border Margin="3"
+                                                                Padding="6,3"
                                                                 Background="{Binding DataContext.PreviewCardBrush, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                 BorderBrush="{Binding DataContext.PreviewBorderBrush, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                 BorderThickness="1"
                                                                 CornerRadius="11">
                                                             <Grid>
+                                                            <Grid>
+                                                                <Grid.Style>
+                                                                    <Style TargetType="Grid">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding DataContext.SelectedLayout, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                         Value="Mini">
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            </DataTrigger>
+                                                                            <MultiDataTrigger>
+                                                                                <MultiDataTrigger.Conditions>
+                                                                                    <Condition Binding="{Binding DataContext.SelectedLayout, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                               Value="Rail"/>
+                                                                                    <Condition Binding="{Binding DataContext.Density, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                               Value="Compact"/>
+                                                                                </MultiDataTrigger.Conditions>
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            </MultiDataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Grid.Style>
                                                                 <Grid.RowDefinitions>
                                                                     <RowDefinition Height="Auto"/>
                                                                     <RowDefinition Height="*"/>
@@ -417,33 +470,187 @@
                                                                         <ColumnDefinition Width="*"/>
                                                                         <ColumnDefinition Width="Auto"/>
                                                                     </Grid.ColumnDefinitions>
-                                                                    <TextBlock Text="{Binding Icon}" FontSize="13" Foreground="{Binding Accent}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="1" Margin="6,0,4,0" Text="{Binding Name}" FontSize="11" FontWeight="Bold" Foreground="{Binding Accent}" VerticalAlignment="Center"/>
-                                                                    <TextBlock Grid.Column="2" Text="{Binding SecondaryValue}" FontSize="9.5" Foreground="#FFA7B3C4" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{Binding Icon}"
+                                                                               FontSize="11"
+                                                                               Foreground="{Binding Accent}"
+                                                                               VerticalAlignment="Center"
+                                                                               Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                    <TextBlock Grid.Column="1"
+                                                                               Margin="6,0,4,0"
+                                                                               Text="{Binding Name}"
+                                                                               FontSize="10"
+                                                                               FontWeight="Bold"
+                                                                               Foreground="{Binding Accent}"
+                                                                               VerticalAlignment="Center"
+                                                                               Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                    <TextBlock Grid.Column="2"
+                                                                               Text="{Binding PreviewSecondaryValue}"
+                                                                               FontSize="8.5"
+                                                                               Foreground="#FFA7B3C4"
+                                                                               HorizontalAlignment="Right"
+                                                                               VerticalAlignment="Center"
+                                                                               Visibility="{Binding ShowTemperature, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                                                 </Grid>
                                                                 <TextBlock Grid.Row="1"
-                                                                           Margin="0,3,0,3"
-                                                                           Text="{Binding PrimaryValue}"
+                                                                           Margin="0,0,0,1"
+                                                                           Text="{Binding PreviewPrimaryValue}"
                                                                            FontFamily="{StaticResource Font.Display}"
-                                                                           FontSize="19"
+                                                                           FontSize="18"
                                                                            FontWeight="SemiBold"
                                                                            Foreground="#FFF6F8FC"
-                                                                           VerticalAlignment="Center"/>
+                                                                           LineHeight="20"
+                                                                           LineStackingStrategy="BlockLineHeight"
+                                                                           VerticalAlignment="Center">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding Visualization}" Value="Number only">
+                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding Visualization}" Value="Bar + sparkline">
+                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
                                                                 <Grid Grid.Row="2">
+                                                                    <Grid.Style>
+                                                                        <Style TargetType="Grid">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding Visualization}" Value="Bar">
+                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding Visualization}" Value="Sparkline">
+                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                </DataTrigger>
+                                                                                <MultiDataTrigger>
+                                                                                    <MultiDataTrigger.Conditions>
+                                                                                        <Condition Binding="{Binding Visualization}" Value="Bar + sparkline"/>
+                                                                                        <Condition Binding="{Binding ShowSparkline}" Value="True"/>
+                                                                                    </MultiDataTrigger.Conditions>
+                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                </MultiDataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Grid.Style>
                                                                     <Border Background="#382C3442" CornerRadius="2"/>
                                                                     <Border Width="{Binding UsagePercent}"
                                                                             MaxWidth="100"
                                                                             HorizontalAlignment="Left"
                                                                             Background="{Binding Accent}"
-                                                                            CornerRadius="2"/>
+                                                                            CornerRadius="2">
+                                                                        <Border.Style>
+                                                                            <Style TargetType="Border">
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Visualization}" Value="Bar">
+                                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Border.Style>
+                                                                    </Border>
+                                                                    <Polyline Margin="1,0"
+                                                                              Points="0,3 12,1 24,2.6 36,0.8 48,2 60,1.2 72,2.7 84,0.6 100,1.6"
+                                                                              Stretch="Fill"
+                                                                              Stroke="{Binding Accent}"
+                                                                              StrokeThickness="1.15">
+                                                                        <Polyline.Style>
+                                                                            <Style TargetType="Polyline">
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Visualization}" Value="Sparkline">
+                                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                                    </DataTrigger>
+                                                                                    <MultiDataTrigger>
+                                                                                        <MultiDataTrigger.Conditions>
+                                                                                            <Condition Binding="{Binding Visualization}" Value="Bar + sparkline"/>
+                                                                                            <Condition Binding="{Binding ShowSparkline}" Value="True"/>
+                                                                                        </MultiDataTrigger.Conditions>
+                                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                                    </MultiDataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Polyline.Style>
+                                                                    </Polyline>
                                                                 </Grid>
+                                                            </Grid>
+                                                            <Grid>
+                                                                <Grid.Style>
+                                                                    <Style TargetType="Grid">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding DataContext.SelectedLayout, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                         Value="Mini">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                            </DataTrigger>
+                                                                            <MultiDataTrigger>
+                                                                                <MultiDataTrigger.Conditions>
+                                                                                    <Condition Binding="{Binding DataContext.SelectedLayout, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                               Value="Rail"/>
+                                                                                    <Condition Binding="{Binding DataContext.Density, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                               Value="Compact"/>
+                                                                                </MultiDataTrigger.Conditions>
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                            </MultiDataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Grid.Style>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Text="{Binding Icon}"
+                                                                           FontSize="9"
+                                                                           Foreground="{Binding Accent}"
+                                                                           VerticalAlignment="Center"
+                                                                           Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                <TextBlock Grid.Column="1"
+                                                                           Margin="4,0"
+                                                                           MaxWidth="48"
+                                                                           Text="{Binding Name}"
+                                                                           FontSize="9"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="{Binding Accent}"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           VerticalAlignment="Center"
+                                                                           Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                <TextBlock Grid.Column="2"
+                                                                           Text="{Binding PreviewPrimaryValue}"
+                                                                           FontFamily="{StaticResource Font.Display}"
+                                                                           FontSize="12"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#FFF6F8FC"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           VerticalAlignment="Center"/>
+                                                                <Border Grid.ColumnSpan="3"
+                                                                        Height="1.5"
+                                                                        VerticalAlignment="Bottom"
+                                                                        Background="{Binding Accent}"
+                                                                        CornerRadius="1"
+                                                                        Opacity="0.82"/>
+                                                            </Grid>
                                                             </Grid>
                                                         </Border>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
 
-                                            <Grid Grid.Row="2" Margin="2,4,2,0" Opacity="{Binding ContentOpacity}">
+                                            <Grid Grid.Row="2" Margin="2,2,2,0" Opacity="{Binding ContentOpacity}">
+                                                <Grid.Style>
+                                                    <Style TargetType="Grid">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Grid.Style>
                                                 <TextBlock Text="DRAG TO MOVE" FontSize="9" FontWeight="SemiBold" Foreground="#FF697588" VerticalAlignment="Center"/>
                                                 <TextBlock HorizontalAlignment="Right" FontSize="9" Foreground="#FF697588" VerticalAlignment="Center">
                                                     <Run Text="{Binding SelectedLayout, Mode=OneWay}"/>
@@ -476,7 +683,7 @@
                                 <Grid>
                                     <StackPanel>
                                         <TextBlock Text="Position lock" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,0,0" Text="Ctrl + L" FontSize="10" Foreground="{StaticResource Brush.TextMuted}"/>
+                                        <TextBlock Margin="0,3,0,0" Text="Studio · Ctrl+L" FontSize="10" Foreground="{StaticResource Brush.TextMuted}"/>
                                     </StackPanel>
                                     <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding PositionLocked}"/>
                                 </Grid>
@@ -500,7 +707,7 @@
                         <TextBlock Text="{Binding StatusMessage}" FontSize="10.5" Foreground="{StaticResource Brush.TextSecondary}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="Ctrl+K Search" FontSize="10" Foreground="{StaticResource Brush.TextMuted}" Margin="0,0,16,0"/>
+                        <TextBlock Text="Ctrl+K Pages" FontSize="10" Foreground="{StaticResource Brush.TextMuted}" Margin="0,0,16,0"/>
                         <TextBlock Text="Ctrl+Z Undo" FontSize="10" Foreground="{StaticResource Brush.TextMuted}" Margin="0,0,16,0"/>
                         <TextBlock Text="Ctrl+S Save" FontSize="10" Foreground="{StaticResource Brush.TextMuted}"/>
                     </StackPanel>

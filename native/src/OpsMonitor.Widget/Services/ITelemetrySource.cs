@@ -10,5 +10,7 @@ public interface ITelemetrySource : IDisposable
 
     event EventHandler<TelemetrySnapshot>? SnapshotAvailable;
 
+    void SetUpdateCadence(TimeSpan cadence);
+
     void Start();
 }

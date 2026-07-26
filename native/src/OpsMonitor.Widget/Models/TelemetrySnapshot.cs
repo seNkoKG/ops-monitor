@@ -10,34 +10,35 @@ public enum SensorState
 }
 
 public sealed record CpuTelemetry(
-    double LoadPercent,
+    double? LoadPercent,
     double? TemperatureCelsius,
-    double ClockGhz,
-    double PackagePowerWatts,
+    double? ClockGhz,
+    double? PackagePowerWatts,
     SensorState State = SensorState.Available);
 
 public sealed record GpuTelemetry(
-    double LoadPercent,
+    double? LoadPercent,
     double? TemperatureCelsius,
-    double ClockGhz,
-    double UsedVramGigabytes,
-    double TotalVramGigabytes,
+    double? ClockGhz,
+    double? UsedVramGigabytes,
+    double? TotalVramGigabytes,
     SensorState State = SensorState.Available);
 
 public sealed record MemoryTelemetry(
-    double UsedGigabytes,
-    double TotalGigabytes,
-    double CommitGigabytes,
-    double CachedGigabytes,
+    double? UsedGigabytes,
+    double? TotalGigabytes,
+    double? CommitGigabytes,
+    double? CachedGigabytes,
     SensorState State = SensorState.Available);
 
 public sealed record NetworkTelemetry(
-    double DownloadBytesPerSecond,
-    double UploadBytesPerSecond,
-    double PingMilliseconds,
-    double JitterMilliseconds,
-    double PacketLossPercent,
-    SensorState State = SensorState.Available);
+    double? DownloadBytesPerSecond,
+    double? UploadBytesPerSecond,
+    double? PingMilliseconds,
+    double? JitterMilliseconds,
+    double? PacketLossPercent,
+    SensorState ThroughputState = SensorState.Available,
+    SensorState ConnectivityState = SensorState.Available);
 
 public sealed record StorageTelemetry(
     double UsedPercent,
@@ -49,7 +50,7 @@ public sealed record StorageTelemetry(
 
 public sealed record BatteryTelemetry(
     double? ChargePercent,
-    string PowerState,
+    string? PowerState,
     TimeSpan? Remaining,
     double? DrawWatts,
     SensorState State);

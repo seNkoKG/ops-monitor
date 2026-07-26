@@ -9,6 +9,7 @@ internal sealed class DemoTelemetrySource : ITelemetrySource
     private readonly Random _random = new(0x0F51);
     private readonly DateTimeOffset _startedAt = DateTimeOffset.UtcNow;
     private System.Threading.Timer? _timer;
+    private TimeSpan _cadence = TimeSpan.FromSeconds(1);
     private bool _disposed;
 
     public string Name => "Demo telemetry";
@@ -16,6 +17,21 @@ internal sealed class DemoTelemetrySource : ITelemetrySource
     public bool IsDemo => true;
 
     public event EventHandler<TelemetrySnapshot>? SnapshotAvailable;
+
+    public void SetUpdateCadence(TimeSpan cadence)
+    {
+        var milliseconds = double.IsFinite(cadence.TotalMilliseconds)
+            ? cadence.TotalMilliseconds
+            : 1_000;
+        var normalized = TimeSpan.FromMilliseconds(
+            Math.Clamp(milliseconds, 500, 10_000));
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _cadence = normalized;
+            _timer?.Change(TimeSpan.Zero, normalized);
+        }
+    }
 
     public void Start()
     {
@@ -27,7 +43,7 @@ internal sealed class DemoTelemetrySource : ITelemetrySource
                 PublishSnapshot,
                 null,
                 TimeSpan.Zero,
-                TimeSpan.FromSeconds(1));
+                _cadence);
         }
     }
 

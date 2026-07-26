@@ -8,6 +8,7 @@
                 <ResourceDictionary Source="Theme/StudioTheme.xaml"/>
                 <ResourceDictionary Source="Views/SectionTemplates.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -42,6 +42,26 @@ function Test-IsChildPath {
     )
 }
 
+function Assert-WindowsDesktopRuntime {
+    $dotnetCommand = Get-Command dotnet -ErrorAction SilentlyContinue
+    $dotnet = if ($dotnetCommand) {
+        $dotnetCommand.Source
+    }
+    else {
+        Join-Path $env:ProgramFiles 'dotnet\dotnet.exe'
+    }
+
+    if (-not (Test-Path -LiteralPath $dotnet)) {
+        throw '.NET 10 Desktop Runtime is required for the framework-dependent package. Use the self-contained package or install Microsoft.WindowsDesktop.App 10.'
+    }
+
+    $runtimeOutput = @(& $dotnet --list-runtimes 2>&1)
+    if ($LASTEXITCODE -ne 0 -or
+        -not ($runtimeOutput | Where-Object { $_ -match '^Microsoft\.WindowsDesktop\.App\s+10\.' })) {
+        throw '.NET 10 Desktop Runtime is required for the framework-dependent package. Use the self-contained package or install Microsoft.WindowsDesktop.App 10.'
+    }
+}
+
 function Get-InstalledProcesses {
     param([Parameter(Mandatory)][string]$InstallDirectory)
 
@@ -113,6 +133,10 @@ if (-not (Test-Path -LiteralPath (Join-Path $source 'OpsMonitor.Widget.exe')) -o
     }
 }
 
+if (-not $SelfContained) {
+    Assert-WindowsDesktopRuntime
+}
+
 $localPrograms = Join-Path $env:LOCALAPPDATA 'Programs'
 $installDirectory = Join-Path $localPrograms 'OPS Monitor'
 $resolvedPrograms = Get-NormalizedPath $localPrograms
@@ -131,6 +155,7 @@ if ($blockingProcesses.Count -gt 0) {
 $stage = Join-Path $localPrograms ('.OPS-Monitor-installing-' + [Guid]::NewGuid().ToString('N'))
 $backup = Join-Path $localPrograms ('.OPS-Monitor-previous-' + [DateTime]::UtcNow.ToString('yyyyMMddHHmmssfff'))
 $installed = $false
+$backupCreated = $false
 
 if ($PSCmdlet.ShouldProcess($resolvedInstall, "Install OPS Monitor from $source")) {
     New-Item -ItemType Directory -Path $stage -Force | Out-Null
@@ -144,6 +169,7 @@ if ($PSCmdlet.ShouldProcess($resolvedInstall, "Install OPS Monitor from $source"
 
         if (Test-Path -LiteralPath $resolvedInstall) {
             Move-Item -LiteralPath $resolvedInstall -Destination $backup
+            $backupCreated = $true
         }
 
         try {
@@ -156,10 +182,6 @@ if ($PSCmdlet.ShouldProcess($resolvedInstall, "Install OPS Monitor from $source"
             }
             throw
         }
-
-        if (Test-Path -LiteralPath $backup) {
-            Remove-Item -LiteralPath $backup -Recurse -Force
-        }
     }
     finally {
         if (Test-Path -LiteralPath $stage) {
@@ -169,67 +191,146 @@ if ($PSCmdlet.ShouldProcess($resolvedInstall, "Install OPS Monitor from $source"
 }
 
 if ($installed) {
-    $startMenuFolder = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\OPS Monitor'
-    New-Item -ItemType Directory -Path $startMenuFolder -Force | Out-Null
-    $shell = New-Object -ComObject WScript.Shell
-    try {
-        New-Shortcut `
-            -Shell $shell `
-            -Path (Join-Path $startMenuFolder 'OPS Monitor Widget.lnk') `
-            -TargetPath (Join-Path $resolvedInstall 'OpsMonitor.Widget.exe') `
-            -WorkingDirectory $resolvedInstall `
-            -Description 'Open the OPS Monitor desktop widget'
-        New-Shortcut `
-            -Shell $shell `
-            -Path (Join-Path $startMenuFolder 'OPS Monitor Studio.lnk') `
-            -TargetPath (Join-Path $resolvedInstall 'OpsMonitor.Studio.exe') `
-            -WorkingDirectory $resolvedInstall `
-            -Description 'Customize OPS Monitor'
-
-        $uninstallScript = Join-Path $resolvedInstall 'Uninstall.ps1'
-        if (Test-Path -LiteralPath $uninstallScript) {
-            $powerShell = (Get-Process -Id $PID).Path
-            New-Shortcut `
-                -Shell $shell `
-                -Path (Join-Path $startMenuFolder 'Uninstall OPS Monitor.lnk') `
-                -TargetPath $powerShell `
-                -Arguments ('-NoProfile -ExecutionPolicy Bypass -File "{0}" -StopRunningApps' -f $uninstallScript) `
-                -WorkingDirectory $env:TEMP `
-                -Description 'Uninstall OPS Monitor'
+    $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+    $startupValueName = 'OPS Monitor Widget'
+    $startupEntryWasPresent = $false
+    $startupCommandBefore = $null
+    if (Test-Path -LiteralPath $runKey) {
+        $runValuesBefore = Get-ItemProperty -Path $runKey -ErrorAction SilentlyContinue
+        if ($null -ne $runValuesBefore) {
+            $startupProperty = $runValuesBefore.PSObject.Properties[$startupValueName]
+            if ($null -ne $startupProperty) {
+                $startupEntryWasPresent = $true
+                $startupCommandBefore = $startupProperty.Value
+            }
         }
+    }
 
-        if ($DesktopShortcut) {
-            $desktop = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
+    $launchedProcess = $null
+    try {
+        $startMenuFolder = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\OPS Monitor'
+        New-Item -ItemType Directory -Path $startMenuFolder -Force | Out-Null
+        $shell = New-Object -ComObject WScript.Shell
+        try {
             New-Shortcut `
                 -Shell $shell `
-                -Path (Join-Path $desktop 'OPS Monitor.lnk') `
+                -Path (Join-Path $startMenuFolder 'OPS Monitor Widget.lnk') `
                 -TargetPath (Join-Path $resolvedInstall 'OpsMonitor.Widget.exe') `
                 -WorkingDirectory $resolvedInstall `
                 -Description 'Open the OPS Monitor desktop widget'
+            New-Shortcut `
+                -Shell $shell `
+                -Path (Join-Path $startMenuFolder 'OPS Monitor Studio.lnk') `
+                -TargetPath (Join-Path $resolvedInstall 'OpsMonitor.Studio.exe') `
+                -WorkingDirectory $resolvedInstall `
+                -Description 'Customize OPS Monitor'
+
+            $uninstallScript = Join-Path $resolvedInstall 'Uninstall.ps1'
+            if (Test-Path -LiteralPath $uninstallScript) {
+                $powerShell = (Get-Process -Id $PID).Path
+                New-Shortcut `
+                    -Shell $shell `
+                    -Path (Join-Path $startMenuFolder 'Uninstall OPS Monitor.lnk') `
+                    -TargetPath $powerShell `
+                    -Arguments ('-NoProfile -ExecutionPolicy Bypass -File "{0}" -StopRunningApps' -f $uninstallScript) `
+                    -WorkingDirectory $env:TEMP `
+                    -Description 'Uninstall OPS Monitor'
+            }
+
+            if ($DesktopShortcut) {
+                $desktop = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
+                New-Shortcut `
+                    -Shell $shell `
+                    -Path (Join-Path $desktop 'OPS Monitor.lnk') `
+                    -TargetPath (Join-Path $resolvedInstall 'OpsMonitor.Widget.exe') `
+                    -WorkingDirectory $resolvedInstall `
+                    -Description 'Open the OPS Monitor desktop widget'
+            }
+        }
+        finally {
+            if ([Runtime.InteropServices.Marshal]::IsComObject($shell)) {
+                [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell)
+            }
+        }
+
+        if ($EnableStartup) {
+            New-Item -Path $runKey -Force | Out-Null
+            $startupCommand = '"{0}"' -f (Join-Path $resolvedInstall 'OpsMonitor.Widget.exe')
+            Set-ItemProperty -Path $runKey -Name $startupValueName -Value $startupCommand -Type String
+        }
+
+        if ($Launch) {
+            $launchedProcess = Start-Process `
+                -FilePath (Join-Path $resolvedInstall 'OpsMonitor.Widget.exe') `
+                -WorkingDirectory $resolvedInstall `
+                -PassThru
+            if ($null -eq $launchedProcess) {
+                throw 'Windows did not return a process for the installed Widget.'
+            }
+
+            if ($launchedProcess.WaitForExit(4000)) {
+                throw "The installed Widget exited during its startup check with code $($launchedProcess.ExitCode)."
+            }
+        }
+
+        if ($backupCreated -and (Test-Path -LiteralPath $backup)) {
+            Remove-Item -LiteralPath $backup -Recurse -Force
+            $backupCreated = $false
+        }
+
+        if ($null -ne $launchedProcess) {
+            $launchedProcess.Dispose()
+        }
+        $launchedProcess = $null
+
+        Write-Host "OPS Monitor installed to $resolvedInstall" -ForegroundColor Green
+        Write-Host "Start menu shortcuts: $startMenuFolder" -ForegroundColor Cyan
+        if ($EnableStartup) {
+            Write-Host 'Automatic startup is enabled for the current Windows user.' -ForegroundColor Cyan
         }
     }
-    finally {
-        if ([Runtime.InteropServices.Marshal]::IsComObject($shell)) {
-            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell)
+    catch {
+        $failure = $_
+        if ($null -ne $launchedProcess) {
+            try {
+                if (-not $launchedProcess.HasExited) {
+                    [void]$launchedProcess.CloseMainWindow()
+                    if (-not $launchedProcess.WaitForExit(1500)) {
+                        Stop-Process -Id $launchedProcess.Id -Force
+                        $launchedProcess.WaitForExit(1500)
+                    }
+                }
+            }
+            finally {
+                $launchedProcess.Dispose()
+            }
         }
-    }
 
-    if ($EnableStartup) {
-        $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-        New-Item -Path $runKey -Force | Out-Null
-        $startupCommand = '"{0}"' -f (Join-Path $resolvedInstall 'OpsMonitor.Widget.exe')
-        Set-ItemProperty -Path $runKey -Name 'OPS Monitor Widget' -Value $startupCommand -Type String
-    }
+        if (Test-Path -LiteralPath $resolvedInstall) {
+            Remove-Item -LiteralPath $resolvedInstall -Recurse -Force
+        }
+        if ($backupCreated -and (Test-Path -LiteralPath $backup)) {
+            Move-Item -LiteralPath $backup -Destination $resolvedInstall
+            $backupCreated = $false
+        }
 
-    Write-Host "OPS Monitor installed to $resolvedInstall" -ForegroundColor Green
-    Write-Host "Start menu shortcuts: $startMenuFolder" -ForegroundColor Cyan
-    if ($EnableStartup) {
-        Write-Host 'Automatic startup is enabled for the current Windows user.' -ForegroundColor Cyan
-    }
+        if ($EnableStartup) {
+            if ($startupEntryWasPresent) {
+                New-Item -Path $runKey -Force | Out-Null
+                Set-ItemProperty `
+                    -Path $runKey `
+                    -Name $startupValueName `
+                    -Value $startupCommandBefore `
+                    -Type String
+            }
+            else {
+                Remove-ItemProperty `
+                    -Path $runKey `
+                    -Name $startupValueName `
+                    -ErrorAction SilentlyContinue
+            }
+        }
 
-    if ($Launch) {
-        Start-Process `
-            -FilePath (Join-Path $resolvedInstall 'OpsMonitor.Widget.exe') `
-            -WorkingDirectory $resolvedInstall
+        throw "OPS Monitor installation failed and the previous program state was restored. $($failure.Exception.Message)"
     }
 }

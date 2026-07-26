@@ -84,20 +84,21 @@ public static class WidgetSettingsStore
         }
     }
 
-    private static WidgetSettings Normalize(WidgetSettings settings)
+    internal static WidgetSettings Normalize(WidgetSettings settings)
     {
-        settings.SurfaceOpacity = Math.Clamp(settings.SurfaceOpacity, 0.28, 0.98);
-        settings.ContentOpacity = Math.Clamp(settings.ContentOpacity, 0.65, 1);
+        settings.SurfaceOpacity = Math.Clamp(settings.SurfaceOpacity, 0.08, 1);
+        settings.ContentOpacity = Math.Clamp(settings.ContentOpacity, 0.82, 1);
         settings.UpdateCadenceSeconds = double.IsFinite(settings.UpdateCadenceSeconds)
             ? Math.Clamp(settings.UpdateCadenceSeconds, 0.5, 10)
             : 1;
+        settings.ScalePercent = Math.Clamp(settings.ScalePercent, 80, 160);
 
         if (string.IsNullOrWhiteSpace(settings.Theme))
         {
             settings.Theme = "Void";
         }
 
-        settings.Width = NormalizeDimension(settings.Width, 180, 1_600);
+        settings.Width = NormalizeDimension(settings.Width, 176, 1_600);
         settings.Height = NormalizeDimension(settings.Height, 140, 1_000);
         settings.Left = NormalizeCoordinate(settings.Left);
         settings.Top = NormalizeCoordinate(settings.Top);
@@ -143,67 +144,7 @@ public static class WidgetSettingsStore
             }
 
             var document = repository.LoadAsync().GetAwaiter().GetResult();
-            var widget = document.Widgets.FirstOrDefault(candidate => candidate.Enabled);
-            if (widget is null)
-            {
-                return settings;
-            }
-
-            settings.Layout = widget.Design switch
-            {
-                WidgetDesign.Pill => WidgetLayout.Pill,
-                WidgetDesign.Dock => WidgetLayout.Dock,
-                _ => WidgetLayout.Rail
-            };
-            settings.Density = widget.Density switch
-            {
-                CoreWidgetDensity.Normal => WidgetDensity.Normal,
-                CoreWidgetDensity.Comfortable => WidgetDensity.Detail,
-                _ => WidgetDensity.Compact
-            };
-            settings.InteractionMode = widget.Window.ClickThrough
-                ? WidgetInteractionMode.ClickThrough
-                : widget.Window.Locked
-                    ? WidgetInteractionMode.Locked
-                    : WidgetInteractionMode.Edit;
-            settings.Topmost = widget.Window.AlwaysOnTop;
-            settings.Draggable = widget.Window.Draggable;
-            settings.Resizable = widget.Window.Resizable;
-            settings.StartAtSignIn = document.General.LaunchAtSignIn;
-            settings.SurfaceOpacity = widget.Window.SurfaceOpacity;
-            settings.ContentOpacity = widget.Window.ContentOpacity;
-            settings.Left = widget.Window.Left;
-            settings.Top = widget.Window.Top;
-            settings.Width = widget.Window.Width;
-            settings.Height = widget.Window.Height;
-
-            var theme = document.Themes.FirstOrDefault(candidate =>
-                StringComparer.Ordinal.Equals(candidate.Id, widget.ThemeId));
-            if (theme is not null)
-            {
-                settings.Theme = MapThemeName(theme.Name);
-            }
-
-            var moduleConfiguration =
-                WidgetModuleCatalog.FromCoreModules(widget.Modules);
-            settings.ModuleOrder = [.. moduleConfiguration.Order];
-            settings.EnabledModules = [.. moduleConfiguration.Enabled];
-            settings.ShowBattery = settings.EnabledModules.Contains(
-                WidgetModuleCatalog.Battery,
-                StringComparer.Ordinal);
-            var profile = document.PerformanceProfiles.FirstOrDefault(candidate =>
-                              candidate.Enabled &&
-                              StringComparer.Ordinal.Equals(
-                                  candidate.Id,
-                                  widget.PerformanceProfileId))
-                          ?? document.PerformanceProfiles.FirstOrDefault(candidate =>
-                              candidate.Enabled);
-            if (profile is not null)
-            {
-                settings.UpdateCadenceSeconds = profile.UiRefreshCadence.TotalSeconds;
-            }
-
-            return Normalize(settings);
+            return MergeCoreSettings(settings, document);
         }
         catch (Exception exception) when (
             exception is IOException or
@@ -215,103 +156,93 @@ public static class WidgetSettingsStore
         }
     }
 
+    internal static WidgetSettings MergeCoreSettings(
+        WidgetSettings settings,
+        OpsSettingsDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(document);
+
+        var widget = document.Widgets.FirstOrDefault(candidate => candidate.Enabled);
+        if (widget is null)
+        {
+            return Normalize(settings);
+        }
+
+        settings.Layout = widget.Design switch
+        {
+            WidgetDesign.Pill => WidgetLayout.Pill,
+            WidgetDesign.Dock => WidgetLayout.Dock,
+            WidgetDesign.Canvas => WidgetLayout.Mini,
+            _ => WidgetLayout.Rail
+        };
+        settings.Density = widget.Density switch
+        {
+            CoreWidgetDensity.Normal => WidgetDensity.Normal,
+            CoreWidgetDensity.Comfortable => WidgetDensity.Detail,
+            _ => WidgetDensity.Compact
+        };
+        settings.InteractionMode = widget.Window.ClickThrough
+            ? WidgetInteractionMode.ClickThrough
+            : widget.Window.Locked
+                ? WidgetInteractionMode.Locked
+                : WidgetInteractionMode.Edit;
+        settings.Topmost = widget.Window.AlwaysOnTop;
+        settings.Draggable = widget.Window.Draggable;
+        settings.Resizable = widget.Window.Resizable;
+
+        settings.StartAtSignIn = document.General.LaunchAtSignIn;
+        settings.SurfaceOpacity = widget.Window.SurfaceOpacity;
+        settings.ContentOpacity = widget.Window.ContentOpacity;
+        settings.ScalePercent = widget.Window.ScalePercent;
+        settings.Left = widget.Window.Left;
+        settings.Top = widget.Window.Top;
+        settings.Width = widget.Window.Width;
+        settings.Height = widget.Window.Height;
+
+        var theme = document.Themes.FirstOrDefault(candidate =>
+            StringComparer.Ordinal.Equals(candidate.Id, widget.ThemeId));
+        if (theme is not null)
+        {
+            settings.Theme = theme.Name;
+            settings.CoreThemeId = theme.Id;
+        }
+
+        settings.RuntimeThemes = document.Themes
+            .Select(ToRuntimeTheme)
+            .ToArray();
+        var moduleConfiguration =
+            WidgetModuleCatalog.FromCoreModules(widget.Modules);
+        settings.ModuleOrder = [.. moduleConfiguration.Order];
+        settings.EnabledModules = [.. moduleConfiguration.Enabled];
+        settings.ModulePresentation =
+            WidgetModuleCatalog.GetPresentation(widget.Modules);
+        settings.ShowBattery = settings.EnabledModules.Contains(
+            WidgetModuleCatalog.Battery,
+            StringComparer.Ordinal);
+        var profile = document.PerformanceProfiles.FirstOrDefault(candidate =>
+                          candidate.Enabled &&
+                          StringComparer.Ordinal.Equals(
+                              candidate.Id,
+                              widget.PerformanceProfileId))
+                      ?? document.PerformanceProfiles.FirstOrDefault(candidate =>
+                          candidate.Enabled);
+        if (profile is not null)
+        {
+            settings.UpdateCadenceSeconds = profile.UiRefreshCadence.TotalSeconds;
+        }
+
+        return Normalize(settings);
+    }
+
     private static void SaveCoreSettings(WidgetSettings settings)
     {
         try
         {
             using var repository = new JsonSettingsRepository();
-            var document = repository.LoadAsync().GetAwaiter().GetResult();
-            if (document.Widgets.Count == 0)
-            {
-                document = OpsSettingsDocument.CreateDefault();
-            }
-
-            var widgetIndex = document.Widgets.FindIndex(candidate => candidate.Enabled);
-            if (widgetIndex < 0)
-            {
-                widgetIndex = 0;
-            }
-
-            var current = document.Widgets[widgetIndex];
-            var themeId = document.Themes.FirstOrDefault(theme =>
-                    theme.Name.Equals(settings.Theme, StringComparison.OrdinalIgnoreCase))
-                ?.Id ?? current.ThemeId;
-            var mapped = current with
-            {
-                Design = settings.Layout switch
-                {
-                    WidgetLayout.Pill => WidgetDesign.Pill,
-                    WidgetLayout.Dock => WidgetDesign.Dock,
-                    _ => WidgetDesign.Rail
-                },
-                Density = settings.Density switch
-                {
-                    WidgetDensity.Normal => CoreWidgetDensity.Normal,
-                    WidgetDensity.Detail => CoreWidgetDensity.Comfortable,
-                    _ => CoreWidgetDensity.Compact
-                },
-                ThemeId = themeId,
-                Modules = WidgetModuleCatalog.ApplyBatteryVisibility(
-                    current.Modules,
-                    settings.ShowBattery),
-                Window = current.Window with
-                {
-                    Left = settings.Left,
-                    Top = settings.Top,
-                    Width = settings.Width ?? current.Window.Width,
-                    Height = settings.Height ?? current.Window.Height,
-                    AlwaysOnTop = settings.Topmost,
-                    Locked = settings.InteractionMode == WidgetInteractionMode.Locked,
-                    Draggable = settings.Draggable,
-                    Resizable = settings.Resizable,
-                    ClickThrough =
-                        settings.InteractionMode == WidgetInteractionMode.ClickThrough,
-                    SurfaceOpacity = settings.SurfaceOpacity,
-                    ContentOpacity = settings.ContentOpacity
-                }
-            };
-
-            var widgets = document.Widgets.ToList();
-            widgets[widgetIndex] = mapped;
-
-            var profiles = document.PerformanceProfiles.ToList();
-            var profileIndex = profiles.FindIndex(profile =>
-                StringComparer.Ordinal.Equals(profile.Id, current.PerformanceProfileId));
-            if (profileIndex < 0)
-            {
-                profiles.Add(PerformanceProfileSettings.CreateBalanced(
-                    current.PerformanceProfileId));
-                profileIndex = profiles.Count - 1;
-            }
-
-            var cadence = TimeSpan.FromSeconds(settings.UpdateCadenceSeconds);
-            var profile = profiles[profileIndex];
-            var providerCadences = new Dictionary<string, TimeSpan>(
-                profile.ProviderCadences,
-                StringComparer.Ordinal)
-            {
-                ["windows.native"] = cadence,
-                ["network.connectivity"] = TimeSpan.FromSeconds(
-                    Math.Clamp(cadence.TotalSeconds * 1.5, 0.5, 15)),
-                ["cpu.temperature.bridge"] = TimeSpan.FromSeconds(
-                    Math.Clamp(cadence.TotalSeconds * 2, 1, 20)),
-                ["nvidia"] = cadence
-            };
-            profiles[profileIndex] = profile with
-            {
-                UiRefreshCadence = cadence,
-                ProviderCadences = providerCadences
-            };
-
-            repository.SaveAsync(document with
-            {
-                General = document.General with
-                {
-                    LaunchAtSignIn = settings.StartAtSignIn
-                },
-                Widgets = widgets,
-                PerformanceProfiles = profiles
-            }).GetAwaiter().GetResult();
+            repository.UpdateAsync(document => MergeWidgetSettings(document, settings))
+                .GetAwaiter()
+                .GetResult();
         }
         catch (Exception exception) when (
             exception is IOException or
@@ -323,23 +254,274 @@ public static class WidgetSettingsStore
         }
     }
 
-    private static string MapThemeName(string coreThemeName)
+    internal static OpsSettingsDocument MergeWidgetSettings(
+        OpsSettingsDocument document,
+        WidgetSettings settings)
     {
-        if (coreThemeName.Contains("aurora", StringComparison.OrdinalIgnoreCase))
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(settings);
+
+        settings = Normalize(settings);
+        if (document.Widgets.Count == 0)
         {
-            return "Aurora";
+            document = OpsSettingsDocument.CreateDefault();
         }
 
-        if (coreThemeName.Contains("slate", StringComparison.OrdinalIgnoreCase))
+        var widgetIndex = document.Widgets.FindIndex(candidate => candidate.Enabled);
+        if (widgetIndex < 0)
         {
-            return "Slate";
+            widgetIndex = 0;
         }
 
-        if (coreThemeName.Contains("ember", StringComparison.OrdinalIgnoreCase))
+        var current = document.Widgets[widgetIndex];
+        var themes = document.Themes.ToList();
+        if (themes.All(theme =>
+                !theme.Name.Equals(settings.Theme, StringComparison.OrdinalIgnoreCase)) &&
+            string.IsNullOrWhiteSpace(settings.CoreThemeId) &&
+            CreateBuiltInTheme(settings.Theme) is { } builtInTheme)
         {
-            return "Ember";
+            themes.Add(builtInTheme);
         }
 
-        return "Void";
+        var themeId = ResolveThemeId(
+            themes,
+            settings.Theme,
+            settings.CoreThemeId,
+            current.ThemeId);
+        var batteryAdjustedModules = WidgetModuleCatalog.ApplyBatteryVisibility(
+            current.Modules,
+            settings.ShowBattery);
+        var configuredModules = WidgetModuleCatalog.ApplyConfiguration(
+            batteryAdjustedModules,
+            settings.ModuleOrder,
+            settings.EnabledModules,
+            settings.ModulePresentation);
+        var mapped = current with
+        {
+            Design = settings.Layout switch
+            {
+                WidgetLayout.Pill => WidgetDesign.Pill,
+                WidgetLayout.Dock => WidgetDesign.Dock,
+                WidgetLayout.Mini => WidgetDesign.Canvas,
+                _ => WidgetDesign.Rail
+            },
+            Density = settings.Density switch
+            {
+                WidgetDensity.Normal => CoreWidgetDensity.Normal,
+                WidgetDensity.Detail => CoreWidgetDensity.Comfortable,
+                _ => CoreWidgetDensity.Compact
+            },
+            ThemeId = themeId,
+            Modules = configuredModules,
+            Window = current.Window with
+            {
+                Left = settings.Left,
+                Top = settings.Top,
+                Width = settings.Width ?? current.Window.Width,
+                Height = settings.Height ?? current.Window.Height,
+                ScalePercent = settings.ScalePercent,
+                AlwaysOnTop = settings.Topmost,
+                Locked = settings.InteractionMode == WidgetInteractionMode.Locked,
+                Draggable = settings.Draggable,
+                Resizable = settings.Resizable,
+                ClickThrough =
+                    settings.InteractionMode == WidgetInteractionMode.ClickThrough,
+                SurfaceOpacity = settings.SurfaceOpacity,
+                ContentOpacity = settings.ContentOpacity
+            }
+        };
+
+        var widgets = document.Widgets.ToList();
+        widgets[widgetIndex] = mapped;
+
+        var profiles = document.PerformanceProfiles.ToList();
+        var profileIndex = profiles.FindIndex(profile =>
+            StringComparer.Ordinal.Equals(profile.Id, current.PerformanceProfileId));
+        if (profileIndex < 0)
+        {
+            profiles.Add(PerformanceProfileSettings.CreateBalanced(
+                current.PerformanceProfileId));
+            profileIndex = profiles.Count - 1;
+        }
+
+        var cadence = TimeSpan.FromSeconds(settings.UpdateCadenceSeconds);
+        var profile = profiles[profileIndex];
+        var providerCadences = new Dictionary<string, TimeSpan>(
+            profile.ProviderCadences,
+            StringComparer.Ordinal)
+        {
+            ["windows.native"] = cadence,
+            ["network.connectivity"] = TimeSpan.FromSeconds(
+                Math.Clamp(cadence.TotalSeconds * 1.5, 0.5, 15)),
+            ["cpu.temperature.bridge"] = TimeSpan.FromSeconds(
+                Math.Clamp(cadence.TotalSeconds * 2, 1, 20)),
+            ["nvidia"] = cadence
+        };
+        profiles[profileIndex] = profile with
+        {
+            UiRefreshCadence = cadence,
+            ProviderCadences = providerCadences
+        };
+
+        return document with
+        {
+            General = document.General with
+            {
+                LaunchAtSignIn = settings.StartAtSignIn
+            },
+            Widgets = widgets,
+            Themes = themes,
+            PerformanceProfiles = profiles
+        };
     }
+
+    private static ThemeSettings? CreateBuiltInTheme(string name)
+    {
+        var palette = name.Trim().ToLowerInvariant() switch
+        {
+            "void" => new ThemePalette
+            {
+                Background = "#FF080B12",
+                Card = "#FF0F1521",
+                Border = "#FF364258",
+                PrimaryText = "#FFF6F9FF",
+                SecondaryText = "#FFB8C4D6",
+                CpuAccent = "#FF48DCF9",
+                GpuAccent = "#FFFF4FD8",
+                NetworkAccent = "#FF48DCF9",
+                Warning = "#FFFFC35A",
+                Critical = "#FFFF566E",
+                Success = "#FF58E6B2"
+            },
+            "aurora" => new ThemePalette
+            {
+                Background = "#FF0E0A1B",
+                Card = "#FF19132D",
+                Border = "#FF4C3E6F",
+                PrimaryText = "#FFF9F6FF",
+                SecondaryText = "#FFC8BEDE",
+                CpuAccent = "#FF56E2FF",
+                GpuAccent = "#FFFF5BD7",
+                NetworkAccent = "#FF56E2FF",
+                Warning = "#FFFFB85B",
+                Critical = "#FFFF5874",
+                Success = "#FF5BF1BE"
+            },
+            "slate" => new ThemePalette
+            {
+                Background = "#FF12181F",
+                Card = "#FF1B242F",
+                Border = "#FF435365",
+                PrimaryText = "#FFF4F9FC",
+                SecondaryText = "#FFBECBD7",
+                CpuAccent = "#FF48CFEA",
+                GpuAccent = "#FFEB63CF",
+                NetworkAccent = "#FF48CFEA",
+                Warning = "#FFF4B859",
+                Critical = "#FFFF566E",
+                Success = "#FF56DDA7"
+            },
+            "ember" => new ThemePalette
+            {
+                Background = "#FF160E0F",
+                Card = "#FF261719",
+                Border = "#FF5D383C",
+                PrimaryText = "#FFFFF8F4",
+                SecondaryText = "#FFDCC4BF",
+                CpuAccent = "#FF4DD7EF",
+                GpuAccent = "#FFFF5DB3",
+                NetworkAccent = "#FF4DD7EF",
+                Warning = "#FFFFAC48",
+                Critical = "#FFFF5469",
+                Success = "#FF5EE1A8"
+            },
+            "contrast" => new ThemePalette
+            {
+                Background = "#FF020305",
+                Card = "#FF07090D",
+                Border = "#FF94AAC6",
+                PrimaryText = "#FFFFFFFF",
+                SecondaryText = "#FFD6E0EE",
+                CpuAccent = "#FF47E5FF",
+                GpuAccent = "#FFFF5CE1",
+                NetworkAccent = "#FF47E5FF",
+                Warning = "#FFFFCC5C",
+                Critical = "#FFFF5C74",
+                Success = "#FF62F4BB"
+            },
+            _ => null
+        };
+        if (palette is null)
+        {
+            return null;
+        }
+
+        var normalizedName = name.Trim();
+        return new ThemeSettings
+        {
+            Id = "widget-theme-" + normalizedName.ToLowerInvariant(),
+            Name = normalizedName,
+            BuiltIn = true,
+            Palette = palette,
+            Typography = new ThemeTypography
+            {
+                FontFamily = "Segoe UI Variable",
+                LabelSize = 12,
+                ValueSize = 18,
+                MinimumReadableSize = 12,
+                LabelWeight = 600,
+                ValueWeight = 600,
+                UseTabularNumbers = true
+            }
+        };
+    }
+
+    private static string ResolveThemeId(
+        IEnumerable<ThemeSettings> themes,
+        string themeName,
+        string? preferredThemeId,
+        string fallbackThemeId)
+    {
+        var materialized = themes.ToArray();
+        var named = materialized.FirstOrDefault(theme =>
+            theme.Name.Equals(themeName, StringComparison.OrdinalIgnoreCase));
+        if (named is not null)
+        {
+            return named.Id;
+        }
+
+        if (!string.IsNullOrWhiteSpace(preferredThemeId) &&
+            materialized.Any(theme =>
+                StringComparer.Ordinal.Equals(theme.Id, preferredThemeId)))
+        {
+            return preferredThemeId;
+        }
+
+        return fallbackThemeId;
+    }
+
+    private static WidgetRuntimeTheme ToRuntimeTheme(ThemeSettings theme) =>
+        new()
+        {
+            Id = theme.Id,
+            Name = theme.Name,
+            Background = theme.Palette.Background,
+            Card = theme.Palette.Card,
+            Border = theme.Palette.Border,
+            PrimaryText = theme.Palette.PrimaryText,
+            SecondaryText = theme.Palette.SecondaryText,
+            CpuAccent = theme.Palette.CpuAccent,
+            GpuAccent = theme.Palette.GpuAccent,
+            NetworkAccent = theme.Palette.NetworkAccent,
+            Warning = theme.Palette.Warning,
+            Critical = theme.Palette.Critical,
+            Success = theme.Palette.Success,
+            FontFamily = theme.Typography.FontFamily,
+            LabelSize = theme.Typography.LabelSize,
+            ValueSize = theme.Typography.ValueSize,
+            MinimumReadableSize = theme.Typography.MinimumReadableSize,
+            LabelWeight = theme.Typography.LabelWeight,
+            ValueWeight = theme.Typography.ValueWeight,
+            UseTabularNumbers = theme.Typography.UseTabularNumbers
+        };
 }

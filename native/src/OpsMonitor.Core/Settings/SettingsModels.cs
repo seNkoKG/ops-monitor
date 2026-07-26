@@ -32,14 +32,14 @@ public sealed record OpsSettingsDocument
                 new WidgetInstanceSettings
                 {
                     Id = widgetId,
-                    Name = "System Rail",
-                    Design = WidgetDesign.Rail,
+                    Name = "Performance Pill",
+                    Design = WidgetDesign.Pill,
                     ThemeId = themeId,
                     PerformanceProfileId = profileId,
                     Window = new WidgetWindowSettings
                     {
-                        Width = 160,
-                        Height = 286,
+                        Width = 184,
+                        Height = 396,
                         ScalePercent = 100
                     },
                     Modules =
@@ -177,7 +177,7 @@ public sealed record WidgetInstanceSettings
     public required string Id { get; init; }
     public required string Name { get; init; }
     public bool Enabled { get; init; } = true;
-    public WidgetDesign Design { get; init; } = WidgetDesign.Rail;
+    public WidgetDesign Design { get; init; } = WidgetDesign.Pill;
     public WidgetDensity Density { get; init; } = WidgetDensity.Compact;
     public required string ThemeId { get; init; }
     public required string PerformanceProfileId { get; init; }

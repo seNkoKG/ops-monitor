@@ -13,15 +13,25 @@ internal sealed class MetricCardViewModel : ObservableObject
     private const int MaximumHistorySamples = 60;
     private readonly Queue<double> _history = new(MaximumHistorySamples);
     private readonly SemanticAccent _semanticAccent;
+    private WidgetModuleSize _size = WidgetModuleSize.Small;
+    private WidgetModuleVisualization _visualization =
+        WidgetModuleVisualization.ValueAndSparkline;
+    private bool _showLabel = true;
+    private bool _showSecondaryValue = true;
+    private bool _showTrend = true;
+    private int? _decimalPlacesOverride;
     private string _primaryValue = "—";
     private string _status = "Waiting for data";
     private double _progress;
+    private bool _isProgressAvailable;
     private bool _isVisible = true;
     private SensorState _state = SensorState.Stale;
     private double _visualOpacity = 1;
     private Brush _accentBrush = Brushes.DeepSkyBlue;
     private Brush _historyFillBrush = Brushes.Transparent;
     private Brush _stateBrush = Brushes.Gray;
+    private Color _warningColor = Color.FromRgb(255, 190, 80);
+    private Color _criticalColor = Color.FromRgb(255, 86, 110);
     private Geometry _historyGeometry = Geometry.Empty;
     private Geometry _historyAreaGeometry = Geometry.Empty;
 
@@ -45,11 +55,96 @@ internal sealed class MetricCardViewModel : ObservableObject
 
     public ObservableCollection<MetricDetailViewModel> Details { get; } = [];
 
+    public WidgetModuleSize Size
+    {
+        get => _size;
+        private set => SetProperty(ref _size, value);
+    }
+
+    public WidgetModuleVisualization Visualization
+    {
+        get => _visualization;
+        private set
+        {
+            if (!SetProperty(ref _visualization, value))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(ShowValue));
+            OnPropertyChanged(nameof(ShowProgress));
+            OnPropertyChanged(nameof(ShowSparkline));
+        }
+    }
+
+    public bool ShowLabel
+    {
+        get => _showLabel;
+        private set => SetProperty(ref _showLabel, value);
+    }
+
+    public bool ShowSecondaryValue
+    {
+        get => _showSecondaryValue;
+        private set
+        {
+            if (SetProperty(ref _showSecondaryValue, value))
+            {
+                OnPropertyChanged(nameof(ShowDetails));
+            }
+        }
+    }
+
+    public bool ShowDetails => ShowSecondaryValue;
+
+    public bool ShowTrend
+    {
+        get => _showTrend;
+        private set
+        {
+            if (SetProperty(ref _showTrend, value))
+            {
+                OnPropertyChanged(nameof(ShowSparkline));
+            }
+        }
+    }
+
+    public bool ShowValue =>
+        Visualization is not WidgetModuleVisualization.Progress and
+        not WidgetModuleVisualization.Sparkline;
+
+    public bool ShowProgress =>
+        IsProgressAvailable &&
+        (Visualization is WidgetModuleVisualization.Progress or
+            WidgetModuleVisualization.Gauge);
+
+    public bool ShowSparkline =>
+        Visualization == WidgetModuleVisualization.Sparkline ||
+        (ShowTrend &&
+         Visualization == WidgetModuleVisualization.ValueAndSparkline);
+
+    public int? DecimalPlacesOverride
+    {
+        get => _decimalPlacesOverride;
+        private set => SetProperty(ref _decimalPlacesOverride, value);
+    }
+
     public string PrimaryValue
     {
         get => _primaryValue;
-        set => SetProperty(ref _primaryValue, value);
+        set
+        {
+            if (SetProperty(ref _primaryValue, value))
+            {
+                OnPropertyChanged(nameof(CompactPrimaryValue));
+            }
+        }
     }
+
+    public string CompactPrimaryValue =>
+        Key.Equals(WidgetModuleCatalog.Network, StringComparison.Ordinal)
+            ? PrimaryValue.Replace("/s", string.Empty, StringComparison.Ordinal)
+            : PrimaryValue;
 
     public string Status
     {
@@ -62,6 +157,20 @@ internal sealed class MetricCardViewModel : ObservableObject
         get => _progress;
         set => SetProperty(ref _progress, Math.Clamp(value, 0, 100));
     }
+
+    public bool IsProgressAvailable
+    {
+        get => _isProgressAvailable;
+        set
+        {
+            if (SetProperty(ref _isProgressAvailable, value))
+            {
+                OnPropertyChanged(nameof(ShowProgress));
+            }
+        }
+    }
+
+    internal int HistorySampleCount => _history.Count;
 
     public bool IsVisible
     {
@@ -144,15 +253,29 @@ internal sealed class MetricCardViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(theme);
         var color = _semanticAccent switch
         {
-            SemanticAccent.Magenta => theme.Magenta,
-            SemanticAccent.Mint => theme.Mint,
-            SemanticAccent.Amber => theme.Amber,
-            _ => theme.Cyan
+            SemanticAccent.Gpu => theme.GpuAccent,
+            SemanticAccent.Memory => theme.MemoryAccent,
+            SemanticAccent.Network => theme.NetworkAccent,
+            SemanticAccent.Latency => theme.Warning,
+            _ => theme.CpuAccent
         };
 
+        _warningColor = theme.Warning;
+        _criticalColor = theme.Critical;
         AccentBrush = CreateBrush(color);
         HistoryFillBrush = CreateBrush(Color.FromArgb(42, color.R, color.G, color.B));
         UpdateStateBrush();
+    }
+
+    public void ApplyPresentation(WidgetModulePresentation presentation)
+    {
+        ArgumentNullException.ThrowIfNull(presentation);
+        Size = presentation.Size;
+        Visualization = presentation.Visualization;
+        ShowLabel = presentation.ShowLabel;
+        ShowSecondaryValue = presentation.ShowSecondaryValue;
+        ShowTrend = presentation.ShowTrend;
+        DecimalPlacesOverride = presentation.DecimalPlacesOverride;
     }
 
     public void PushSample(double? value, double suggestedCeiling = 100)
@@ -175,8 +298,8 @@ internal sealed class MetricCardViewModel : ObservableObject
     {
         StateBrush = State switch
         {
-            SensorState.Warning => CreateBrush(Color.FromRgb(255, 190, 80)),
-            SensorState.Critical => CreateBrush(Color.FromRgb(255, 86, 110)),
+            SensorState.Warning => CreateBrush(_warningColor),
+            SensorState.Critical => CreateBrush(_criticalColor),
             SensorState.Stale => CreateBrush(Color.FromRgb(148, 161, 181)),
             SensorState.Unavailable => CreateBrush(Color.FromRgb(105, 116, 135)),
             _ => AccentBrush

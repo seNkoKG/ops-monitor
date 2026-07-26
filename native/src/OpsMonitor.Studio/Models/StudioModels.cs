@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Windows.Media;
 using OpsMonitor.Studio.Infrastructure;
 
@@ -59,29 +61,42 @@ public sealed class ModuleItem : ObservableObject
     public string Source { get; set; }
     public Brush Accent { get; set; }
     public ObservableCollection<double> SparklinePoints { get; }
+    public event EventHandler? EditorValueChanging;
 
     public bool IsVisible
     {
         get => _isVisible;
-        set => SetProperty(ref _isVisible, value);
+        set => SetEditorProperty(ref _isVisible, value);
     }
 
     public string Size
     {
         get => _size;
-        set => SetProperty(ref _size, value);
+        set => SetEditorProperty(ref _size, value);
     }
 
     public string PrimaryValue
     {
         get => _primaryValue;
-        set => SetProperty(ref _primaryValue, value);
+        set
+        {
+            if (SetProperty(ref _primaryValue, value))
+            {
+                OnPropertyChanged(nameof(PreviewPrimaryValue));
+            }
+        }
     }
 
     public string SecondaryValue
     {
         get => _secondaryValue;
-        set => SetProperty(ref _secondaryValue, value);
+        set
+        {
+            if (SetProperty(ref _secondaryValue, value))
+            {
+                OnPropertyChanged(nameof(PreviewSecondaryValue));
+            }
+        }
     }
 
     public double UsagePercent
@@ -93,31 +108,82 @@ public sealed class ModuleItem : ObservableObject
     public bool ShowLabel
     {
         get => _showLabel;
-        set => SetProperty(ref _showLabel, value);
+        set => SetEditorProperty(ref _showLabel, value);
     }
 
     public bool ShowSparkline
     {
         get => _showSparkline;
-        set => SetProperty(ref _showSparkline, value);
+        set => SetEditorProperty(ref _showSparkline, value);
     }
 
     public bool ShowTemperature
     {
         get => _showTemperature;
-        set => SetProperty(ref _showTemperature, value);
+        set => SetEditorProperty(ref _showTemperature, value);
     }
 
     public string Visualization
     {
         get => _visualization;
-        set => SetProperty(ref _visualization, value);
+        set => SetEditorProperty(ref _visualization, value);
     }
 
     public string Precision
     {
         get => _precision;
-        set => SetProperty(ref _precision, value);
+        set => SetEditorProperty(ref _precision, value);
+    }
+
+    public string PreviewPrimaryValue => ApplyPrecision(PrimaryValue, Precision);
+
+    public string PreviewSecondaryValue => ApplyPrecision(SecondaryValue, Precision);
+
+    private void SetEditorProperty<T>(
+        ref T field,
+        T value,
+        [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+        {
+            return;
+        }
+
+        EditorValueChanging?.Invoke(this, EventArgs.Empty);
+        _ = SetProperty(ref field, value, propertyName);
+        if (propertyName == nameof(Precision))
+        {
+            OnPropertyChanged(nameof(PreviewPrimaryValue));
+            OnPropertyChanged(nameof(PreviewSecondaryValue));
+        }
+    }
+
+    private static string ApplyPrecision(string value, string precision)
+    {
+        var decimals = precision switch
+        {
+            "Whole numbers" => 0,
+            "1 decimal" => 1,
+            "2 decimals" => 2,
+            _ => -1
+        };
+        if (decimals < 0 || string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        return Regex.Replace(
+            value,
+            @"-?\d+(?:\.\d+)?",
+            match => double.TryParse(
+                match.Value,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var number)
+                ? number.ToString(
+                    decimals == 0 ? "0" : $"0.{new string('0', decimals)}",
+                    CultureInfo.InvariantCulture)
+                : match.Value);
     }
 
     public ModuleItem Clone(string suffix)
@@ -304,7 +370,29 @@ public sealed class ProviderItem : ObservableObject
 
 public sealed record ActivityItem(string Time, string Title, string Detail, string Icon, Brush Accent);
 
-public sealed record LayoutPreset(string Id, string Name, string Description, string Icon);
+public sealed class LayoutPreset : ObservableObject
+{
+    private bool _isSelected;
+
+    public LayoutPreset(string id, string name, string description, string icon)
+    {
+        Id = id;
+        Name = name;
+        Description = description;
+        Icon = icon;
+    }
+
+    public string Id { get; }
+    public string Name { get; }
+    public string Description { get; }
+    public string Icon { get; }
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetProperty(ref _isSelected, value);
+    }
+}
 
 public sealed record StudioModuleSnapshot(
     string Id,
@@ -361,8 +449,8 @@ public sealed record StudioSettingsSnapshot(
     IReadOnlyList<string> VisibleModules,
     bool Draggable = true,
     bool Resizable = true,
-    double WidgetWidth = 286,
-    double WidgetHeight = 488,
+    double WidgetWidth = 184,
+    double WidgetHeight = 396,
     int WidgetScalePercent = 100,
     double UpdateCadenceSeconds = 2,
     string PerformanceMode = "Balanced",
@@ -371,4 +459,6 @@ public sealed record StudioSettingsSnapshot(
     IReadOnlyList<StudioModuleSnapshot>? Modules = null,
     StudioThemeSnapshot? ThemeDetails = null,
     IReadOnlyList<StudioSceneSnapshot>? Scenes = null,
-    IReadOnlyList<StudioAlertSnapshot>? Alerts = null);
+    IReadOnlyList<StudioAlertSnapshot>? Alerts = null,
+    bool DemoMetrics = true,
+    int SchemaVersion = 2);

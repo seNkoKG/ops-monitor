@@ -5,12 +5,22 @@ namespace OpsMonitor.Widget.ViewModels;
 
 internal sealed record ThemeDefinition(
     string Name,
+    string? CoreThemeId,
     Color Surface,
     Color Card,
     Color Border,
     Color TextPrimary,
     Color TextSecondary,
-    Color Cyan,
-    Color Magenta,
-    Color Mint,
-    Color Amber);
+    Color CpuAccent,
+    Color GpuAccent,
+    Color MemoryAccent,
+    Color NetworkAccent,
+    Color Warning,
+    Color Critical,
+    string FontFamily,
+    double LabelSize,
+    double ValueSize,
+    double MinimumReadableSize,
+    int LabelWeight,
+    int ValueWeight,
+    bool UseTabularNumbers);

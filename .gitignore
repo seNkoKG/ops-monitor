@@ -5,6 +5,7 @@ settings-preview.png
 CpuTemperatureBridge.exe
 *.log
 .vs/
+.qa/
 **/bin/
 **/obj/
 native/artifacts/

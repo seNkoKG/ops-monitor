@@ -13,6 +13,7 @@ public static class WidgetModuleCatalog
     public const string Gpu = "gpu";
     public const string Memory = "memory";
     public const string Network = "network";
+    public const string Latency = "latency";
     public const string Storage = "storage";
     public const string Battery = "battery";
 
@@ -22,6 +23,7 @@ public static class WidgetModuleCatalog
         Gpu,
         Memory,
         Network,
+        Latency,
         Storage,
         Battery
     ];
@@ -32,7 +34,7 @@ public static class WidgetModuleCatalog
     public static List<string> CreateDefaultOrder() => [.. DefaultOrder];
 
     public static List<string> CreateDefaultEnabled() =>
-        [Cpu, Gpu, Memory, Network];
+        [Cpu, Gpu, Memory, Network, Latency];
 
     public static List<string> NormalizeOrder(IEnumerable<string>? keys)
     {
@@ -76,6 +78,49 @@ public static class WidgetModuleCatalog
             .ToList();
 
         return new WidgetModuleConfiguration(order, enabled);
+    }
+
+    public static IReadOnlyDictionary<string, WidgetModulePresentation> GetPresentation(
+        IEnumerable<ModuleSettings> modules)
+    {
+        ArgumentNullException.ThrowIfNull(modules);
+
+        var result = new Dictionary<string, WidgetModulePresentation>(StringComparer.Ordinal);
+        foreach (var module in modules.OrderBy(module => module.Order))
+        {
+            var key = MapCoreModule(module);
+            if (key is null)
+            {
+                continue;
+            }
+
+            result[key] = new WidgetModulePresentation
+            {
+                Size = module.Size switch
+                {
+                    ModuleSize.Medium => WidgetModuleSize.Medium,
+                    ModuleSize.Large => WidgetModuleSize.Large,
+                    ModuleSize.Wide => WidgetModuleSize.Wide,
+                    _ => WidgetModuleSize.Small
+                },
+                Visualization = module.Visualization switch
+                {
+                    ModuleVisualization.Value => WidgetModuleVisualization.Value,
+                    ModuleVisualization.Progress => WidgetModuleVisualization.Progress,
+                    ModuleVisualization.Sparkline => WidgetModuleVisualization.Sparkline,
+                    ModuleVisualization.Gauge => WidgetModuleVisualization.Gauge,
+                    _ => WidgetModuleVisualization.ValueAndSparkline
+                },
+                ShowLabel = module.ShowLabel,
+                ShowSecondaryValue = module.ShowSecondaryValue,
+                ShowTrend = module.ShowTrend,
+                DecimalPlacesOverride = module.DecimalPlacesOverride is { } decimals
+                    ? Math.Clamp(decimals, 0, 3)
+                    : null
+            };
+        }
+
+        return result;
     }
 
     public static List<ModuleSettings> ApplyBatteryVisibility(
@@ -124,6 +169,73 @@ public static class WidgetModuleCatalog
         return result;
     }
 
+    public static List<ModuleSettings> ApplyConfiguration(
+        IEnumerable<ModuleSettings> modules,
+        IEnumerable<string>? order,
+        IEnumerable<string>? enabled,
+        IReadOnlyDictionary<string, WidgetModulePresentation>? presentation = null)
+    {
+        ArgumentNullException.ThrowIfNull(modules);
+
+        var result = modules.ToList();
+        var normalizedOrder = NormalizeOrder(order);
+        var enabledKeys = NormalizeEnabled(enabled)
+            .ToHashSet(StringComparer.Ordinal);
+        var nextUnsupportedOrder = normalizedOrder.Count;
+
+        for (var index = 0; index < result.Count; index++)
+        {
+            var module = result[index];
+            var key = MapCoreModule(module);
+            if (key is null)
+            {
+                result[index] = module with
+                {
+                    Order = Math.Max(module.Order, nextUnsupportedOrder++)
+                };
+                continue;
+            }
+
+            var moduleOrder = normalizedOrder.IndexOf(key);
+            var mapped = module with
+            {
+                Enabled = enabledKeys.Contains(key),
+                Order = moduleOrder >= 0 ? moduleOrder : nextUnsupportedOrder++
+            };
+
+            if (presentation is not null &&
+                presentation.TryGetValue(key, out var options))
+            {
+                mapped = mapped with
+                {
+                    Size = options.Size switch
+                    {
+                        WidgetModuleSize.Medium => ModuleSize.Medium,
+                        WidgetModuleSize.Large => ModuleSize.Large,
+                        WidgetModuleSize.Wide => ModuleSize.Wide,
+                        _ => ModuleSize.Small
+                    },
+                    Visualization = options.Visualization switch
+                    {
+                        WidgetModuleVisualization.Value => ModuleVisualization.Value,
+                        WidgetModuleVisualization.Progress => ModuleVisualization.Progress,
+                        WidgetModuleVisualization.Sparkline => ModuleVisualization.Sparkline,
+                        WidgetModuleVisualization.Gauge => ModuleVisualization.Gauge,
+                        _ => ModuleVisualization.ValueAndSparkline
+                    },
+                    ShowLabel = options.ShowLabel,
+                    ShowSecondaryValue = options.ShowSecondaryValue,
+                    ShowTrend = options.ShowTrend,
+                    DecimalPlacesOverride = options.DecimalPlacesOverride
+                };
+            }
+
+            result[index] = mapped;
+        }
+
+        return result;
+    }
+
     private static List<string> NormalizeKeys(IEnumerable<string>? keys)
     {
         if (keys is null)
@@ -155,7 +267,8 @@ public static class WidgetModuleCatalog
         var normalized = key.Trim().ToLowerInvariant() switch
         {
             "ram" => Memory,
-            "net" or "latency" => Network,
+            "net" => Network,
+            "ping" => Latency,
             "disk" => Storage,
             var value => value
         };
@@ -180,9 +293,14 @@ public static class WidgetModuleCatalog
             return Memory;
         }
 
-        if (id is "module-network" or "module-latency")
+        if (id is "module-network")
         {
             return Network;
+        }
+
+        if (id is "module-latency")
+        {
+            return Latency;
         }
 
         if (id is "module-storage" or "module-disk")
@@ -220,7 +338,11 @@ public static class WidgetModuleCatalog
 
             if (value.StartsWith("network.", StringComparison.Ordinal))
             {
-                return Network;
+                return metric == WellKnownMetrics.NetworkPing ||
+                       metric == WellKnownMetrics.NetworkPacketLoss ||
+                       metric == WellKnownMetrics.NetworkJitter
+                    ? Latency
+                    : Network;
             }
 
             if (value.StartsWith("storage.", StringComparison.Ordinal) ||

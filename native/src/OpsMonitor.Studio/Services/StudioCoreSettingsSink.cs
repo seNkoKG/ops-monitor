@@ -23,9 +23,16 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
     private const string ManagedThemePrefix = "studio-theme-";
     private const string ManagedScenePrefix = "studio-scene-";
     private const string ManagedAlertPrefix = "studio-alert-";
+    private const string WidgetBuiltInThemePrefix = "widget-theme-";
+    private static readonly HashSet<string> SupportedStudioModuleIds =
+        new(
+            ["cpu", "gpu", "ram", "net", "latency", "disk", "battery"],
+            StringComparer.Ordinal);
     private readonly LocalStudioSettingsSink _editorStore;
     private readonly JsonSettingsRepository _runtimeRepository;
     private readonly WindowsStartupRegistration _startupRegistration;
+    private readonly Lock _baselineGate = new();
+    private StudioSettingsSnapshot? _baseline;
     private bool _disposed;
 
     public StudioCoreSettingsSink(
@@ -56,7 +63,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
         if (!File.Exists(RuntimeSettingsPath))
         {
             LastWarning = JoinWarnings(warnings);
-            return editorSnapshot;
+            return RememberBaseline(editorSnapshot);
         }
 
         try
@@ -69,7 +76,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
 
             var baseline = editorSnapshot ?? CreateStudioDefault();
             LastWarning = JoinWarnings(warnings);
-            return OverlayRuntime(baseline, runtime);
+            return RememberBaseline(OverlayRuntime(baseline, runtime));
         }
         catch (Exception exception) when (
             exception is IOException
@@ -79,7 +86,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
         {
             warnings.Add($"Shared runtime settings could not be loaded: {exception.Message}");
             LastWarning = JoinWarnings(warnings);
-            return editorSnapshot;
+            return RememberBaseline(editorSnapshot);
         }
     }
 
@@ -89,20 +96,29 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
         ArgumentNullException.ThrowIfNull(snapshot);
 
         var warnings = new List<string>();
-        _editorStore.Save(snapshot);
-
+        var effective = snapshot;
+        var baseline = ReadBaseline();
+        var runtimeUpdated = false;
         try
         {
-            var current = _runtimeRepository.LoadAsync().GetAwaiter().GetResult();
-            var mapped = MapRuntime(snapshot, current);
-            _runtimeRepository.SaveAsync(mapped).GetAwaiter().GetResult();
+            _runtimeRepository.UpdateAsync(current =>
+                {
+                    effective = baseline is null
+                        ? snapshot
+                        : MergeUserEdits(
+                            baseline,
+                            snapshot,
+                            OverlayRuntime(baseline, current));
+                    return MapRuntime(effective, current);
+                })
+                .GetAwaiter()
+                .GetResult();
+            runtimeUpdated = true;
 
             if (!string.IsNullOrWhiteSpace(_runtimeRepository.LastLoadWarning))
             {
                 warnings.Add(_runtimeRepository.LastLoadWarning);
             }
-
-            SynchronizeStartup(snapshot.StartAtSignIn, warnings);
         }
         catch (Exception exception) when (
             exception is IOException
@@ -114,8 +130,176 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             warnings.Add($"Shared runtime settings were not updated: {exception.Message}");
         }
 
+        _editorStore.Save(effective);
+        if (runtimeUpdated)
+        {
+            SynchronizeStartup(effective.StartAtSignIn, warnings);
+        }
+
+        _ = RememberBaseline(effective);
         LastWarning = JoinWarnings(warnings);
-        SettingsChanged?.Invoke(this, snapshot);
+        SettingsChanged?.Invoke(this, effective);
+    }
+
+    private StudioSettingsSnapshot? RememberBaseline(StudioSettingsSnapshot? snapshot)
+    {
+        lock (_baselineGate)
+        {
+            _baseline = snapshot;
+        }
+
+        return snapshot;
+    }
+
+    private StudioSettingsSnapshot? ReadBaseline()
+    {
+        lock (_baselineGate)
+        {
+            return _baseline;
+        }
+    }
+
+    internal static StudioSettingsSnapshot MergeUserEdits(
+        StudioSettingsSnapshot baseline,
+        StudioSettingsSnapshot edited,
+        StudioSettingsSnapshot external)
+    {
+        ArgumentNullException.ThrowIfNull(baseline);
+        ArgumentNullException.ThrowIfNull(edited);
+        ArgumentNullException.ThrowIfNull(external);
+
+        return external with
+        {
+            Scene = Choose(baseline.Scene, edited.Scene, external.Scene),
+            Layout = Choose(baseline.Layout, edited.Layout, external.Layout),
+            Theme = Choose(baseline.Theme, edited.Theme, external.Theme),
+            BackgroundOpacity = Choose(
+                baseline.BackgroundOpacity,
+                edited.BackgroundOpacity,
+                external.BackgroundOpacity),
+            ContentOpacity = Choose(
+                baseline.ContentOpacity,
+                edited.ContentOpacity,
+                external.ContentOpacity),
+            BlurStrength = Choose(
+                baseline.BlurStrength,
+                edited.BlurStrength,
+                external.BlurStrength),
+            Density = Choose(baseline.Density, edited.Density, external.Density),
+            FontScale = Choose(
+                baseline.FontScale,
+                edited.FontScale,
+                external.FontScale),
+            AlwaysOnTop = Choose(
+                baseline.AlwaysOnTop,
+                edited.AlwaysOnTop,
+                external.AlwaysOnTop),
+            PositionLocked = Choose(
+                baseline.PositionLocked,
+                edited.PositionLocked,
+                external.PositionLocked),
+            ClickThrough = Choose(
+                baseline.ClickThrough,
+                edited.ClickThrough,
+                external.ClickThrough),
+            StartAtSignIn = Choose(
+                baseline.StartAtSignIn,
+                edited.StartAtSignIn,
+                external.StartAtSignIn),
+            SnapToGrid = Choose(
+                baseline.SnapToGrid,
+                edited.SnapToGrid,
+                external.SnapToGrid),
+            VisibleModules = ChooseList(
+                baseline.VisibleModules,
+                edited.VisibleModules,
+                external.VisibleModules) ?? [],
+            Draggable = Choose(
+                baseline.Draggable,
+                edited.Draggable,
+                external.Draggable),
+            Resizable = Choose(
+                baseline.Resizable,
+                edited.Resizable,
+                external.Resizable),
+            WidgetWidth = Choose(
+                baseline.WidgetWidth,
+                edited.WidgetWidth,
+                external.WidgetWidth),
+            WidgetHeight = Choose(
+                baseline.WidgetHeight,
+                edited.WidgetHeight,
+                external.WidgetHeight),
+            WidgetScalePercent = Choose(
+                baseline.WidgetScalePercent,
+                edited.WidgetScalePercent,
+                external.WidgetScalePercent),
+            UpdateCadenceSeconds = Choose(
+                baseline.UpdateCadenceSeconds,
+                edited.UpdateCadenceSeconds,
+                external.UpdateCadenceSeconds),
+            PerformanceMode = Choose(
+                baseline.PerformanceMode,
+                edited.PerformanceMode,
+                external.PerformanceMode),
+            AlertsEnabled = Choose(
+                baseline.AlertsEnabled,
+                edited.AlertsEnabled,
+                external.AlertsEnabled),
+            ReducedMotion = Choose(
+                baseline.ReducedMotion,
+                edited.ReducedMotion,
+                external.ReducedMotion),
+            Modules = ChooseList(
+                baseline.Modules,
+                edited.Modules,
+                external.Modules),
+            ThemeDetails = Choose(
+                baseline.ThemeDetails,
+                edited.ThemeDetails,
+                external.ThemeDetails),
+            Scenes = ChooseList(
+                baseline.Scenes,
+                edited.Scenes,
+                external.Scenes),
+            Alerts = ChooseList(
+                baseline.Alerts,
+                edited.Alerts,
+                external.Alerts),
+            DemoMetrics = Choose(
+                baseline.DemoMetrics,
+                edited.DemoMetrics,
+                external.DemoMetrics),
+            SchemaVersion = LocalStudioSettingsSink.CurrentSchemaVersion,
+        };
+    }
+
+    private static T Choose<T>(T baseline, T edited, T external)
+        => EqualityComparer<T>.Default.Equals(baseline, edited)
+            ? external
+            : edited;
+
+    private static IReadOnlyList<T>? ChooseList<T>(
+        IReadOnlyList<T>? baseline,
+        IReadOnlyList<T>? edited,
+        IReadOnlyList<T>? external)
+        => ListsEqual(baseline, edited) ? external : edited;
+
+    private static bool ListsEqual<T>(
+        IReadOnlyList<T>? left,
+        IReadOnlyList<T>? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left is null || right is null || left.Count != right.Count)
+        {
+            return false;
+        }
+
+        return left.SequenceEqual(right);
     }
 
     public void Dispose()
@@ -131,7 +315,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
         GC.SuppressFinalize(this);
     }
 
-    private static OpsSettingsDocument MapRuntime(
+    internal static OpsSettingsDocument MapRuntime(
         StudioSettingsSnapshot snapshot,
         OpsSettingsDocument current)
     {
@@ -145,6 +329,8 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             : existingWidget.PerformanceProfileId;
         var themeId = ManagedThemePrefix + Slug(snapshot.Theme);
         var modules = MapModules(snapshot);
+        modules.AddRange(existingWidget.Modules.Where(item =>
+            StudioModuleId(item.Id) is null));
         var widget = existingWidget with
         {
             Enabled = true,
@@ -154,16 +340,16 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             PerformanceProfileId = profileId,
             Window = existingWidget.Window with
             {
-                Width = Math.Clamp(snapshot.WidgetWidth, 112, 1_600),
-                Height = Math.Clamp(snapshot.WidgetHeight, 140, 1_200),
+                Width = Math.Clamp(snapshot.WidgetWidth, 176, 1_600),
+                Height = Math.Clamp(snapshot.WidgetHeight, 140, 1_000),
                 ScalePercent = Math.Clamp(snapshot.WidgetScalePercent, 80, 160),
                 AlwaysOnTop = snapshot.AlwaysOnTop,
                 Locked = snapshot.PositionLocked,
-                Draggable = snapshot.Draggable && !snapshot.PositionLocked,
-                Resizable = snapshot.Resizable && !snapshot.PositionLocked,
+                Draggable = snapshot.Draggable,
+                Resizable = snapshot.Resizable,
                 ClickThrough = snapshot.ClickThrough,
-                SurfaceOpacity = Math.Clamp(snapshot.BackgroundOpacity, 0.28, 1),
-                ContentOpacity = Math.Clamp(snapshot.ContentOpacity, 0.72, 1),
+                SurfaceOpacity = Math.Clamp(snapshot.BackgroundOpacity, 0.08, 1),
+                ContentOpacity = Math.Clamp(snapshot.ContentOpacity, 0.82, 1),
             },
             Modules = modules,
         };
@@ -174,8 +360,6 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
         var profile = MapProfile(snapshot, current, profileId);
         var profiles = ReplaceById(current.PerformanceProfiles, profile);
         var scenes = MapScenes(snapshot, current.Scenes, widgetId, profileId);
-        var alerts = MapAlerts(snapshot, current.AlertRules);
-
         return current with
         {
             General = current.General with
@@ -186,7 +370,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             Themes = themes,
             PerformanceProfiles = profiles,
             Scenes = scenes,
-            AlertRules = alerts,
+            AlertRules = current.AlertRules,
         };
     }
 
@@ -197,7 +381,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             Name = "OPS Monitor",
             Design = WidgetDesign.Pill,
             Density = WidgetDensity.Compact,
-            ThemeId = ManagedThemePrefix + "abyss",
+            ThemeId = ManagedThemePrefix + "void",
             PerformanceProfileId = ManagedProfileId,
         };
 
@@ -243,6 +427,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
         }
 
         return source
+            .Where(item => SupportedStudioModuleIds.Contains(item.Id))
             .OrderBy(item => item.Order)
             .Select((item, order) =>
             {
@@ -261,8 +446,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                     AccentColor = item.Accent,
                     ShowLabel = item.ShowLabel,
                     ShowSecondaryValue = metrics.Secondary.HasValue &&
-                                         (item.ShowTemperature ||
-                                          item.Id is not ("cpu" or "gpu")),
+                                         item.ShowTemperature,
                     ShowTrend = item.ShowSparkline,
                     DecimalPlacesOverride = ParsePrecision(item.Precision),
                 };
@@ -439,7 +623,10 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
         {
             if (!enabled)
             {
-                _ = _startupRegistration.Remove();
+                if (_startupRegistration.Query().IsRegistered)
+                {
+                    _ = _startupRegistration.Remove();
+                }
                 return;
             }
 
@@ -451,7 +638,10 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                 return;
             }
 
-            _ = _startupRegistration.Register(executablePath);
+            if (!_startupRegistration.IsRegisteredFor(executablePath))
+            {
+                _ = _startupRegistration.Register(executablePath);
+            }
         }
         catch (Exception exception) when (
             exception is IOException
@@ -479,9 +669,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             item.Id.Equals(widget.ThemeId, StringComparison.Ordinal));
         var profile = runtime.PerformanceProfiles.FirstOrDefault(item =>
             item.Id.Equals(widget.PerformanceProfileId, StringComparison.Ordinal));
-        var mappedThemeId = widget.ThemeId.StartsWith(ManagedThemePrefix, StringComparison.Ordinal)
-            ? widget.ThemeId[ManagedThemePrefix.Length..]
-            : baseline.Theme;
+        var mappedThemeId = MapStudioThemeId(widget.ThemeId, theme, baseline.Theme);
         var modules = OverlayModules(baseline.Modules, widget.Modules);
         var enabledIds = modules.Where(item => item.Enabled)
             .OrderBy(item => item.Order)
@@ -492,7 +680,9 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
         return baseline with
         {
             Scene = activeScene?.Name ?? baseline.Scene,
-            Layout = widget.Design.ToString(),
+            Layout = widget.Design == WidgetDesign.Canvas
+                ? "Mini"
+                : widget.Design.ToString(),
             Theme = mappedThemeId,
             Density = widget.Density switch
             {
@@ -545,26 +735,32 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
         }
 
         var baselineById = (baseline ?? []).ToDictionary(item => item.Id, StringComparer.Ordinal);
-        return runtime.OrderBy(item => item.Order).Select((item, order) =>
-        {
-            var id = StudioModuleId(item.Id);
-            baselineById.TryGetValue(id, out var prior);
-            return new StudioModuleSnapshot(
-                id,
-                item.Title,
-                order,
-                item.Enabled,
-                item.Size.ToString(),
-                StudioVisualization(item.Visualization),
-                item.ShowLabel,
-                item.ShowTrend,
-                item.ShowSecondaryValue,
-                StudioPrecision(item.DecimalPlacesOverride),
-                string.IsNullOrWhiteSpace(item.Icon) ? prior?.Icon ?? string.Empty : item.Icon,
-                string.IsNullOrWhiteSpace(item.AccentColor)
-                    ? prior?.Accent ?? AccentFor(id)
-                    : item.AccentColor);
-        }).ToArray();
+        return runtime
+            .OrderBy(item => item.Order)
+            .Select(item => (Item: item, Id: StudioModuleId(item.Id)))
+            .Where(item => item.Id is not null)
+            .Select((mapped, order) =>
+            {
+                var item = mapped.Item;
+                var id = mapped.Id!;
+                baselineById.TryGetValue(id, out var prior);
+                return new StudioModuleSnapshot(
+                    id,
+                    item.Title,
+                    order,
+                    item.Enabled,
+                    item.Size.ToString(),
+                    StudioVisualization(item.Visualization),
+                    item.ShowLabel,
+                    item.ShowTrend,
+                    item.ShowSecondaryValue,
+                    StudioPrecision(item.DecimalPlacesOverride),
+                    string.IsNullOrWhiteSpace(item.Icon) ? prior?.Icon ?? string.Empty : item.Icon,
+                    string.IsNullOrWhiteSpace(item.AccentColor)
+                        ? prior?.Accent ?? AccentFor(id)
+                        : item.AccentColor);
+            })
+            .ToArray();
     }
 
     private static StudioSceneSnapshot[] OverlayScenes(
@@ -624,11 +820,11 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
         => new(
             "Daily driver",
             "Pill",
-            "abyss",
+            "void",
             0.82,
             1,
             24,
-            "Comfortable",
+            "Compact",
             1,
             true,
             false,
@@ -646,7 +842,6 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             "net" => (WellKnownMetrics.NetworkDownloadRate, WellKnownMetrics.NetworkUploadRate),
             "latency" => (WellKnownMetrics.NetworkPing, WellKnownMetrics.NetworkPacketLoss),
             "disk" => (new MetricId("storage.disk.activity"), new MetricId("storage.disk.free")),
-            "fps" => (new MetricId("gaming.fps"), new MetricId("gaming.frame_time")),
             "battery" => (WellKnownMetrics.BatteryCharge, WellKnownMetrics.BatteryRemaining),
             _ => (new MetricId($"custom.{Slug(id)}"), (MetricId?)null),
         };
@@ -689,12 +884,14 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             "net" => "module-network",
             "latency" => "module-latency",
             "disk" => "module-storage",
-            "fps" => "module-fps",
             "battery" => "module-battery",
-            _ => "module-studio-" + Slug(studioId),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(studioId),
+                studioId,
+                "Studio cannot persist an unsupported widget module."),
         };
 
-    private static string StudioModuleId(string coreId)
+    private static string? StudioModuleId(string coreId)
         => coreId switch
         {
             "module-cpu" => "cpu",
@@ -703,12 +900,40 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             "module-network" => "net",
             "module-latency" => "latency",
             "module-storage" => "disk",
-            "module-fps" => "fps",
             "module-battery" => "battery",
-            _ when coreId.StartsWith("module-studio-", StringComparison.Ordinal) =>
-                coreId["module-studio-".Length..],
-            _ => coreId,
+            _ => null,
         };
+
+    private static string MapStudioThemeId(
+        string runtimeThemeId,
+        ThemeSettings? theme,
+        string fallback)
+    {
+        if (runtimeThemeId.StartsWith(ManagedThemePrefix, StringComparison.Ordinal))
+        {
+            return runtimeThemeId[ManagedThemePrefix.Length..];
+        }
+
+        string? candidate = null;
+        if (runtimeThemeId.StartsWith(WidgetBuiltInThemePrefix, StringComparison.Ordinal))
+        {
+            candidate = runtimeThemeId[WidgetBuiltInThemePrefix.Length..];
+        }
+        else if (theme?.BuiltIn == true)
+        {
+            candidate = theme.Name;
+        }
+
+        return (candidate ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "void" => "void",
+            "aurora" => "aurora",
+            "slate" or "slate / high contrast" => "slate",
+            "ember" => "ember",
+            "contrast" => "contrast",
+            _ => fallback,
+        };
+    }
 
     private static string BaseModuleId(string id)
     {
@@ -717,7 +942,9 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
     }
 
     private static WidgetDesign ParseDesign(string value)
-        => Enum.TryParse<WidgetDesign>(value, true, out var parsed)
+        => value.Equals("Mini", StringComparison.OrdinalIgnoreCase)
+            ? WidgetDesign.Canvas
+            : Enum.TryParse<WidgetDesign>(value, true, out var parsed)
             ? parsed
             : WidgetDesign.Pill;
 

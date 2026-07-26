@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OpsMonitor.Core.Metrics;
 using OpsMonitor.Core.Runtime;
 using OpsMonitor.Widget.Models;
@@ -11,8 +12,12 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
     private readonly OpsRuntime _runtime;
     private Timer? _publishTimer;
     private Task? _startTask;
+    private Task? _reloadTask;
+    private readonly CancellationTokenSource _shutdown = new();
+    private TimeSpan _uiCadence = TimeSpan.FromSeconds(1);
     private int _isPublishing;
-    private bool _disposed;
+    private bool _reloadRequested;
+    private volatile bool _disposed;
 
     public CoreTelemetrySource()
     {
@@ -25,26 +30,44 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
 
     public event EventHandler<TelemetrySnapshot>? SnapshotAvailable;
 
-    public void Start()
+    public void SetUpdateCadence(TimeSpan cadence)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
+        var normalized = NormalizeCadence(cadence);
         lock (_gate)
         {
-            _startTask ??= Task.Run(StartCoreAsync);
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _uiCadence = normalized;
+            _publishTimer?.Change(normalized, normalized);
+        }
+    }
+
+    public void Start()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _startTask ??= Task.Run(() => StartCoreAsync(_shutdown.Token));
         }
     }
 
     public void ReloadSettings()
     {
-        if (!_disposed)
+        lock (_gate)
         {
-            _ = ReloadSettingsCoreAsync();
+            if (_disposed)
+            {
+                return;
+            }
+
+            _reloadRequested = true;
+            _reloadTask ??= Task.Run(() => ProcessReloadRequestsAsync(_shutdown.Token));
         }
     }
 
     public void Dispose()
     {
+        Task? startTask;
+        Task? reloadTask;
         lock (_gate)
         {
             if (_disposed)
@@ -55,8 +78,13 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
             _disposed = true;
             _publishTimer?.Dispose();
             _publishTimer = null;
+            startTask = _startTask;
+            reloadTask = _reloadTask;
         }
 
+        _shutdown.Cancel();
+        WaitForShutdown(startTask);
+        WaitForShutdown(reloadTask);
         try
         {
             _runtime.DisposeAsync().AsTask().GetAwaiter().GetResult();
@@ -65,15 +93,22 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
         {
             // Application shutdown may cancel an in-flight bounded provider poll.
         }
+        catch (Exception exception)
+        {
+            Trace.TraceError(
+                "OPS Monitor telemetry runtime disposal failed: {0}",
+                exception);
+        }
 
+        _shutdown.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    private async Task StartCoreAsync()
+    private async Task StartCoreAsync(CancellationToken cancellationToken)
     {
         try
         {
-            await _runtime.StartAsync().ConfigureAwait(false);
+            await _runtime.StartAsync(cancellationToken).ConfigureAwait(false);
             if (_disposed)
             {
                 return;
@@ -84,7 +119,7 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
             {
                 if (!_disposed)
                 {
-                    var cadence = GetUiCadence();
+                    var cadence = _uiCadence;
                     _publishTimer = new Timer(
                         _ => PublishSnapshot(),
                         null,
@@ -101,24 +136,65 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
         {
             // Normal shutdown while the runtime is starting.
         }
+        catch (Exception exception)
+        {
+            Trace.TraceError(
+                "OPS Monitor telemetry runtime startup failed: {0}",
+                exception);
+        }
     }
 
-    private async Task ReloadSettingsCoreAsync()
+    private async Task ProcessReloadRequestsAsync(CancellationToken cancellationToken)
     {
-        try
+        while (true)
         {
-            await _runtime.ReloadSettingsAsync().ConfigureAwait(false);
-            var cadence = GetUiCadence();
             lock (_gate)
             {
-                _publishTimer?.Change(cadence, cadence);
+                if (_disposed || !_reloadRequested)
+                {
+                    _reloadTask = null;
+                    return;
+                }
+
+                _reloadRequested = false;
             }
-        }
-        catch (Exception exception) when (
-            _disposed &&
-            exception is ObjectDisposedException or OperationCanceledException)
-        {
-            // Normal shutdown while settings are being reloaded.
+
+            try
+            {
+                Task? startTask;
+                lock (_gate)
+                {
+                    startTask = _startTask;
+                }
+
+                if (startTask is not null)
+                {
+                    await startTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                await _runtime.ReloadSettingsAsync(cancellationToken).ConfigureAwait(false);
+                var cadence = GetUiCadence();
+                lock (_gate)
+                {
+                    if (!_disposed)
+                    {
+                        _uiCadence = cadence;
+                        _publishTimer?.Change(cadence, cadence);
+                    }
+                }
+            }
+            catch (Exception exception) when (
+                cancellationToken.IsCancellationRequested &&
+                exception is ObjectDisposedException or OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError(
+                    "OPS Monitor telemetry settings reload failed: {0}",
+                    exception);
+            }
         }
     }
 
@@ -132,66 +208,7 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
         try
         {
             var metrics = _runtime.Metrics.GetSnapshot();
-            var cpuLoad = Value(metrics, WellKnownMetrics.CpuTotalUtilization);
-            var cpuTemperature = OptionalValue(metrics, WellKnownMetrics.CpuTemperature);
-            var gpuLoad = Value(metrics, WellKnownMetrics.GpuUtilization);
-            var gpuTemperature = OptionalValue(metrics, WellKnownMetrics.GpuTemperature);
-            var gpuMemoryUsed = BytesToGigabytes(Value(
-                metrics,
-                WellKnownMetrics.GpuMemoryUsedBytes));
-            var gpuMemoryTotal = BytesToGigabytes(Value(
-                metrics,
-                WellKnownMetrics.GpuMemoryTotalBytes));
-            var memoryUsed = BytesToGigabytes(Value(metrics, WellKnownMetrics.MemoryUsedBytes));
-            var memoryTotal = BytesToGigabytes(Value(metrics, WellKnownMetrics.MemoryTotalBytes));
-
-            var snapshot = new TelemetrySnapshot(
-                DateTimeOffset.Now,
-                new CpuTelemetry(
-                    cpuLoad,
-                    cpuTemperature,
-                    0,
-                    0,
-                    CombinedState(
-                        metrics,
-                        WellKnownMetrics.CpuTotalUtilization,
-                        WellKnownMetrics.CpuTemperature)),
-                new GpuTelemetry(
-                    gpuLoad,
-                    gpuTemperature,
-                    0,
-                    gpuMemoryUsed,
-                    gpuMemoryTotal,
-                    CombinedState(
-                        metrics,
-                        WellKnownMetrics.GpuUtilization,
-                        WellKnownMetrics.GpuTemperature)),
-                new MemoryTelemetry(
-                    memoryUsed,
-                    memoryTotal,
-                    0,
-                    0,
-                    State(metrics, WellKnownMetrics.MemoryTotalBytes)),
-                new NetworkTelemetry(
-                    Value(metrics, WellKnownMetrics.NetworkDownloadRate),
-                    Value(metrics, WellKnownMetrics.NetworkUploadRate),
-                    Value(metrics, WellKnownMetrics.NetworkPing),
-                    Value(metrics, WellKnownMetrics.NetworkJitter),
-                    Value(metrics, WellKnownMetrics.NetworkPacketLoss),
-                    CombinedState(
-                        metrics,
-                        WellKnownMetrics.NetworkDownloadRate,
-                        WellKnownMetrics.NetworkPing)),
-                new StorageTelemetry(
-                    0,
-                    0,
-                    0,
-                    null,
-                    "Provider not enabled",
-                    SensorState.Unavailable),
-                BuildBattery(metrics));
-
-            SnapshotAvailable?.Invoke(this, snapshot);
+            PublishToObservers(CreateSnapshot(metrics, DateTimeOffset.Now));
         }
         finally
         {
@@ -199,41 +216,108 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
         }
     }
 
+    internal static TelemetrySnapshot CreateSnapshot(
+        IReadOnlyDictionary<MetricId, MetricSample> metrics,
+        DateTimeOffset capturedAt)
+    {
+        ArgumentNullException.ThrowIfNull(metrics);
+
+        return new TelemetrySnapshot(
+            capturedAt,
+            new CpuTelemetry(
+                OptionalValue(metrics, WellKnownMetrics.CpuTotalUtilization),
+                OptionalValue(metrics, WellKnownMetrics.CpuTemperature),
+                null,
+                null,
+                CombinedState(
+                    metrics,
+                    WellKnownMetrics.CpuTotalUtilization,
+                    WellKnownMetrics.CpuTemperature)),
+            new GpuTelemetry(
+                OptionalValue(metrics, WellKnownMetrics.GpuUtilization),
+                OptionalValue(metrics, WellKnownMetrics.GpuTemperature),
+                null,
+                BytesToGigabytes(OptionalValue(
+                    metrics,
+                    WellKnownMetrics.GpuMemoryUsedBytes)),
+                BytesToGigabytes(OptionalValue(
+                    metrics,
+                    WellKnownMetrics.GpuMemoryTotalBytes)),
+                CombinedState(
+                    metrics,
+                    WellKnownMetrics.GpuUtilization,
+                    WellKnownMetrics.GpuTemperature,
+                    WellKnownMetrics.GpuMemoryUsedBytes,
+                    WellKnownMetrics.GpuMemoryTotalBytes)),
+            new MemoryTelemetry(
+                BytesToGigabytes(OptionalValue(
+                    metrics,
+                    WellKnownMetrics.MemoryUsedBytes)),
+                BytesToGigabytes(OptionalValue(
+                    metrics,
+                    WellKnownMetrics.MemoryTotalBytes)),
+                null,
+                null,
+                CombinedState(
+                    metrics,
+                    WellKnownMetrics.MemoryUsedBytes,
+                    WellKnownMetrics.MemoryTotalBytes)),
+            new NetworkTelemetry(
+                OptionalValue(metrics, WellKnownMetrics.NetworkDownloadRate),
+                OptionalValue(metrics, WellKnownMetrics.NetworkUploadRate),
+                OptionalValue(metrics, WellKnownMetrics.NetworkPing),
+                OptionalValue(metrics, WellKnownMetrics.NetworkJitter),
+                OptionalValue(metrics, WellKnownMetrics.NetworkPacketLoss),
+                CombinedState(
+                    metrics,
+                    WellKnownMetrics.NetworkDownloadRate,
+                    WellKnownMetrics.NetworkUploadRate),
+                CombinedState(
+                    metrics,
+                    WellKnownMetrics.NetworkPing,
+                    WellKnownMetrics.NetworkJitter,
+                    WellKnownMetrics.NetworkPacketLoss)),
+            new StorageTelemetry(
+                0,
+                0,
+                0,
+                null,
+                "Provider not enabled",
+                SensorState.Unavailable),
+            BuildBattery(metrics));
+    }
+
     private static BatteryTelemetry BuildBattery(
         IReadOnlyDictionary<MetricId, MetricSample> metrics)
     {
         var charge = OptionalValue(metrics, WellKnownMetrics.BatteryCharge);
-        if (charge is null)
-        {
-            return new BatteryTelemetry(
-                null,
-                "Not present",
-                null,
-                null,
-                SensorState.Unavailable);
-        }
-
-        var acOnline = Value(metrics, WellKnownMetrics.BatteryAcOnline) > 0.5;
+        var acOnline = OptionalValue(metrics, WellKnownMetrics.BatteryAcOnline);
         var remainingSeconds = OptionalValue(metrics, WellKnownMetrics.BatteryRemaining);
         return new BatteryTelemetry(
             charge,
-            acOnline ? "AC connected" : "On battery",
+            acOnline switch
+            {
+                > 0.5 => "AC connected",
+                not null => "On battery",
+                _ => null
+            },
             remainingSeconds is > 0
                 ? TimeSpan.FromSeconds(remainingSeconds.Value)
                 : null,
             null,
-            State(metrics, WellKnownMetrics.BatteryCharge));
+            CombinedState(
+                metrics,
+                WellKnownMetrics.BatteryCharge,
+                WellKnownMetrics.BatteryAcOnline));
     }
-
-    private static double Value(
-        IReadOnlyDictionary<MetricId, MetricSample> metrics,
-        MetricId id) =>
-        OptionalValue(metrics, id) ?? 0;
 
     private static double? OptionalValue(
         IReadOnlyDictionary<MetricId, MetricSample> metrics,
         MetricId id) =>
-        metrics.TryGetValue(id, out var sample) && sample.HasUsableValue
+        metrics.TryGetValue(id, out var sample) &&
+        sample.HasUsableValue &&
+        sample.Value is { } value &&
+        double.IsFinite(value)
             ? sample.Value
             : null;
 
@@ -284,8 +368,10 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
         };
     }
 
-    private static double BytesToGigabytes(double bytes) =>
-        bytes / (1024d * 1024d * 1024d);
+    private static double? BytesToGigabytes(double? bytes) =>
+        bytes is { } value
+            ? value / (1024d * 1024d * 1024d)
+            : null;
 
     private TimeSpan GetUiCadence()
     {
@@ -302,7 +388,66 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
         profile ??= settings.PerformanceProfiles.FirstOrDefault(candidate =>
             candidate.Enabled);
         var requested = profile?.UiRefreshCadence ?? TimeSpan.FromSeconds(1);
+        return NormalizeCadence(requested);
+    }
+
+    private static TimeSpan NormalizeCadence(TimeSpan cadence)
+    {
+        var milliseconds = double.IsFinite(cadence.TotalMilliseconds)
+            ? cadence.TotalMilliseconds
+            : 1_000;
         return TimeSpan.FromMilliseconds(
-            Math.Clamp(requested.TotalMilliseconds, 500, 10_000));
+            Math.Clamp(milliseconds, 500, 10_000));
+    }
+
+    private void PublishToObservers(TelemetrySnapshot snapshot)
+    {
+        var handlers = SnapshotAvailable;
+        if (handlers is null)
+        {
+            return;
+        }
+
+        foreach (EventHandler<TelemetrySnapshot> handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                handler(this, snapshot);
+            }
+            catch (Exception exception) when (
+                exception is InvalidOperationException or
+                ObjectDisposedException or
+                TaskCanceledException)
+            {
+                // A closing UI observer must not terminate the timer thread.
+            }
+        }
+    }
+
+    private static void WaitForShutdown(Task? task)
+    {
+        if (task is null)
+        {
+            return;
+        }
+
+        try
+        {
+            task.GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when the widget closes during startup or a settings reload.
+        }
+        catch (ObjectDisposedException)
+        {
+            // Expected when runtime teardown wins a shutdown race.
+        }
+        catch (Exception exception)
+        {
+            Trace.TraceError(
+                "OPS Monitor telemetry task shutdown failed: {0}",
+                exception);
+        }
     }
 }

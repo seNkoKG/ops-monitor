@@ -44,6 +44,7 @@ public partial class MainWindow : Window, IDisposable
     private void OnClosing(object? sender, CancelEventArgs e)
     {
         _telemetryTimer.Stop();
+        CommitFocusedBinding();
         _viewModel.FlushSettings();
         Dispose();
     }
@@ -61,13 +62,9 @@ public partial class MainWindow : Window, IDisposable
         var key = _viewModel.CurrentPageId switch
         {
             "widgets" => "Page.Widgets",
-            "modules" => "Page.Modules",
             "appearance" => "Page.Appearance",
             "window" => "Page.Window",
-            "alerts" => "Page.Alerts",
-            "history" => "Page.History",
             "providers" => "Page.Providers",
-            "accessibility" => "Page.Accessibility",
             "diagnostics" => "Page.Diagnostics",
             _ => "Page.Overview",
         };
@@ -121,6 +118,7 @@ public partial class MainWindow : Window, IDisposable
         }
         else if (control && e.Key == Key.S)
         {
+            CommitFocusedBinding();
             _viewModel.SaveCommand.Execute(null);
             e.Handled = true;
         }
@@ -206,6 +204,14 @@ public partial class MainWindow : Window, IDisposable
         {
             SidebarColumn.Width = new GridLength(232);
             PreviewColumn.Width = new GridLength(410);
+        }
+    }
+
+    private static void CommitFocusedBinding()
+    {
+        if (Keyboard.FocusedElement is TextBox textBox)
+        {
+            textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
         }
     }
 
