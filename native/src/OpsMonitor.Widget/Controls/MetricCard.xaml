@@ -397,8 +397,8 @@
 
                 <Grid Grid.Column="1" Margin="6,0,0,0">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="13" />
-                        <RowDefinition Height="13" />
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="14" />
                     </Grid.RowDefinitions>
 
                     <Grid>
@@ -453,8 +453,10 @@
 
                     <TextBlock Grid.Row="1"
                                VerticalAlignment="Center"
-                               FontSize="14"
+                               FontSize="13"
                                Foreground="{Binding DataContext.TextPrimaryBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                               LineHeight="14"
+                               LineStackingStrategy="BlockLineHeight"
                                Style="{StaticResource MetricValueTextStyle}"
                                Text="{Binding CompactPrimaryValue}"
                                TextTrimming="CharacterEllipsis"
