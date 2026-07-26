@@ -44,7 +44,7 @@ public static class WidgetSizingPolicy
             (WidgetDesign.Pill, WidgetDensity.Comfortable) =>
                 new SizePair(260, 64 + (modules * 144)),
             (WidgetDesign.Canvas, WidgetDensity.Compact) =>
-                new SizePair(176, 48 + (modules * 30)),
+                new SizePair(176, 38 + (modules * 30)),
             (WidgetDesign.Canvas, WidgetDensity.Normal) =>
                 new SizePair(196, 50 + (modules * 38)),
             (WidgetDesign.Canvas, WidgetDensity.Comfortable) =>

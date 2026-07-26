@@ -392,11 +392,11 @@
         </Grid.Style>
         <Border x:Name="RootSurface"
                 Background="{Binding SurfaceBrush}"
-                BorderBrush="{Binding BorderBrush}"
-                BorderThickness="1">
+                BorderBrush="{Binding BorderBrush}">
             <Border.Style>
                 <Style TargetType="{x:Type Border}">
                     <Setter Property="CornerRadius" Value="19" />
+                    <Setter Property="BorderThickness" Value="1" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding Layout}" Value="{x:Static models:WidgetLayout.Pill}">
                             <Setter Property="CornerRadius" Value="27" />
@@ -406,6 +406,7 @@
                         </DataTrigger>
                         <DataTrigger Binding="{Binding Layout}" Value="{x:Static models:WidgetLayout.Mini}">
                             <Setter Property="CornerRadius" Value="16" />
+                            <Setter Property="BorderThickness" Value="0" />
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
@@ -465,8 +466,8 @@
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Layout}"
                                                  Value="{x:Static models:WidgetLayout.Mini}">
-                                        <Setter Property="Height" Value="30" />
-                                        <Setter Property="Margin" Value="8,2,7,1" />
+                                        <Setter Property="Height" Value="22" />
+                                        <Setter Property="Margin" Value="8,1,7,0" />
                                     </DataTrigger>
                                     <MultiDataTrigger>
                                         <MultiDataTrigger.Conditions>
@@ -523,13 +524,61 @@
                                 </Style>
                             </Border.Style>
                             <Grid>
-                                <Ellipse Width="7" Height="7" Fill="#FF58E6B2" />
+                                <Ellipse x:Name="StandardUpdatePulseDot"
+                                         Width="7"
+                                         Height="7"
+                                         Fill="#FF58E6B2" />
                                 <Ellipse Width="16"
                                          Height="16"
+                                         x:Name="StandardUpdatePulseRing"
+                                         Opacity="0"
+                                         RenderTransformOrigin="0.5,0.5"
                                          Stroke="#6658E6B2"
-                                         StrokeThickness="1" />
+                                         StrokeThickness="1">
+                                    <Ellipse.RenderTransform>
+                                        <ScaleTransform x:Name="StandardUpdatePulseScale"
+                                                        ScaleX="0.6"
+                                                        ScaleY="0.6" />
+                                    </Ellipse.RenderTransform>
+                                </Ellipse>
                             </Grid>
                         </Border>
+
+                        <Grid x:Name="MiniUpdatePulse"
+                              Grid.Column="0"
+                              Width="11"
+                              Height="11"
+                              Margin="0,0,5,0"
+                              VerticalAlignment="Center">
+                            <Grid.Style>
+                                <Style TargetType="{x:Type Grid}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Layout}"
+                                                     Value="{x:Static models:WidgetLayout.Mini}">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+                            <Ellipse x:Name="MiniUpdatePulseRing"
+                                     Width="10"
+                                     Height="10"
+                                     Opacity="0"
+                                     RenderTransformOrigin="0.5,0.5"
+                                     Stroke="#9958E6B2"
+                                     StrokeThickness="1">
+                                <Ellipse.RenderTransform>
+                                    <ScaleTransform x:Name="MiniUpdatePulseScale"
+                                                    ScaleX="0.6"
+                                                    ScaleY="0.6" />
+                                </Ellipse.RenderTransform>
+                            </Ellipse>
+                            <Ellipse x:Name="MiniUpdatePulseDot"
+                                     Width="5"
+                                     Height="5"
+                                     Fill="#FF58E6B2" />
+                        </Grid>
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock Foreground="{Binding TextPrimaryBrush}"
@@ -543,16 +592,10 @@
                                     <Style BasedOn="{StaticResource WidgetHeaderMetaTextStyle}"
                                            TargetType="{x:Type TextBlock}">
                                         <Style.Triggers>
-                                            <MultiDataTrigger>
-                                                <MultiDataTrigger.Conditions>
-                                                    <Condition Binding="{Binding Layout}"
-                                                               Value="{x:Static models:WidgetLayout.Mini}" />
-                                                    <Condition Binding="{Binding Density}"
-                                                               Value="{x:Static models:WidgetDensity.Compact}" />
-                                                    <Condition Binding="{Binding IsReducedScale}" Value="True" />
-                                                </MultiDataTrigger.Conditions>
+                                            <DataTrigger Binding="{Binding Layout}"
+                                                         Value="{x:Static models:WidgetLayout.Mini}">
                                                 <Setter Property="Visibility" Value="Collapsed" />
-                                            </MultiDataTrigger>
+                                            </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </TextBlock.Style>
@@ -588,6 +631,11 @@
                                 <Style BasedOn="{StaticResource IconButtonStyle}"
                                        TargetType="{x:Type Button}">
                                     <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Layout}"
+                                                     Value="{x:Static models:WidgetLayout.Mini}">
+                                            <Setter Property="Width" Value="20" />
+                                            <Setter Property="Height" Value="20" />
+                                        </DataTrigger>
                                         <MultiDataTrigger>
                                             <MultiDataTrigger.Conditions>
                                                 <Condition Binding="{Binding Layout}"
@@ -608,6 +656,10 @@
                                     <Style TargetType="{x:Type TextBlock}">
                                         <Setter Property="FontSize" Value="18" />
                                         <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Layout}"
+                                                         Value="{x:Static models:WidgetLayout.Mini}">
+                                                <Setter Property="FontSize" Value="13" />
+                                            </DataTrigger>
                                             <MultiDataTrigger>
                                                 <MultiDataTrigger.Conditions>
                                                     <Condition Binding="{Binding Layout}"
@@ -711,18 +763,35 @@
                                 Background="{Binding ReadabilityPlateBrush}"
                                 CornerRadius="9" />
                         <StackPanel VerticalAlignment="Bottom" Orientation="Horizontal">
-                            <Ellipse Width="7"
-                                     Height="7"
-                                     Margin="0,0,6,0"
-                                     VerticalAlignment="Center"
-                                     Fill="#FF58E6B2" />
+                            <Grid Width="12"
+                                  Height="12"
+                                  Margin="0,0,5,0"
+                                  VerticalAlignment="Center">
+                                <Ellipse x:Name="DockUpdatePulseRing"
+                                         Width="11"
+                                         Height="11"
+                                         Opacity="0"
+                                         RenderTransformOrigin="0.5,0.5"
+                                         Stroke="#9958E6B2"
+                                         StrokeThickness="1">
+                                    <Ellipse.RenderTransform>
+                                        <ScaleTransform x:Name="DockUpdatePulseScale"
+                                                        ScaleX="0.6"
+                                                        ScaleY="0.6" />
+                                    </Ellipse.RenderTransform>
+                                </Ellipse>
+                                <Ellipse x:Name="DockUpdatePulseDot"
+                                         Width="6"
+                                         Height="6"
+                                         Fill="#FF58E6B2" />
+                            </Grid>
                             <TextBlock VerticalAlignment="Center"
                                        Foreground="{Binding TextPrimaryBrush}"
                                        Style="{StaticResource WidgetHeaderTitleTextStyle}"
                                        Text="OPS DOCK" />
                         </StackPanel>
                         <TextBlock Grid.Row="1"
-                                   Margin="13,2,0,0"
+                                   Margin="17,2,0,0"
                                    VerticalAlignment="Top"
                                    Foreground="{Binding TextSecondaryBrush}"
                                    Style="{StaticResource WidgetHeaderMetaTextStyle}"

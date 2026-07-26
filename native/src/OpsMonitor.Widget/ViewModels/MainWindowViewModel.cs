@@ -184,6 +184,8 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         _telemetrySource.SnapshotAvailable += OnSnapshotAvailable;
     }
 
+    public event EventHandler? TelemetryUpdated;
+
     public ObservableCollection<MetricCardViewModel> Metrics { get; }
 
     public ITelemetrySource TelemetrySource => _telemetrySource;
@@ -766,6 +768,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         LastUpdatedText = age.TotalSeconds < 3
             ? "Updated now"
             : $"Updated {Math.Max(1, (int)age.TotalSeconds)}s ago";
+        TelemetryUpdated?.Invoke(this, EventArgs.Empty);
     }
 
     private void UpdateCpu(CpuTelemetry sample)

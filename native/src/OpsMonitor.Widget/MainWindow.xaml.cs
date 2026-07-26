@@ -8,6 +8,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using OpsMonitor.Core.Platform;
 using OpsMonitor.Widget.Interop;
@@ -16,6 +17,7 @@ using OpsMonitor.Widget.Services;
 using OpsMonitor.Widget.ViewModels;
 using ButtonBase = System.Windows.Controls.Primitives.ButtonBase;
 using Drawing = System.Drawing;
+using Ellipse = System.Windows.Shapes.Ellipse;
 using Forms = System.Windows.Forms;
 using JsonSettingsRepository = OpsMonitor.Core.Settings.JsonSettingsRepository;
 using MessageBox = System.Windows.MessageBox;
@@ -88,6 +90,7 @@ public partial class MainWindow : Window
         _saveTimer.Tick += SaveTimer_OnTick;
 
         _viewModel.PropertyChanged += ViewModel_OnPropertyChanged;
+        _viewModel.TelemetryUpdated += ViewModel_OnTelemetryUpdated;
         Loaded += MainWindow_OnLoaded;
         LocationChanged += WindowGeometry_OnChanged;
         SizeChanged += WindowGeometry_OnChanged;
@@ -124,6 +127,7 @@ public partial class MainWindow : Window
         _settingsWatcher.DisposeAsync().AsTask().GetAwaiter().GetResult();
         _saveTimer.Stop();
         _viewModel.PropertyChanged -= ViewModel_OnPropertyChanged;
+        _viewModel.TelemetryUpdated -= ViewModel_OnTelemetryUpdated;
         _viewModel.Dispose();
 
         if (_windowSource is not null && _hotkeyHook is not null)
@@ -256,6 +260,82 @@ public partial class MainWindow : Window
             _ = StartSettingsWatcherAsync();
             ScheduleSave();
         }
+    }
+
+    private void ViewModel_OnTelemetryUpdated(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+
+        switch (_viewModel.Layout)
+        {
+            case WidgetLayout.Mini:
+                PulseUpdateIndicator(
+                    MiniUpdatePulseRing,
+                    MiniUpdatePulseScale,
+                    MiniUpdatePulseDot);
+                break;
+            case WidgetLayout.Dock:
+                PulseUpdateIndicator(
+                    DockUpdatePulseRing,
+                    DockUpdatePulseScale,
+                    DockUpdatePulseDot);
+                break;
+            default:
+                PulseUpdateIndicator(
+                    StandardUpdatePulseRing,
+                    StandardUpdatePulseScale,
+                    StandardUpdatePulseDot);
+                break;
+        }
+    }
+
+    private static void PulseUpdateIndicator(
+        Ellipse ring,
+        ScaleTransform scale,
+        Ellipse dot)
+    {
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            return;
+        }
+
+        var easing = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+        var ringDuration = new Duration(TimeSpan.FromMilliseconds(460));
+
+        ring.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(0.72, 0, ringDuration)
+            {
+                EasingFunction = easing,
+                FillBehavior = FillBehavior.Stop
+            },
+            HandoffBehavior.SnapshotAndReplace);
+        scale.BeginAnimation(
+            ScaleTransform.ScaleXProperty,
+            new DoubleAnimation(0.6, 1.85, ringDuration)
+            {
+                EasingFunction = easing,
+                FillBehavior = FillBehavior.Stop
+            },
+            HandoffBehavior.SnapshotAndReplace);
+        scale.BeginAnimation(
+            ScaleTransform.ScaleYProperty,
+            new DoubleAnimation(0.6, 1.85, ringDuration)
+            {
+                EasingFunction = easing,
+                FillBehavior = FillBehavior.Stop
+            },
+            HandoffBehavior.SnapshotAndReplace);
+        dot.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(0.55, 1, TimeSpan.FromMilliseconds(150))
+            {
+                AutoReverse = true,
+                EasingFunction = easing,
+                FillBehavior = FillBehavior.Stop
+            },
+            HandoffBehavior.SnapshotAndReplace);
     }
 
     private void ApplyInitialGeometry()

@@ -1155,7 +1155,7 @@ static Task TestWidgetSizingAsync()
         5,
         100);
     Assert.Equal(176d, miniFive.SuggestedWidth, "Mini width");
-    Assert.Equal(198d, miniFive.SuggestedHeight, "footer-free Mini height");
+    Assert.Equal(188d, miniFive.SuggestedHeight, "single-line Mini height");
 
     var miniEighty = LiveWidgetSizingPolicy.Calculate(
         WidgetLayout.Mini,
@@ -1355,6 +1355,7 @@ static Task TestWidgetSettingsMappingAsync()
 static Task TestWidgetViewModelAsync()
 {
     var source = new FakeTelemetrySource();
+    var updatePulses = 0;
     using var viewModel = new MainWindowViewModel(
         source,
         new WidgetSettings
@@ -1395,6 +1396,7 @@ static Task TestWidgetViewModelAsync()
                 }
             }
         });
+    viewModel.TelemetryUpdated += (_, _) => updatePulses++;
 
     Assert.Equal(0.08d, viewModel.SurfaceOpacity, "surface opacity floor");
     Assert.Equal(0.82d, viewModel.ContentOpacity, "content opacity floor");
@@ -1507,6 +1509,7 @@ static Task TestWidgetViewModelAsync()
         "pure sparkline mode lost its only primary visualization");
     Assert.Equal(5, viewModel.VisibleModuleCount, "default visible module count");
     Assert.Equal("Updated now", viewModel.LastUpdatedText, "snapshot update state");
+    Assert.Equal(1, updatePulses, "each applied snapshot raises one visual update pulse");
     return Task.CompletedTask;
 }
 

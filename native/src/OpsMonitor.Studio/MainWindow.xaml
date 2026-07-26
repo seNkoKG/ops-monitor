@@ -358,10 +358,19 @@
                                             Height="{Binding PreviewHeight}"
                                             Background="{Binding PreviewSurfaceBrush}"
                                             BorderBrush="{Binding PreviewBorderBrush}"
-                                            BorderThickness="1"
                                             CornerRadius="{Binding PreviewCornerRadius}"
                                             SnapsToDevicePixels="True"
                                             ClipToBounds="True">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedLayout}" Value="Mini">
+                                                        <Setter Property="BorderThickness" Value="0"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
                                         <Grid Margin="8,6">
                                             <Grid.RowDefinitions>
                                                  <RowDefinition>
@@ -373,7 +382,7 @@
                                                                      <Setter Property="Height" Value="0"/>
                                                                  </DataTrigger>
                                                                  <DataTrigger Binding="{Binding SelectedLayout}" Value="Mini">
-                                                                     <Setter Property="Height" Value="30"/>
+                                                                     <Setter Property="Height" Value="22"/>
                                                                  </DataTrigger>
                                                              </Style.Triggers>
                                                          </Style>
@@ -397,16 +406,61 @@
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <StackPanel>
+                                                <StackPanel VerticalAlignment="Center">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <Ellipse Width="8" Height="8" Fill="{Binding PreviewAccentBrush}" Margin="0,4,8,0"/>
-                                                        <TextBlock Text="{Binding PreviewTitle}" FontSize="12" FontWeight="Bold" Foreground="#FFF4F7FC"/>
+                                                        <Grid Width="12" Height="12" Margin="0,0,6,0">
+                                                            <Ellipse Width="11"
+                                                                     Height="11"
+                                                                     Stroke="#9958E6B2"
+                                                                     StrokeThickness="1"/>
+                                                            <Ellipse Width="6"
+                                                                     Height="6"
+                                                                     Fill="#FF58E6B2"/>
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding PreviewTitle}"
+                                                                   FontSize="12"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="#FFF4F7FC"
+                                                                   VerticalAlignment="Center"/>
                                                     </StackPanel>
-                                                    <TextBlock Margin="16,4,0,0" Text="Updated now" FontSize="10" Foreground="#FF8793A6"/>
+                                                    <TextBlock Margin="18,4,0,0"
+                                                               Text="Updated now"
+                                                               FontSize="10"
+                                                               Foreground="#FF8793A6">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SelectedLayout}" Value="Mini">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
                                                 </StackPanel>
-                                                 <Border Grid.Column="1" Width="28" Height="28" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="10">
-                                                     <TextBlock Text="⚙" FontSize="15" Foreground="#FFC3CDDA" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                 </Border>
+                                                <Border Grid.Column="1"
+                                                        Background="Transparent"
+                                                        BorderBrush="Transparent"
+                                                        BorderThickness="1"
+                                                        CornerRadius="10">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Width" Value="28"/>
+                                                            <Setter Property="Height" Value="28"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SelectedLayout}" Value="Mini">
+                                                                    <Setter Property="Width" Value="20"/>
+                                                                    <Setter Property="Height" Value="20"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="⚙"
+                                                               FontSize="13"
+                                                               Foreground="#FFC3CDDA"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Border>
                                             </Grid>
 
                                             <ItemsControl Grid.Row="1"
