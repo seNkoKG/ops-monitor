@@ -13,6 +13,95 @@ internal static class SensorBridgeExitCodes
     public const int AlreadyRunning = 5;
 }
 
+internal enum SensorBridgeFailureSource
+{
+    Probe,
+    Publication
+}
+
+internal sealed class ProbeRecoveryPolicy
+{
+    internal const int UnavailablePollLimit = 3;
+    internal static readonly TimeSpan InitialDelay = TimeSpan.FromSeconds(2);
+    internal static readonly TimeSpan MaximumDelay = TimeSpan.FromSeconds(30);
+
+    private int _unavailablePolls;
+    private int _recoveryAttempts;
+
+    internal DateTimeOffset NextAttemptUtc { get; private set; } =
+        DateTimeOffset.MinValue;
+
+    internal int RecoveryAttempts => _recoveryAttempts;
+
+    internal bool CanAttempt(DateTimeOffset timestampUtc) =>
+        timestampUtc >= NextAttemptUtc;
+
+    internal bool RecordUnavailable(DateTimeOffset timestampUtc)
+    {
+        _unavailablePolls++;
+        if (_unavailablePolls < UnavailablePollLimit)
+        {
+            return false;
+        }
+
+        _unavailablePolls = 0;
+        ScheduleNextAttempt(timestampUtc);
+        return true;
+    }
+
+    internal bool RecordFailure(
+        SensorBridgeFailureSource source,
+        DateTimeOffset timestampUtc)
+    {
+        if (source == SensorBridgeFailureSource.Publication)
+        {
+            return false;
+        }
+
+        if (source != SensorBridgeFailureSource.Probe)
+        {
+            throw new ArgumentOutOfRangeException(nameof(source), source, null);
+        }
+
+        _unavailablePolls = 0;
+        ScheduleNextAttempt(timestampUtc);
+        return true;
+    }
+
+    internal void RecordAvailable()
+    {
+        _unavailablePolls = 0;
+        _recoveryAttempts = 0;
+        NextAttemptUtc = DateTimeOffset.MinValue;
+    }
+
+    internal CpuTemperatureProbeResult CreateWaitingResult(
+        DateTimeOffset timestampUtc) =>
+        new()
+        {
+            TimestampUtc = timestampUtc,
+            Message = string.Create(
+                CultureInfo.InvariantCulture,
+                $"CPU sensor recovery is backing off until {NextAttemptUtc:O}.")
+        };
+
+    private void ScheduleNextAttempt(DateTimeOffset timestampUtc)
+    {
+        NextAttemptUtc = timestampUtc + GetDelay(_recoveryAttempts);
+        _recoveryAttempts++;
+    }
+
+    internal static TimeSpan GetDelay(int recoveryAttempt)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(recoveryAttempt);
+        int exponent = Math.Min(recoveryAttempt, 4);
+        double milliseconds =
+            InitialDelay.TotalMilliseconds * (1 << exponent);
+        return TimeSpan.FromMilliseconds(
+            Math.Min(milliseconds, MaximumDelay.TotalMilliseconds));
+    }
+}
+
 internal sealed class SensorBridgeHost
 {
     private const int MissingWidgetPollLimit = 4;
@@ -23,54 +112,159 @@ internal sealed class SensorBridgeHost
 
     public async Task<int> RunAsync(CancellationToken cancellationToken)
     {
-        using var probe = new LibreHardwareMonitorCpuProbe();
+        LibreHardwareMonitorCpuProbe? probe = null;
         string? lastDiagnosticState = null;
         int missingWidgetPolls = 0;
+        var recovery = new ProbeRecoveryPolicy();
 
-        while (true)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            CpuTemperatureProbeResult result = probe.Read(DateTimeOffset.UtcNow);
-            string diagnostic = SensorBridgeDiagnostics.Format(result);
-            string diagnosticState = SensorBridgeDiagnostics.GetStateKey(result);
-
-            if (result.IsAvailable)
+            while (true)
             {
-                string payload = FormatPayload(result);
-                await AtomicTextFile.WriteAsync(
-                    _options.OutputPath,
-                    payload,
-                    cancellationToken).ConfigureAwait(false);
-            }
+                cancellationToken.ThrowIfCancellationRequested();
+                DateTimeOffset timestampUtc = DateTimeOffset.UtcNow;
+                CpuTemperatureProbeResult? result = null;
+                SensorBridgeFailureSource? cycleFailure = null;
 
-            if (!StringComparer.Ordinal.Equals(lastDiagnosticState, diagnosticState))
-            {
-                await SensorBridgeDiagnostics.TryWriteAsync(
-                    _options.DiagnosticPath,
-                    diagnostic,
-                    cancellationToken).ConfigureAwait(false);
-                lastDiagnosticState = diagnosticState;
-            }
+                if (!recovery.CanAttempt(timestampUtc))
+                {
+                    result = recovery.CreateWaitingResult(timestampUtc);
+                }
+                else
+                {
+                    try
+                    {
+                        probe ??= new LibreHardwareMonitorCpuProbe();
+                        result = probe.Read(timestampUtc);
 
-            if (_options.Once)
-            {
-                return result.IsAvailable
-                    ? SensorBridgeExitCodes.Success
-                    : SensorBridgeExitCodes.SensorUnavailable;
-            }
+                        if (result.IsAvailable)
+                        {
+                            recovery.RecordAvailable();
+                        }
+                        else if (recovery.RecordUnavailable(timestampUtc))
+                        {
+                            probe.Dispose();
+                            probe = null;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception) when (SensorFailure.IsExpected(exception))
+                    {
+                        cycleFailure = SensorBridgeFailureSource.Probe;
+                        if (recovery.RecordFailure(
+                                SensorBridgeFailureSource.Probe,
+                                timestampUtc))
+                        {
+                            probe?.Dispose();
+                            probe = null;
+                        }
 
-            bool widgetIsRunning = _options.StayAlive || IsWidgetRunning();
-            missingWidgetPolls = widgetIsRunning ? 0 : missingWidgetPolls + 1;
+                        string diagnosticState =
+                            $"probe-fault|{exception.GetType().FullName}|{exception.Message}";
+                        if (!StringComparer.Ordinal.Equals(
+                                lastDiagnosticState,
+                                diagnosticState))
+                        {
+                            await SensorBridgeDiagnostics.TryWriteAsync(
+                                _options.DiagnosticPath,
+                                SensorBridgeDiagnostics.FormatProbeFault(
+                                    exception,
+                                    recovery.NextAttemptUtc),
+                                cancellationToken).ConfigureAwait(false);
+                            lastDiagnosticState = diagnosticState;
+                        }
+                    }
+                }
 
-            await Task.Delay(_options.Interval, cancellationToken).ConfigureAwait(false);
-            bool widgetReturnedDuringDelay = _options.StayAlive || IsWidgetRunning();
-            if (ShouldExitAfterDelay(
-                    missingWidgetPolls,
-                    _options.StayAlive,
-                    widgetReturnedDuringDelay))
-            {
-                return SensorBridgeExitCodes.Success;
+                if (cycleFailure is null && result is not null)
+                {
+                    if (result.IsAvailable)
+                    {
+                        try
+                        {
+                            await AtomicTextFile.WriteAsync(
+                                _options.OutputPath,
+                                FormatPayload(result),
+                                cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (Exception exception) when (
+                            SensorFailure.IsExpected(exception))
+                        {
+                            cycleFailure = SensorBridgeFailureSource.Publication;
+                            _ = recovery.RecordFailure(
+                                SensorBridgeFailureSource.Publication,
+                                timestampUtc);
+                            string diagnosticState =
+                                $"publication-fault|{exception.GetType().FullName}|" +
+                                exception.Message;
+                            if (!StringComparer.Ordinal.Equals(
+                                    lastDiagnosticState,
+                                    diagnosticState))
+                            {
+                                await SensorBridgeDiagnostics.TryWriteAsync(
+                                    _options.DiagnosticPath,
+                                    SensorBridgeDiagnostics.FormatPublicationFault(
+                                        exception,
+                                        _options.OutputPath),
+                                    cancellationToken).ConfigureAwait(false);
+                                lastDiagnosticState = diagnosticState;
+                            }
+                        }
+                    }
+
+                    if (cycleFailure is null)
+                    {
+                        string diagnosticState =
+                            SensorBridgeDiagnostics.GetStateKey(result);
+                        if (!StringComparer.Ordinal.Equals(
+                                lastDiagnosticState,
+                                diagnosticState))
+                        {
+                            await SensorBridgeDiagnostics.TryWriteAsync(
+                                _options.DiagnosticPath,
+                                SensorBridgeDiagnostics.Format(result),
+                                cancellationToken).ConfigureAwait(false);
+                            lastDiagnosticState = diagnosticState;
+                        }
+                    }
+                }
+
+                if (_options.Once)
+                {
+                    if (cycleFailure is not null)
+                    {
+                        return SensorBridgeExitCodes.Faulted;
+                    }
+
+                    return result?.IsAvailable == true
+                        ? SensorBridgeExitCodes.Success
+                        : SensorBridgeExitCodes.SensorUnavailable;
+                }
+
+                bool widgetIsRunning = _options.StayAlive || IsWidgetRunning();
+                missingWidgetPolls = widgetIsRunning ? 0 : missingWidgetPolls + 1;
+
+                await Task.Delay(_options.Interval, cancellationToken).ConfigureAwait(false);
+                bool widgetReturnedDuringDelay = _options.StayAlive || IsWidgetRunning();
+                if (ShouldExitAfterDelay(
+                        missingWidgetPolls,
+                        _options.StayAlive,
+                        widgetReturnedDuringDelay))
+                {
+                    return SensorBridgeExitCodes.Success;
+                }
             }
+        }
+        finally
+        {
+            probe?.Dispose();
         }
     }
 
@@ -81,6 +275,9 @@ internal sealed class SensorBridgeHost
         !stayAlive &&
         missingWidgetPolls >= MissingWidgetPollLimit &&
         !widgetIsRunning;
+
+    internal static bool ShouldResetProbeAfterUnavailablePolls(int unavailablePolls) =>
+        unavailablePolls >= ProbeRecoveryPolicy.UnavailablePollLimit;
 
     internal static string FormatPayload(CpuTemperatureProbeResult result)
     {
@@ -98,10 +295,18 @@ internal sealed class SensorBridgeHost
 
     private static bool IsWidgetRunning()
     {
-        Process[] processes = Process.GetProcessesByName("OpsMonitor.Widget");
+        Process[] processes = [];
         try
         {
+            processes = Process.GetProcessesByName("OpsMonitor.Widget");
             return processes.Length > 0;
+        }
+        catch (Exception exception) when (SensorFailure.IsExpected(exception))
+        {
+            // Failure to inspect the user session must keep the bridge alive.
+            // Exiting here would turn a transient process-enumeration fault
+            // into a permanent loss of temperature telemetry.
+            return true;
         }
         finally
         {
@@ -153,6 +358,33 @@ internal static class SensorBridgeDiagnostics
 
         text.Append("Status=").Append(result.Message);
         return text.ToString();
+    }
+
+    internal static string FormatPublicationFault(
+        Exception exception,
+        string outputPath)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+        return string.Join(
+            Environment.NewLine,
+            "Temperature publication fault; retrying.",
+            $"Type={exception.GetType().FullName}",
+            $"OutputPath={outputPath}",
+            $"Message={exception.Message}");
+    }
+
+    internal static string FormatProbeFault(
+        Exception exception,
+        DateTimeOffset nextAttemptUtc)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        return string.Join(
+            Environment.NewLine,
+            "CPU sensor probe fault; retrying.",
+            $"Type={exception.GetType().FullName}",
+            $"NextAttemptUtc={nextAttemptUtc:O}",
+            $"Message={exception.Message}");
     }
 
     internal static async Task TryWriteAsync(

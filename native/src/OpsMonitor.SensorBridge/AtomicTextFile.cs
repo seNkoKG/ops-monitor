@@ -4,6 +4,8 @@ namespace OpsMonitor.SensorBridge;
 
 internal static class AtomicTextFile
 {
+    private const int MaximumAttempts = 3;
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(100);
     private static readonly UTF8Encoding Utf8WithoutBom = new(false);
 
     internal static async Task WriteAsync(
@@ -23,6 +25,34 @@ internal static class AtomicTextFile
                 nameof(destinationPath));
         }
 
+        for (int attempt = 1; attempt <= MaximumAttempts; attempt++)
+        {
+            try
+            {
+                await WriteOnceAsync(
+                        fullPath,
+                        directory,
+                        contents,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+            catch (Exception exception) when (
+                attempt < MaximumAttempts &&
+                exception is IOException or UnauthorizedAccessException)
+            {
+                await Task.Delay(RetryDelay * attempt, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static async Task WriteOnceAsync(
+        string fullPath,
+        string directory,
+        string contents,
+        CancellationToken cancellationToken)
+    {
         Directory.CreateDirectory(directory);
         string temporaryPath = Path.Combine(
             directory,

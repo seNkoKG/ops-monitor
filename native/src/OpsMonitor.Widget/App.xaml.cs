@@ -29,7 +29,7 @@ public partial class App : Application
         }
 
         AppDiagnostics.Initialize("widget");
-        CpuSensorBridgeLauncher.TryStartInBackground();
+        CpuSensorBridgeLauncher.StartMonitoring();
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
@@ -40,6 +40,7 @@ public partial class App : Application
     {
         try
         {
+            CpuSensorBridgeLauncher.StopMonitoring();
             DispatcherUnhandledException -= OnDispatcherUnhandledException;
             AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
             TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;

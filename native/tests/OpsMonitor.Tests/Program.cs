@@ -49,6 +49,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("built-in widget themes survive shared-settings round trips", TestBuiltInThemePersistenceAsync),
     ("demo and reset launches are ephemeral", TestEphemeralLaunchAsync),
     ("geometry saves do not request telemetry reloads", TestRuntimeReloadPolicyAsync),
+    ("CPU sensor watchdog accepts only fresh valid bridge readings", TestCpuSensorWatchdogAsync),
+    ("CPU sensor recovery uses gated monotonic backoff", TestCpuSensorRecoveryPolicyAsync),
     ("widget view model applies live telemetry and readable clamps", TestWidgetViewModelAsync),
     ("unavailable connectivity never renders false zero values", TestUnavailableConnectivityAsync),
     ("partial CPU telemetry never renders a false zero", TestPartialCpuTelemetryAsync),
@@ -1766,6 +1768,146 @@ static Task TestRuntimeReloadPolicyAsync()
     Assert.True(
         OpsMonitor.Widget.MainWindow.RuntimeCadenceChanged(1, 2),
         "meaningful cadence change did not request a provider reload");
+    return Task.CompletedTask;
+}
+
+static async Task TestCpuSensorWatchdogAsync()
+{
+    var directory = Directory.CreateTempSubdirectory("OpsMonitorCpuWatchdog-");
+    try
+    {
+        string path = Path.Combine(directory.FullName, "cpu-temperature.txt");
+        var now = DateTimeOffset.Parse(
+            "2026-07-27T17:30:00Z",
+            CultureInfo.InvariantCulture);
+        var maximumAge = TimeSpan.FromSeconds(12);
+
+        Assert.False(
+            CpuSensorBridgeLauncher.IsReadingFresh(path, now, maximumAge),
+            "a missing bridge reading was treated as fresh");
+
+        await File.WriteAllTextAsync(
+            path,
+            FormattableString.Invariant(
+                $"61.5|{now.AddSeconds(-5).UtcDateTime.Ticks}"));
+        Assert.True(
+            CpuSensorBridgeLauncher.IsReadingFresh(path, now, maximumAge),
+            "a fresh valid bridge reading was rejected");
+
+        await File.WriteAllTextAsync(
+            path,
+            FormattableString.Invariant(
+                $"61.5|{now.AddSeconds(-13).UtcDateTime.Ticks}"));
+        Assert.False(
+            CpuSensorBridgeLauncher.IsReadingFresh(path, now, maximumAge),
+            "a stale bridge reading suppressed recovery");
+
+        await File.WriteAllTextAsync(
+            path,
+            FormattableString.Invariant(
+                $"61.5|{now.AddSeconds(6).UtcDateTime.Ticks}"));
+        Assert.False(
+            CpuSensorBridgeLauncher.IsReadingFresh(path, now, maximumAge),
+            "an invalid future bridge reading suppressed recovery");
+
+        await File.WriteAllTextAsync(
+            path,
+            FormattableString.Invariant(
+                $"0|{now.UtcDateTime.Ticks}"));
+        Assert.False(
+            CpuSensorBridgeLauncher.IsReadingFresh(path, now, maximumAge),
+            "an implausible bridge reading suppressed recovery");
+    }
+    finally
+    {
+        directory.Delete(recursive: true);
+    }
+}
+
+static Task TestCpuSensorRecoveryPolicyAsync()
+{
+    Assert.Equal(
+        TimeSpan.FromSeconds(5),
+        CpuSensorRecoveryPolicy.GetRetryDelay(1),
+        "the first recovery retry was not fast");
+    Assert.Equal(
+        TimeSpan.FromSeconds(10),
+        CpuSensorRecoveryPolicy.GetRetryDelay(2),
+        "the second recovery retry did not back off");
+    Assert.Equal(
+        TimeSpan.FromSeconds(20),
+        CpuSensorRecoveryPolicy.GetRetryDelay(3),
+        "the third recovery retry did not back off");
+    Assert.Equal(
+        CpuSensorRecoveryPolicy.MaximumRetryDelay,
+        CpuSensorRecoveryPolicy.GetRetryDelay(20),
+        "recovery retry delay was not capped");
+
+    var failedStartPolicy = new CpuSensorRecoveryPolicy();
+    Assert.Equal(
+        CpuSensorRecoveryAction.StartTask,
+        failedStartPolicy.GetAction(TimeSpan.Zero, bridgeRunning: false),
+        "a missing bridge was not eligible for its initial start");
+    failedStartPolicy.RecordAttempt(TimeSpan.Zero);
+    Assert.False(
+        failedStartPolicy.IsDue(TimeSpan.FromSeconds(4.999)),
+        "the first retry ignored its backoff");
+    Assert.True(
+        failedStartPolicy.IsDue(TimeSpan.FromSeconds(5)),
+        "the first retry was delayed beyond its backoff");
+    failedStartPolicy.RecordAttempt(TimeSpan.FromSeconds(5));
+    Assert.False(
+        failedStartPolicy.IsDue(TimeSpan.FromSeconds(14.999)),
+        "the second retry ignored exponential backoff");
+    Assert.True(
+        failedStartPolicy.IsDue(TimeSpan.FromSeconds(15)),
+        "the second retry was delayed beyond exponential backoff");
+
+    var absentCapabilityPolicy = new CpuSensorRecoveryPolicy();
+    absentCapabilityPolicy.RecordCapabilityUnavailable(TimeSpan.FromSeconds(7));
+    Assert.False(
+        absentCapabilityPolicy.IsDue(
+            TimeSpan.FromSeconds(7) +
+            CpuSensorRecoveryPolicy.CapabilityRetryDelay -
+            TimeSpan.FromMilliseconds(1)),
+        "an absent optional sensor was queried continuously");
+    Assert.True(
+        absentCapabilityPolicy.IsDue(
+            TimeSpan.FromSeconds(7) +
+            CpuSensorRecoveryPolicy.CapabilityRetryDelay),
+        "an optional sensor was never reconsidered after being enabled");
+
+    var runningPolicy = new CpuSensorRecoveryPolicy();
+    Assert.Equal(
+        CpuSensorRecoveryAction.None,
+        runningPolicy.GetAction(TimeSpan.FromSeconds(11), bridgeRunning: true),
+        "a running bridge was restarted before receiving a grace period");
+    Assert.False(
+        runningPolicy.IsDue(
+            TimeSpan.FromSeconds(11) +
+            CpuSensorRecoveryPolicy.RunningBridgeGracePeriod -
+            TimeSpan.FromMilliseconds(1)),
+        "a running bridge was rechecked before its grace period ended");
+    TimeSpan graceEnd =
+        TimeSpan.FromSeconds(11) +
+        CpuSensorRecoveryPolicy.RunningBridgeGracePeriod;
+    Assert.Equal(
+        CpuSensorRecoveryAction.RestartTask,
+        runningPolicy.GetAction(graceEnd, bridgeRunning: true),
+        "a persistently stale running bridge was never restarted");
+
+    runningPolicy.RecordAttempt(graceEnd);
+    Assert.True(
+        runningPolicy.ConsecutiveAttempts == 1,
+        "a restart attempt was not tracked");
+    runningPolicy.RecordHealthy();
+    Assert.True(
+        runningPolicy.IsDue(graceEnd),
+        "a healthy sample did not clear the retry gate");
+    Assert.True(
+        runningPolicy.ConsecutiveAttempts == 0,
+        "a healthy sample did not reset recovery backoff");
+
     return Task.CompletedTask;
 }
 

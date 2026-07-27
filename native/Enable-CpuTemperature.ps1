@@ -331,7 +331,9 @@ try {
         -AllowStartIfOnBatteries `
         -DontStopIfGoingOnBatteries `
         -ExecutionTimeLimit ([TimeSpan]::Zero) `
-        -MultipleInstances IgnoreNew
+        -MultipleInstances IgnoreNew `
+        -RestartCount 5 `
+        -RestartInterval ([TimeSpan]::FromMinutes(1))
 
     Register-ScheduledTask `
         -TaskName $taskName `

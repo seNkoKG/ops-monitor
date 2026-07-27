@@ -9,6 +9,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("zero and implausible temperatures are rejected", TestPlausibilityAsync),
     ("bridge payload is consumed by Core", TestPayloadAsync),
     ("atomic writer replaces complete payloads", TestAtomicWriteAsync),
+    ("atomic writer recovers from a transient publication lock", TestAtomicWriteRetryAsync),
+    ("unavailable probes are periodically reopened with backoff", TestProbeResetAsync),
+    ("probe recovery backoff grows and caps", TestProbeBackoffAsync),
+    ("publication failures leave a healthy probe alone", TestPublicationIsolationAsync),
     ("widget return cancels a pending bridge shutdown", TestShutdownRaceAsync),
     ("command line options are clamped and explicit", TestOptionsAsync)
 };
@@ -163,6 +167,136 @@ static async Task TestAtomicWriteAsync()
     {
         directory.Delete(recursive: true);
     }
+}
+
+static async Task TestAtomicWriteRetryAsync()
+{
+    var directory = Directory.CreateTempSubdirectory("OpsMonitorSensorRetry-");
+    try
+    {
+        string path = Path.Combine(directory.FullName, "cpu-temperature.txt");
+        await File.WriteAllTextAsync(path, "40|1");
+        Task writeTask;
+        using (var blocker = new FileStream(
+                   path,
+                   FileMode.Open,
+                   FileAccess.Read,
+                   FileShare.Read))
+        {
+            writeTask = AtomicTextFile.WriteAsync(
+                path,
+                "62.5|2",
+                CancellationToken.None);
+            await Task.Delay(150);
+            Assert(!writeTask.IsCompleted, "the publication lock did not block replacement");
+        }
+
+        await writeTask;
+        Assert(
+            await File.ReadAllTextAsync(path) == "62.5|2",
+            "the atomic writer did not recover after the lock was released");
+        Assert(
+            directory.GetFiles("*.tmp").Length == 0,
+            "retry recovery left a temporary file behind");
+    }
+    finally
+    {
+        directory.Delete(recursive: true);
+    }
+}
+
+static Task TestProbeResetAsync()
+{
+    var recovery = new ProbeRecoveryPolicy();
+    var timestamp = DateTimeOffset.Parse(
+        "2026-07-27T12:00:00Z",
+        CultureInfo.InvariantCulture);
+
+    Assert(
+        !recovery.RecordUnavailable(timestamp),
+        "the hardware probe was reset after one unavailable poll");
+    Assert(
+        !recovery.RecordUnavailable(timestamp.AddSeconds(1)),
+        "the hardware probe was reset after two unavailable polls");
+    Assert(
+        recovery.RecordUnavailable(timestamp.AddSeconds(2)),
+        "a repeatedly unavailable hardware probe was never reopened");
+    Assert(
+        !recovery.CanAttempt(timestamp.AddSeconds(3)),
+        "the failed probe was immediately reopened without backoff");
+    Assert(
+        recovery.CanAttempt(timestamp.AddSeconds(4)),
+        "the probe remained blocked after its recovery delay");
+    Assert(
+        SensorBridgeHost.ShouldResetProbeAfterUnavailablePolls(3),
+        "the compatibility reset threshold changed");
+    return Task.CompletedTask;
+}
+
+static Task TestProbeBackoffAsync()
+{
+    var recovery = new ProbeRecoveryPolicy();
+    var timestamp = DateTimeOffset.Parse(
+        "2026-07-27T12:00:00Z",
+        CultureInfo.InvariantCulture);
+    TimeSpan[] expected =
+    [
+        TimeSpan.FromSeconds(2),
+        TimeSpan.FromSeconds(4),
+        TimeSpan.FromSeconds(8),
+        TimeSpan.FromSeconds(16),
+        TimeSpan.FromSeconds(30),
+        TimeSpan.FromSeconds(30)
+    ];
+
+    for (int attempt = 0; attempt < expected.Length; attempt++)
+    {
+        DateTimeOffset failureTime = timestamp.AddMinutes(attempt);
+        Assert(
+            recovery.RecordFailure(
+                SensorBridgeFailureSource.Probe,
+                failureTime),
+            "a probe fault did not request probe disposal");
+        Assert(
+            recovery.NextAttemptUtc - failureTime == expected[attempt],
+            $"probe backoff {attempt} was " +
+            $"{recovery.NextAttemptUtc - failureTime}, expected {expected[attempt]}");
+    }
+
+    Assert(
+        ProbeRecoveryPolicy.GetDelay(100) == ProbeRecoveryPolicy.MaximumDelay,
+        "probe recovery delay was not capped");
+
+    recovery.RecordAvailable();
+    Assert(recovery.RecoveryAttempts == 0, "a healthy read did not reset backoff");
+    Assert(
+        recovery.CanAttempt(timestamp),
+        "a healthy read left the probe in a recovery delay");
+    return Task.CompletedTask;
+}
+
+static Task TestPublicationIsolationAsync()
+{
+    var recovery = new ProbeRecoveryPolicy();
+    var timestamp = DateTimeOffset.Parse(
+        "2026-07-27T12:00:00Z",
+        CultureInfo.InvariantCulture);
+
+    recovery.RecordAvailable();
+    DateTimeOffset nextAttemptBefore = recovery.NextAttemptUtc;
+    int attemptsBefore = recovery.RecoveryAttempts;
+    bool shouldDispose = recovery.RecordFailure(
+        SensorBridgeFailureSource.Publication,
+        timestamp);
+
+    Assert(!shouldDispose, "an output publication fault disposed a healthy probe");
+    Assert(
+        recovery.NextAttemptUtc == nextAttemptBefore,
+        "an output publication fault scheduled hardware recovery");
+    Assert(
+        recovery.RecoveryAttempts == attemptsBefore,
+        "an output publication fault increased hardware recovery backoff");
+    return Task.CompletedTask;
 }
 
 static Task TestShutdownRaceAsync()
