@@ -18,8 +18,13 @@ internal sealed record SensorBridgeOptions
         DefaultDataDirectory,
         "cpu-temperature-diagnostic.txt");
 
+    internal static readonly string DefaultCatalogPath = Path.Combine(
+        DefaultDataDirectory,
+        "hardware-sensors.json");
+
     public string OutputPath { get; init; } = DefaultOutputPath;
     public string DiagnosticPath { get; init; } = DefaultDiagnosticPath;
+    public string CatalogPath { get; init; } = DefaultCatalogPath;
     public TimeSpan Interval { get; init; } =
         TimeSpan.FromMilliseconds(DefaultIntervalMilliseconds);
     public bool Once { get; init; }
@@ -32,6 +37,7 @@ internal sealed record SensorBridgeOptions
     {
         string outputPath = DefaultOutputPath;
         string diagnosticPath = DefaultDiagnosticPath;
+        string? catalogPath = null;
         int intervalMilliseconds = DefaultIntervalMilliseconds;
         bool once = false;
         bool stayAlive = false;
@@ -61,6 +67,15 @@ internal sealed record SensorBridgeOptions
                     {
                         options = new SensorBridgeOptions();
                         error = "--diagnostic requires a file path.";
+                        return false;
+                    }
+
+                    break;
+                case "--catalog":
+                    if (!TryTakeValue(args, ref index, out catalogPath))
+                    {
+                        options = new SensorBridgeOptions();
+                        error = "--catalog requires a file path.";
                         return false;
                     }
 
@@ -99,6 +114,10 @@ internal sealed record SensorBridgeOptions
         {
             outputPath = Path.GetFullPath(outputPath);
             diagnosticPath = Path.GetFullPath(diagnosticPath);
+            catalogPath = Path.GetFullPath(
+                catalogPath ?? Path.Combine(
+                    Path.GetDirectoryName(outputPath) ?? DefaultDataDirectory,
+                    "hardware-sensors.json"));
         }
         catch (Exception exception) when (
             exception is ArgumentException or
@@ -114,6 +133,7 @@ internal sealed record SensorBridgeOptions
         {
             OutputPath = outputPath,
             DiagnosticPath = diagnosticPath,
+            CatalogPath = catalogPath,
             Interval = TimeSpan.FromMilliseconds(intervalMilliseconds),
             Once = once,
             StayAlive = stayAlive

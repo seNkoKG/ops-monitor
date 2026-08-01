@@ -67,6 +67,20 @@ internal static class TelemetryTextFormatter
             ? Rate(value, decimals)
             : Unavailable;
 
+    public static string ByteSize(double bytes, int? decimals = null)
+    {
+        double absolute = Math.Abs(bytes);
+        return absolute switch
+        {
+            >= 1024d * 1024d * 1024d =>
+                $"{Number(bytes / (1024d * 1024d * 1024d), decimals ?? 1)} GB",
+            >= 1024d * 1024d =>
+                $"{Number(bytes / (1024d * 1024d), decimals ?? 1)} MB",
+            >= 1024d => $"{Number(bytes / 1024d, decimals ?? 0)} KB",
+            _ => $"{Number(bytes, decimals ?? 0)} B"
+        };
+    }
+
     public static string CompactRate(double bytesPerSecond)
     {
         var absolute = Math.Abs(bytesPerSecond);

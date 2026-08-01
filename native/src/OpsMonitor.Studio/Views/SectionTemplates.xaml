@@ -516,6 +516,7 @@
                         </StackPanel>
                     </Border>
                 </Grid>
+
             </StackPanel>
         </ScrollViewer>
     </DataTemplate>
@@ -747,6 +748,87 @@
                         </StackPanel>
                     </Border>
                 </Grid>
+
+                <Border Margin="0,14,0,0" Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="220"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Sensor browser" Style="{StaticResource SectionTitleText}"/>
+                                <TextBlock Margin="0,4,0,0"
+                                           Text="Pin optional readings into CPU, GPU, memory, or storage details. Compact and Mini layouts stay clean."
+                                           Style="{StaticResource CaptionText}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1"
+                                     Margin="16,0,8,0"
+                                     VerticalAlignment="Center"
+                                     Padding="10,7"
+                                     Text="{Binding SensorSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Filter by hardware, sensor, type, or target module"
+                                     Style="{StaticResource StudioTextBox}"/>
+                            <Button Grid.Column="2"
+                                    Content="Refresh"
+                                    Command="{Binding RefreshSensorsCommand}"
+                                    Style="{StaticResource StudioButton}"
+                                    VerticalAlignment="Center"/>
+                        </Grid>
+                        <TextBlock Margin="0,12,0,8"
+                                   Text="{Binding SensorCatalogStatus}"
+                                   Style="{StaticResource CaptionText}"/>
+                        <ListBox MaxHeight="380"
+                                 ItemsSource="{Binding SensorCatalogView}"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 ScrollViewer.CanContentScroll="True"
+                                 VirtualizingPanel.IsVirtualizing="True"
+                                 VirtualizingPanel.VirtualizationMode="Recycling">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource SettingRow}" Padding="8,7">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="110"/>
+                                                <ColumnDefinition Width="120"/>
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox Margin="0,0,10,0"
+                                                      VerticalAlignment="Center"
+                                                      IsChecked="{Binding IsPinned}"
+                                                      ToolTip="Show this sensor as an optional module detail"/>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                <TextBlock Margin="0,2,0,0"
+                                                           Text="{Binding Hardware}"
+                                                           Style="{StaticResource CaptionText}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="{Binding Value}"
+                                                           HorizontalAlignment="Right"
+                                                           FontFamily="{StaticResource Font.Mono}"
+                                                           Foreground="{StaticResource Brush.Accent}"/>
+                                                <TextBlock Text="{Binding SensorType}"
+                                                           HorizontalAlignment="Right"
+                                                           Style="{StaticResource CaptionText}"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="3"
+                                                       Margin="14,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Text="{Binding ModuleLabel}"
+                                                       Style="{StaticResource CaptionText}"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
     </DataTemplate>

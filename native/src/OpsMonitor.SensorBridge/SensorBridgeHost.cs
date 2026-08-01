@@ -105,6 +105,8 @@ internal sealed class ProbeRecoveryPolicy
 internal sealed class SensorBridgeHost
 {
     private const int MissingWidgetPollLimit = 4;
+    private static readonly TimeSpan CatalogPublicationCadence =
+        TimeSpan.FromSeconds(6);
     private readonly SensorBridgeOptions _options;
 
     public SensorBridgeHost(SensorBridgeOptions options) =>
@@ -115,6 +117,7 @@ internal sealed class SensorBridgeHost
         LibreHardwareMonitorCpuProbe? probe = null;
         string? lastDiagnosticState = null;
         int missingWidgetPolls = 0;
+        DateTimeOffset lastCatalogPublicationUtc = DateTimeOffset.MinValue;
         var recovery = new ProbeRecoveryPolicy();
 
         try
@@ -123,6 +126,7 @@ internal sealed class SensorBridgeHost
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 DateTimeOffset timestampUtc = DateTimeOffset.UtcNow;
+                HardwareProbeResult? snapshot = null;
                 CpuTemperatureProbeResult? result = null;
                 SensorBridgeFailureSource? cycleFailure = null;
 
@@ -135,7 +139,8 @@ internal sealed class SensorBridgeHost
                     try
                     {
                         probe ??= new LibreHardwareMonitorCpuProbe();
-                        result = probe.Read(timestampUtc);
+                        snapshot = probe.ReadSnapshot(timestampUtc);
+                        result = snapshot.CpuTemperature;
 
                         if (result.IsAvailable)
                         {
@@ -221,6 +226,39 @@ internal sealed class SensorBridgeHost
 
                     if (cycleFailure is null)
                     {
+                        if (snapshot?.HasSensors == true &&
+                            (_options.Once ||
+                             timestampUtc - lastCatalogPublicationUtc >=
+                             CatalogPublicationCadence))
+                        {
+                            try
+                            {
+                                await AtomicTextFile.WriteAsync(
+                                    _options.CatalogPath,
+                                    FormatCatalogPayload(snapshot),
+                                    cancellationToken).ConfigureAwait(false);
+                                lastCatalogPublicationUtc = timestampUtc;
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                throw;
+                            }
+                            catch (Exception exception) when (
+                                SensorFailure.IsExpected(exception))
+                            {
+                                cycleFailure = SensorBridgeFailureSource.Publication;
+                                await SensorBridgeDiagnostics.TryWriteAsync(
+                                    _options.DiagnosticPath,
+                                    SensorBridgeDiagnostics.FormatPublicationFault(
+                                        exception,
+                                        _options.CatalogPath),
+                                    cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+                    }
+
+                    if (cycleFailure is null)
+                    {
                         string diagnosticState =
                             SensorBridgeDiagnostics.GetStateKey(result);
                         if (!StringComparer.Ordinal.Equals(
@@ -291,6 +329,19 @@ internal sealed class SensorBridgeHost
         return string.Create(
             CultureInfo.InvariantCulture,
             $"{temperature:0.###}|{result.TimestampUtc.UtcDateTime.Ticks}");
+    }
+
+    internal static string FormatCatalogPayload(HardwareProbeResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        if (!result.HasSensors)
+        {
+            throw new ArgumentException(
+                "Only a non-empty hardware sensor snapshot can be published.",
+                nameof(result));
+        }
+
+        return result.ToJson();
     }
 
     private static bool IsWidgetRunning()

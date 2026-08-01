@@ -4,16 +4,21 @@ namespace OpsMonitor.Widget.ViewModels;
 
 internal sealed class MetricDetailViewModel : ObservableObject
 {
+    private string _label;
     private string _value = "—";
     private bool _isAvailable = true;
 
     public MetricDetailViewModel(string label, bool isNormalVisible)
     {
-        Label = label;
+        _label = label;
         IsNormalVisible = isNormalVisible;
     }
 
-    public string Label { get; }
+    public string Label
+    {
+        get => _label;
+        set => SetProperty(ref _label, value);
+    }
 
     public bool IsNormalVisible { get; }
 

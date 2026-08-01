@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
+using OpsMonitor.Core.Metrics;
 using OpsMonitor.Widget.Infrastructure;
 using OpsMonitor.Widget.Models;
 using OpsMonitor.Widget.Services;
@@ -87,6 +88,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly ITelemetrySource _telemetrySource;
     private IReadOnlyList<ThemeDefinition> _themes;
     private readonly Dictionary<string, MetricCardViewModel> _metricIndex;
+    private readonly List<AdditionalMetricSlot> _additionalMetricSlots = [];
     private WidgetLayout _layout;
     private WidgetDensity _density;
     private WidgetInteractionMode _interactionMode;
@@ -165,6 +167,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         ];
         Metrics = new ObservableCollection<MetricCardViewModel>(metrics);
         _metricIndex = metrics.ToDictionary(metric => metric.Key, StringComparer.Ordinal);
+        ConfigureAdditionalMetrics(settings.ModuleMetricBindings);
         foreach (var theme in _themes)
         {
             ThemeOptions.Add(theme.Name);
@@ -763,6 +766,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         UpdateNetwork(snapshot.Network);
         UpdateStorage(snapshot.Storage);
         UpdateBattery(snapshot.Battery);
+        UpdateAdditionalMetrics(snapshot.Metrics);
 
         var age = DateTimeOffset.Now - snapshot.CapturedAt;
         LastUpdatedText = age.TotalSeconds < 3
@@ -965,7 +969,11 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     private void UpdateStorage(StorageTelemetry sample)
     {
         var metric = _metricIndex["storage"];
-        if (sample.State == SensorState.Unavailable)
+        var used = FiniteValue(sample.UsedPercent);
+        var read = FiniteValue(sample.ReadBytesPerSecond);
+        var write = FiniteValue(sample.WriteBytesPerSecond);
+        var temperature = FiniteValue(sample.TemperatureCelsius);
+        if (sample.State == SensorState.Unavailable || used is null)
         {
             metric.PrimaryValue = TelemetryTextFormatter.Unavailable;
             metric.Progress = 0;
@@ -982,20 +990,20 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         metric.PrimaryValue =
             $"{TelemetryTextFormatter.Percentage(
-                sample.UsedPercent,
+                used.Value,
                 metric.DecimalPlacesOverride)} used";
-        metric.Progress = sample.UsedPercent;
+        metric.Progress = used.Value;
         metric.IsProgressAvailable = true;
         metric.State = sample.State;
         metric.Status = sample.State == SensorState.Stale ? "Sample delayed" : sample.Health;
         metric.SetDetailValues(
-            (TelemetryTextFormatter.Rate(sample.ReadBytesPerSecond), true),
-            (TelemetryTextFormatter.Rate(sample.WriteBytesPerSecond), true),
+            (TelemetryTextFormatter.Rate(read), read is not null),
+            (TelemetryTextFormatter.Rate(write), write is not null),
             (
-                TelemetryTextFormatter.Temperature(sample.TemperatureCelsius),
-                sample.TemperatureCelsius is not null),
+                TelemetryTextFormatter.Temperature(temperature),
+                temperature is not null),
             (sample.Health, !string.IsNullOrWhiteSpace(sample.Health)));
-        metric.PushSample(sample.UsedPercent);
+        metric.PushSample(used.Value);
     }
 
     private void UpdateBattery(BatteryTelemetry sample)
@@ -1049,6 +1057,85 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
                 draw is not null));
         metric.PushSample(chargeValue);
     }
+
+    private void ConfigureAdditionalMetrics(
+        IReadOnlyDictionary<string, WidgetModuleMetricBinding> bindings)
+    {
+        foreach (var pair in bindings)
+        {
+            if (!_metricIndex.TryGetValue(pair.Key, out MetricCardViewModel? card))
+            {
+                continue;
+            }
+
+            foreach (string metricId in pair.Value.AdditionalMetrics
+                         .Where(item => !string.IsNullOrWhiteSpace(item))
+                         .Distinct(StringComparer.Ordinal)
+                         .Take(3))
+            {
+                int detailIndex = card.AddDetail(ShortMetricLabel(metricId));
+                _additionalMetricSlots.Add(new AdditionalMetricSlot(card, detailIndex, metricId));
+            }
+        }
+    }
+
+    private void UpdateAdditionalMetrics(
+        IReadOnlyDictionary<string, GenericMetricTelemetry>? metrics)
+    {
+        foreach (AdditionalMetricSlot slot in _additionalMetricSlots)
+        {
+            MetricDetailViewModel detail = slot.Card.Details[slot.DetailIndex];
+            if (metrics is null ||
+                !metrics.TryGetValue(slot.MetricId, out GenericMetricTelemetry? metric))
+            {
+                detail.Value = TelemetryTextFormatter.Unavailable;
+                detail.IsAvailable = false;
+                continue;
+            }
+
+            detail.Label = metric.DisplayName.ToUpperInvariant();
+            detail.Value = FormatGenericMetric(metric);
+            detail.IsAvailable = metric.Value is not null &&
+                                 metric.State is SensorState.Available or SensorState.Stale;
+        }
+    }
+
+    private static string FormatGenericMetric(GenericMetricTelemetry metric)
+    {
+        double? value = FiniteValue(metric.Value);
+        if (value is null)
+        {
+            return TelemetryTextFormatter.Unavailable;
+        }
+
+        return metric.Unit switch
+        {
+            MetricUnit.Percent => TelemetryTextFormatter.Percentage(value.Value),
+            MetricUnit.Celsius => TelemetryTextFormatter.Temperature(value),
+            MetricUnit.Bytes => TelemetryTextFormatter.ByteSize(value.Value),
+            MetricUnit.BytesPerSecond => TelemetryTextFormatter.Rate(value),
+            MetricUnit.Hertz => value >= 1_000_000_000
+                ? $"{TelemetryTextFormatter.Number(value.Value / 1_000_000_000d, 2)} GHz"
+                : $"{TelemetryTextFormatter.Number(value.Value / 1_000_000d, 0)} MHz",
+            MetricUnit.Watts => $"{TelemetryTextFormatter.Number(value.Value, 1)} W",
+            MetricUnit.Volts => $"{TelemetryTextFormatter.Number(value.Value, 3)} V",
+            MetricUnit.RevolutionsPerMinute => $"{TelemetryTextFormatter.Number(value.Value, 0)} RPM",
+            MetricUnit.Milliseconds => TelemetryTextFormatter.Latency(value.Value, 1),
+            MetricUnit.Seconds => $"{TelemetryTextFormatter.Number(value.Value, 0)} s",
+            _ => TelemetryTextFormatter.Number(value.Value, 2)
+        };
+    }
+
+    private static string ShortMetricLabel(string metricId)
+    {
+        string[] parts = metricId.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 0 ? "SENSOR" : parts[^1].ToUpperInvariant();
+    }
+
+    private sealed record AdditionalMetricSlot(
+        MetricCardViewModel Card,
+        int DetailIndex,
+        string MetricId);
 
     private static double? FiniteValue(double? value) =>
         value is { } candidate && double.IsFinite(candidate)

@@ -370,7 +370,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             Themes = themes,
             PerformanceProfiles = profiles,
             Scenes = scenes,
-            AlertRules = current.AlertRules,
+            AlertRules = MapAlerts(snapshot, current.AlertRules),
         };
     }
 
@@ -449,6 +449,12 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                                          item.ShowTemperature,
                     ShowTrend = item.ShowSparkline,
                     DecimalPlacesOverride = ParsePrecision(item.Precision),
+                    AdditionalMetrics = (snapshot.SensorPins ?? [])
+                        .Where(pin => pin.ModuleId.Equals(item.Id, StringComparison.Ordinal))
+                        .Select(pin => new MetricId(pin.MetricId))
+                        .Distinct()
+                        .Take(3)
+                        .ToList(),
                 };
             })
             .ToList();

@@ -248,6 +248,12 @@ internal sealed class MetricCardViewModel : ObservableObject
         }
     }
 
+    public int AddDetail(string label, bool normalVisible = false)
+    {
+        Details.Add(new MetricDetailViewModel(label, normalVisible));
+        return Details.Count - 1;
+    }
+
     public void SetAccent(ThemeDefinition theme)
     {
         ArgumentNullException.ThrowIfNull(theme);

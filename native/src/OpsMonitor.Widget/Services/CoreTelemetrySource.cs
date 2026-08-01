@@ -208,7 +208,17 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
         try
         {
             var metrics = _runtime.Metrics.GetSnapshot();
-            PublishToObservers(CreateSnapshot(metrics, DateTimeOffset.Now));
+            MetricId[] selectedDetails = _runtime.Settings.Widgets
+                .Where(widget => widget.Enabled)
+                .SelectMany(widget => widget.Modules)
+                .SelectMany(module => module.AdditionalMetrics ?? [])
+                .Distinct()
+                .ToArray();
+            PublishToObservers(CreateSnapshot(
+                metrics,
+                DateTimeOffset.Now,
+                _runtime.Metrics.GetDescriptors(),
+                selectedDetails));
         }
         finally
         {
@@ -218,7 +228,9 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
 
     internal static TelemetrySnapshot CreateSnapshot(
         IReadOnlyDictionary<MetricId, MetricSample> metrics,
-        DateTimeOffset capturedAt)
+        DateTimeOffset capturedAt,
+        IReadOnlyCollection<MetricDescriptor>? descriptors = null,
+        IReadOnlyCollection<MetricId>? selectedDetails = null)
     {
         ArgumentNullException.ThrowIfNull(metrics);
 
@@ -227,8 +239,8 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
             new CpuTelemetry(
                 OptionalValue(metrics, WellKnownMetrics.CpuTotalUtilization),
                 OptionalValue(metrics, WellKnownMetrics.CpuTemperature),
-                null,
-                null,
+                HertzToGigahertz(OptionalValue(metrics, WellKnownMetrics.CpuClock)),
+                OptionalValue(metrics, WellKnownMetrics.CpuPackagePower),
                 CombinedState(
                     metrics,
                     WellKnownMetrics.CpuTotalUtilization,
@@ -236,7 +248,7 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
             new GpuTelemetry(
                 OptionalValue(metrics, WellKnownMetrics.GpuUtilization),
                 OptionalValue(metrics, WellKnownMetrics.GpuTemperature),
-                null,
+                HertzToGigahertz(OptionalValue(metrics, WellKnownMetrics.GpuClock)),
                 BytesToGigabytes(OptionalValue(
                     metrics,
                     WellKnownMetrics.GpuMemoryUsedBytes)),
@@ -278,13 +290,48 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
                     WellKnownMetrics.NetworkJitter,
                     WellKnownMetrics.NetworkPacketLoss)),
             new StorageTelemetry(
-                0,
-                0,
-                0,
-                null,
-                "Provider not enabled",
-                SensorState.Unavailable),
-            BuildBattery(metrics));
+                OptionalValue(metrics, WellKnownMetrics.StorageUsedPercent),
+                OptionalValue(metrics, WellKnownMetrics.StorageReadRate),
+                OptionalValue(metrics, WellKnownMetrics.StorageWriteRate),
+                OptionalValue(metrics, WellKnownMetrics.StorageTemperature),
+                StorageHealth(metrics),
+                CombinedState(
+                    metrics,
+                    WellKnownMetrics.StorageUsedPercent,
+                    WellKnownMetrics.StorageTemperature,
+                    WellKnownMetrics.StorageHealthPercent)),
+            BuildBattery(metrics),
+            BuildGenericMetrics(metrics, descriptors, selectedDetails));
+    }
+
+    private static Dictionary<string, GenericMetricTelemetry> BuildGenericMetrics(
+        IReadOnlyDictionary<MetricId, MetricSample> metrics,
+        IReadOnlyCollection<MetricDescriptor>? descriptors,
+        IReadOnlyCollection<MetricId>? selectedDetails)
+    {
+        if (selectedDetails is null || selectedDetails.Count == 0)
+        {
+            return new Dictionary<string, GenericMetricTelemetry>(StringComparer.Ordinal);
+        }
+
+        var selected = selectedDetails.ToHashSet();
+        var descriptorIndex = (descriptors ?? [])
+            .ToDictionary(item => item.Id, item => item);
+        return metrics.Where(pair => selected.Contains(pair.Key)).ToDictionary(
+            pair => pair.Key.Value,
+            pair =>
+            {
+                descriptorIndex.TryGetValue(pair.Key, out MetricDescriptor? descriptor);
+                return new GenericMetricTelemetry(
+                    pair.Key.Value,
+                    descriptor?.ShortName is { Length: > 0 } shortName
+                        ? shortName
+                        : descriptor?.DisplayName ?? pair.Key.Value,
+                    pair.Value.HasUsableValue ? pair.Value.Value : null,
+                    descriptor?.Unit ?? MetricUnit.None,
+                    State(metrics, pair.Key));
+            },
+            StringComparer.Ordinal);
     }
 
     private static BatteryTelemetry BuildBattery(
@@ -372,6 +419,18 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
         bytes is { } value
             ? value / (1024d * 1024d * 1024d)
             : null;
+
+    private static double? HertzToGigahertz(double? hertz) =>
+        hertz is { } value ? value / 1_000_000_000d : null;
+
+    private static string StorageHealth(
+        IReadOnlyDictionary<MetricId, MetricSample> metrics)
+    {
+        double? health = OptionalValue(metrics, WellKnownMetrics.StorageHealthPercent);
+        return health is { } value
+            ? $"{Math.Clamp(value, 0, 100):0}% health"
+            : "SMART unavailable";
+    }
 
     private TimeSpan GetUiCadence()
     {

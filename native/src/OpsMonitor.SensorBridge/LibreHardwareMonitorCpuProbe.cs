@@ -39,7 +39,12 @@ internal sealed class LibreHardwareMonitorCpuProbe : IDisposable
     {
         _computer = new Computer
         {
-            IsCpuEnabled = true
+            IsCpuEnabled = true,
+            IsMotherboardEnabled = true,
+            IsMemoryEnabled = true,
+            IsStorageEnabled = true,
+            IsControllerEnabled = true,
+            IsPowerMonitorEnabled = true
         };
     }
 
@@ -65,6 +70,9 @@ internal sealed class LibreHardwareMonitorCpuProbe : IDisposable
     }
 
     internal CpuTemperatureProbeResult Read(DateTimeOffset timestampUtc)
+        => ReadSnapshot(timestampUtc).CpuTemperature;
+
+    internal HardwareProbeResult ReadSnapshot(DateTimeOffset timestampUtc)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -72,45 +80,58 @@ internal sealed class LibreHardwareMonitorCpuProbe : IDisposable
         {
             EnsureOpen();
             var candidates = new List<CpuTemperatureSensorCandidate>();
-            foreach (IHardware hardware in _computer.Hardware.Where(
-                         hardware => hardware.HardwareType == HardwareType.Cpu))
+            var sensors = new List<HardwareSensorReading>();
+            foreach (IHardware hardware in _computer.Hardware)
             {
-                CollectCandidates(
+                CollectSensors(
                     hardware,
                     hardware.Name,
                     hardware.Identifier.ToString(),
-                    candidates);
+                    hardware.HardwareType.ToString(),
+                    candidates,
+                    sensors);
             }
 
             CpuTemperatureSensorCandidate? selected = SelectPreferredSensor(candidates);
-            if (selected is null)
-            {
-                string detail = candidates.Count == 0
-                    ? "No CPU temperature sensor was exposed."
-                    : "CPU temperature sensors returned no plausible live value.";
-                return Unavailable(
+            CpuTemperatureProbeResult cpu = selected is null
+                ? Unavailable(
                     timestampUtc,
-                    $"{detail} Elevated sensor access may be unavailable.");
-            }
+                    candidates.Count == 0
+                        ? "No CPU temperature sensor was exposed. Elevated sensor access may be unavailable."
+                        : "CPU temperature sensors returned no plausible live value.")
+                : new CpuTemperatureProbeResult
+                {
+                    TemperatureCelsius = selected.TemperatureCelsius,
+                    TimestampUtc = timestampUtc,
+                    HardwareName = selected.HardwareName,
+                    HardwareIdentifier = selected.HardwareIdentifier,
+                    SensorName = selected.SensorName,
+                    SensorIdentifier = selected.SensorIdentifier,
+                    Message = $"{selected.SensorName} is live."
+                };
 
-            return new CpuTemperatureProbeResult
+            return new HardwareProbeResult
             {
-                TemperatureCelsius = selected.TemperatureCelsius,
                 TimestampUtc = timestampUtc,
-                HardwareName = selected.HardwareName,
-                HardwareIdentifier = selected.HardwareIdentifier,
-                SensorName = selected.SensorName,
-                SensorIdentifier = selected.SensorIdentifier,
-                Message = $"{selected.SensorName} is live."
+                Sensors = sensors,
+                CpuTemperature = cpu,
+                Message = sensors.Count == 0
+                    ? "No supported hardware sensors were exposed."
+                    : $"{sensors.Count} hardware sensors are live."
             };
         }
         catch (Exception exception) when (SensorFailure.IsExpected(exception))
         {
-            return Unavailable(
-                timestampUtc,
-                exception is UnauthorizedAccessException
-                    ? "CPU sensor access was denied. Run the installed sensor task at highest privileges."
-                    : $"CPU sensor probe failed: {exception.Message}");
+            string message = exception is UnauthorizedAccessException
+                ? "Hardware sensor access was denied. Run the installed sensor task at highest privileges."
+                : $"Hardware sensor probe failed: {exception.Message}";
+            return new HardwareProbeResult
+            {
+                TimestampUtc = timestampUtc,
+                Sensors = [],
+                CpuTemperature = Unavailable(timestampUtc, message),
+                Message = message
+            };
         }
     }
 
@@ -221,28 +242,80 @@ internal sealed class LibreHardwareMonitorCpuProbe : IDisposable
         }
     }
 
-    private static void CollectCandidates(
+    private static void CollectSensors(
         IHardware hardware,
-        string cpuName,
-        string cpuIdentifier,
-        ICollection<CpuTemperatureSensorCandidate> candidates)
+        string rootName,
+        string rootIdentifier,
+        string rootType,
+        ICollection<CpuTemperatureSensorCandidate> candidates,
+        ICollection<HardwareSensorReading> readings)
     {
-        hardware.Update();
-        foreach (ISensor sensor in hardware.Sensors.Where(
-                     sensor => sensor.SensorType == SensorType.Temperature))
+        try
         {
-            candidates.Add(new CpuTemperatureSensorCandidate(
-                cpuName,
-                cpuIdentifier,
+            hardware.Update();
+        }
+        catch (Exception exception) when (SensorFailure.IsExpected(exception))
+        {
+            return;
+        }
+
+        foreach (ISensor sensor in hardware.Sensors)
+        {
+            string sensorType = sensor.SensorType.ToString();
+            if (rootType.Equals(nameof(HardwareType.Cpu), StringComparison.Ordinal) &&
+                sensor.SensorType == SensorType.Temperature)
+            {
+                candidates.Add(new CpuTemperatureSensorCandidate(
+                    rootName,
+                    rootIdentifier,
+                    sensor.Name,
+                    sensor.Identifier.ToString(),
+                    sensor.Value));
+            }
+
+            if (Finite(sensor.Value) is not { } value || !IsUsefulReading(sensor))
+            {
+                continue;
+            }
+
+            readings.Add(new HardwareSensorReading(
+                hardware.Name,
+                hardware.Identifier.ToString(),
+                hardware.HardwareType.ToString(),
                 sensor.Name,
                 sensor.Identifier.ToString(),
-                sensor.Value));
+                sensorType,
+                value));
         }
 
         foreach (IHardware subHardware in hardware.SubHardware)
         {
-            CollectCandidates(subHardware, cpuName, cpuIdentifier, candidates);
+            CollectSensors(
+                subHardware,
+                rootName,
+                rootIdentifier,
+                rootType,
+                candidates,
+                readings);
         }
+    }
+
+    private static double? Finite(float? value) =>
+        value is { } actual && float.IsFinite(actual) ? actual : null;
+
+    private static bool IsUsefulReading(ISensor sensor)
+    {
+        string name = sensor.Name;
+        if (sensor.SensorType == SensorType.Temperature &&
+            (name.Contains("limit", StringComparison.OrdinalIgnoreCase) ||
+             name.Contains("resolution", StringComparison.OrdinalIgnoreCase) ||
+             name.Contains("warning", StringComparison.OrdinalIgnoreCase) ||
+             name.Contains("critical", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        return !name.Contains("threshold", StringComparison.OrdinalIgnoreCase);
     }
 
     private static CpuTemperatureProbeResult Unavailable(

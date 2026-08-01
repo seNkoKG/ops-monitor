@@ -257,6 +257,8 @@ public static class WellKnownMetrics
 {
     public static readonly MetricId CpuTotalUtilization = new("cpu.utilization.total");
     public static readonly MetricId CpuTemperature = new("cpu.temperature.package");
+    public static readonly MetricId CpuClock = new("cpu.clock.effective");
+    public static readonly MetricId CpuPackagePower = new("cpu.power.package");
     public static readonly MetricId MemoryUsedBytes = new("memory.physical.used");
     public static readonly MetricId MemoryAvailableBytes = new("memory.physical.available");
     public static readonly MetricId MemoryTotalBytes = new("memory.physical.total");
@@ -277,4 +279,11 @@ public static class WellKnownMetrics
     public static readonly MetricId GpuMemoryTotalBytes = new("gpu.nvidia.memory.total");
     public static readonly MetricId GpuPowerWatts = new("gpu.nvidia.power");
     public static readonly MetricId GpuFanPercent = new("gpu.nvidia.fan");
+    public static readonly MetricId GpuClock = new("gpu.nvidia.clock.graphics");
+    public static readonly MetricId GpuMemoryClock = new("gpu.nvidia.clock.memory");
+    public static readonly MetricId StorageUsedPercent = new("storage.system.used");
+    public static readonly MetricId StorageReadRate = new("storage.system.read");
+    public static readonly MetricId StorageWriteRate = new("storage.system.write");
+    public static readonly MetricId StorageTemperature = new("storage.system.temperature");
+    public static readonly MetricId StorageHealthPercent = new("storage.system.health");
 }

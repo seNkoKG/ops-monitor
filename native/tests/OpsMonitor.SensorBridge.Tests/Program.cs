@@ -8,6 +8,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("AMD Tctl/Tdie wins deterministic sensor selection", TestAmdSelectionAsync),
     ("zero and implausible temperatures are rejected", TestPlausibilityAsync),
     ("bridge payload is consumed by Core", TestPayloadAsync),
+    ("versioned hardware catalog lights curated and dynamic metrics", TestHardwareCatalogAsync),
     ("atomic writer replaces complete payloads", TestAtomicWriteAsync),
     ("atomic writer recovers from a transient publication lock", TestAtomicWriteRetryAsync),
     ("unavailable probes are periodically reopened with backoff", TestProbeResetAsync),
@@ -140,6 +141,88 @@ static async Task TestPayloadAsync()
         Assert(
             sample.Value == 61.875,
             $"Core changed the published value to {sample.Value}");
+    }
+    finally
+    {
+        directory.Delete(recursive: true);
+    }
+}
+
+static async Task TestHardwareCatalogAsync()
+{
+    var timestamp = DateTimeOffset.Parse(
+        "2026-07-30T10:00:00Z",
+        CultureInfo.InvariantCulture);
+    var snapshot = new HardwareProbeResult
+    {
+        TimestampUtc = timestamp,
+        CpuTemperature = new CpuTemperatureProbeResult
+        {
+            TimestampUtc = timestamp,
+            TemperatureCelsius = 63,
+            SensorName = "Core (Tctl/Tdie)",
+            SensorIdentifier = "/amdcpu/0/temperature/2"
+        },
+        Sensors =
+        [
+            new("Ryzen", "/amdcpu/0", "Cpu", "Cores (Average Effective)", "/amdcpu/0/clock/0", "Clock", 5_000),
+            new("Ryzen", "/amdcpu/0", "Cpu", "Package", "/amdcpu/0/power/0", "Power", 75),
+            new("NVMe", "/nvme/0", "Storage", "Composite Temperature", "/nvme/0/temperature/0", "Temperature", 42),
+            new("NVMe", "/nvme/0", "Storage", "Remaining Life", "/nvme/0/level/0", "Level", 97),
+            new("NVMe", "/nvme/0", "Storage", "Read Rate", "/nvme/0/throughput/0", "Throughput", 8_000_000)
+        ]
+    };
+
+    var directory = Directory.CreateTempSubdirectory("OpsMonitorHardwareCatalog-");
+    try
+    {
+        string path = Path.Combine(directory.FullName, "hardware-sensors.json");
+        await AtomicTextFile.WriteAsync(
+            path,
+            SensorBridgeHost.FormatCatalogPayload(snapshot),
+            CancellationToken.None);
+        await using var provider = new HardwareSensorBridgeProvider(
+            new HardwareSensorBridgeOptions { SnapshotPath = path });
+        ProviderPollResult poll = await provider.PollAsync(
+            new MetricProviderContext
+            {
+                TimestampUtc = timestamp.AddSeconds(1),
+                LatestSamples = new Dictionary<MetricId, MetricSample>()
+            },
+            CancellationToken.None);
+
+        Assert(
+            poll.HealthState == ProviderHealthState.Healthy,
+            $"catalog health was {poll.HealthState}");
+        Assert(
+            poll.Descriptors.Any(item =>
+                item.Id == HardwareSensorBridgeProvider.GetMetricId("/amdcpu/0/clock/0")),
+            "dynamic CPU clock descriptor was not published");
+        Assert(
+            poll.Samples.Any(item =>
+                item.MetricId == WellKnownMetrics.CpuClock &&
+                item.Value == 5_000_000_000d),
+            "curated CPU clock was not converted from MHz to Hz");
+        Assert(
+            poll.Samples.Any(item =>
+                item.MetricId == WellKnownMetrics.CpuPackagePower &&
+                item.Value == 75),
+            "curated CPU package power was not published");
+        Assert(
+            poll.Samples.Any(item =>
+                item.MetricId == WellKnownMetrics.StorageTemperature &&
+                item.Value == 42),
+            "curated storage temperature was not published");
+        Assert(
+            poll.Samples.Any(item =>
+                item.MetricId == WellKnownMetrics.StorageHealthPercent &&
+                item.Value == 97),
+            "curated storage health was not published");
+        Assert(
+            poll.Samples.Any(item =>
+                item.MetricId == WellKnownMetrics.StorageReadRate &&
+                item.Value == 8_000_000),
+            "storage throughput was incorrectly rescaled");
     }
     finally
     {

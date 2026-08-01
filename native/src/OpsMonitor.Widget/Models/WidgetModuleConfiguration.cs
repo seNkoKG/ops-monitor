@@ -7,6 +7,11 @@ public sealed record WidgetModuleConfiguration(
     IReadOnlyList<string> Order,
     IReadOnlyList<string> Enabled);
 
+public sealed record WidgetModuleMetricBinding(
+    string PrimaryMetric,
+    string? SecondaryMetric,
+    IReadOnlyList<string> AdditionalMetrics);
+
 public static class WidgetModuleCatalog
 {
     public const string Cpu = "cpu";
@@ -118,6 +123,33 @@ public static class WidgetModuleCatalog
                     ? Math.Clamp(decimals, 0, 3)
                     : null
             };
+        }
+
+        return result;
+    }
+
+    public static IReadOnlyDictionary<string, WidgetModuleMetricBinding> GetMetricBindings(
+        IEnumerable<ModuleSettings> modules)
+    {
+        ArgumentNullException.ThrowIfNull(modules);
+        var result = new Dictionary<string, WidgetModuleMetricBinding>(StringComparer.Ordinal);
+        foreach (var module in modules.OrderBy(module => module.Order))
+        {
+            string? key = MapCoreModule(module);
+            if (key is null)
+            {
+                continue;
+            }
+
+            result[key] = new WidgetModuleMetricBinding(
+                module.PrimaryMetric.Value,
+                module.SecondaryMetric?.Value,
+                (module.AdditionalMetrics ?? [])
+                    .Where(item => !string.IsNullOrWhiteSpace(item.Value))
+                    .Select(item => item.Value)
+                    .Distinct(StringComparer.Ordinal)
+                    .Take(3)
+                    .ToArray());
         }
 
         return result;

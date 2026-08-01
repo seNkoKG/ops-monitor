@@ -217,6 +217,8 @@ public static class WidgetSettingsStore
         settings.EnabledModules = [.. moduleConfiguration.Enabled];
         settings.ModulePresentation =
             WidgetModuleCatalog.GetPresentation(widget.Modules);
+        settings.ModuleMetricBindings =
+            WidgetModuleCatalog.GetMetricBindings(widget.Modules);
         settings.ShowBattery = settings.EnabledModules.Contains(
             WidgetModuleCatalog.Battery,
             StringComparer.Ordinal);

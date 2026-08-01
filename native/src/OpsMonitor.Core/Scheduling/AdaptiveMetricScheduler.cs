@@ -279,6 +279,11 @@ public sealed class AdaptiveMetricScheduler : IAsyncDisposable
                     ? failures + 1
                     : 0;
 
+                if (result.Descriptors.Count > 0)
+                {
+                    _store.RegisterDescriptors(result.Descriptors);
+                }
+
                 if (result.Samples.Count > 0)
                 {
                     _store.Apply(result.Samples);

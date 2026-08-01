@@ -368,6 +368,58 @@ public sealed class ProviderItem : ObservableObject
     }
 }
 
+public sealed class SensorCatalogItem : ObservableObject
+{
+    private bool _isPinned;
+
+    public SensorCatalogItem(
+        string metricId,
+        string name,
+        string hardware,
+        string sensorType,
+        string value,
+        string moduleId,
+        bool isPinned)
+    {
+        MetricId = metricId;
+        Name = name;
+        Hardware = hardware;
+        SensorType = sensorType;
+        Value = value;
+        ModuleId = moduleId;
+        _isPinned = isPinned;
+    }
+
+    public string MetricId { get; }
+    public string Name { get; }
+    public string Hardware { get; }
+    public string SensorType { get; }
+    public string Value { get; }
+    public string ModuleId { get; }
+    public string ModuleLabel => ModuleId switch
+    {
+        "cpu" => "CPU details",
+        "gpu" => "GPU details",
+        "ram" => "Memory details",
+        "disk" => "Storage details",
+        _ => "System details"
+    };
+
+    public event EventHandler? PinChanged;
+
+    public bool IsPinned
+    {
+        get => _isPinned;
+        set
+        {
+            if (SetProperty(ref _isPinned, value))
+            {
+                PinChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+    }
+}
+
 public sealed record ActivityItem(string Time, string Title, string Detail, string Icon, Brush Accent);
 
 public sealed class LayoutPreset : ObservableObject
@@ -432,6 +484,10 @@ public sealed record StudioAlertSnapshot(
     string Severity,
     bool Enabled);
 
+public sealed record StudioSensorPinSnapshot(
+    string MetricId,
+    string ModuleId);
+
 public sealed record StudioSettingsSnapshot(
     string Scene,
     string Layout,
@@ -461,4 +517,5 @@ public sealed record StudioSettingsSnapshot(
     IReadOnlyList<StudioSceneSnapshot>? Scenes = null,
     IReadOnlyList<StudioAlertSnapshot>? Alerts = null,
     bool DemoMetrics = true,
-    int SchemaVersion = 2);
+    int SchemaVersion = 3,
+    IReadOnlyList<StudioSensorPinSnapshot>? SensorPins = null);

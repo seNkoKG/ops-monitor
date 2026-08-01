@@ -94,6 +94,10 @@ public sealed class WidgetSettings
     public IReadOnlyDictionary<string, WidgetModulePresentation> ModulePresentation { get; set; } =
         new Dictionary<string, WidgetModulePresentation>(StringComparer.Ordinal);
 
+    [JsonIgnore]
+    public IReadOnlyDictionary<string, WidgetModuleMetricBinding> ModuleMetricBindings { get; set; } =
+        new Dictionary<string, WidgetModuleMetricBinding>(StringComparer.Ordinal);
+
     public double? Left { get; set; }
 
     public double? Top { get; set; }

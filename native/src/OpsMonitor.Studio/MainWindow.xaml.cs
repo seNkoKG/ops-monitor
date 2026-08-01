@@ -70,6 +70,9 @@ public partial class MainWindow : Window, IDisposable
         };
 
         PageHost.ContentTemplate = (DataTemplate)FindResource(key);
+        _ = Dispatcher.BeginInvoke(
+            DispatcherPriority.ContextIdle,
+            () => FindDescendantScrollViewer(PageHost)?.ScrollToTop());
 
         if (!animate || _viewModel.ReducedMotion)
         {
@@ -87,6 +90,26 @@ public partial class MainWindow : Window, IDisposable
         {
             EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
         });
+    }
+
+    private static ScrollViewer? FindDescendantScrollViewer(DependencyObject parent)
+    {
+        for (int index = 0; index < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            DependencyObject child = System.Windows.Media.VisualTreeHelper.GetChild(parent, index);
+            if (child is ScrollViewer scrollViewer)
+            {
+                return scrollViewer;
+            }
+
+            ScrollViewer? nested = FindDescendantScrollViewer(child);
+            if (nested is not null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     private void OnNavigationSelectionChanged(object sender, SelectionChangedEventArgs e)

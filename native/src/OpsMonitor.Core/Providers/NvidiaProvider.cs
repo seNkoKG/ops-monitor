@@ -82,6 +82,24 @@ public sealed class NvidiaProvider : MetricProviderBase
             ExpectedMinimum = 0,
             ExpectedMaximum = 100,
             PreferredDecimals = 0
+        },
+        new()
+        {
+            Id = WellKnownMetrics.GpuClock,
+            DisplayName = "NVIDIA GPU graphics clock",
+            ShortName = "GPU clock",
+            Category = MetricCategory.Gpu,
+            Unit = MetricUnit.Hertz,
+            PreferredDecimals = 0
+        },
+        new()
+        {
+            Id = WellKnownMetrics.GpuMemoryClock,
+            DisplayName = "NVIDIA GPU memory clock",
+            ShortName = "VRAM clock",
+            Category = MetricCategory.Gpu,
+            Unit = MetricUnit.Hertz,
+            PreferredDecimals = 0
         }
     ];
 
@@ -230,7 +248,7 @@ public sealed class NvidiaProvider : MetricProviderBase
             {
                 FileName = executable,
                 Arguments =
-                    "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,power.draw,fan.speed " +
+                    "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,power.draw,fan.speed,clocks.gr,clocks.mem " +
                     "--format=csv,noheader,nounits",
                 UseShellExecute = false,
                 CreateNoWindow = true,
@@ -362,6 +380,20 @@ public sealed class NvidiaProvider : MetricProviderBase
                 values => values.Max(),
                 timestampUtc,
                 source,
+                tags),
+            Aggregate(
+                WellKnownMetrics.GpuClock,
+                readings.Select(reading => MegahertzToHertz(reading.GraphicsClockMegahertz)),
+                values => values.Max(),
+                timestampUtc,
+                source,
+                tags),
+            Aggregate(
+                WellKnownMetrics.GpuMemoryClock,
+                readings.Select(reading => MegahertzToHertz(reading.MemoryClockMegahertz)),
+                values => values.Max(),
+                timestampUtc,
+                source,
                 tags)
         ];
 
@@ -420,7 +452,7 @@ public sealed class NvidiaProvider : MetricProviderBase
                      StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var fields = line.Split(',', StringSplitOptions.TrimEntries);
-            if (fields.Length < 6)
+            if (fields.Length < 8)
             {
                 continue;
             }
@@ -431,7 +463,9 @@ public sealed class NvidiaProvider : MetricProviderBase
                 Multiply(ParseNullable(fields[2]), mebibyte),
                 Multiply(ParseNullable(fields[3]), mebibyte),
                 ParseNullable(fields[4]),
-                ParseNullable(fields[5])));
+                ParseNullable(fields[5]),
+                ParseNullable(fields[6]),
+                ParseNullable(fields[7])));
         }
 
         return readings;
@@ -451,6 +485,9 @@ public sealed class NvidiaProvider : MetricProviderBase
 
     private static double? Multiply(double? value, double multiplier) =>
         value.HasValue ? value.Value * multiplier : null;
+
+    private static double? MegahertzToHertz(double? value) =>
+        value.HasValue ? value.Value * 1_000_000d : null;
 
     private static ProviderPollResult MissingAll(
         DateTimeOffset timestampUtc,
@@ -518,7 +555,9 @@ public sealed class NvidiaProvider : MetricProviderBase
         double? MemoryUsedBytes,
         double? MemoryTotalBytes,
         double? PowerWatts,
-        double? FanPercent);
+        double? FanPercent,
+        double? GraphicsClockMegahertz,
+        double? MemoryClockMegahertz);
 
     private sealed class NvmlClient : IDisposable
     {
@@ -530,6 +569,7 @@ public sealed class NvidiaProvider : MetricProviderBase
         private readonly NvmlGetMemoryInfo _getMemoryInfo;
         private readonly NvmlGetUnsignedValue? _getPowerUsage;
         private readonly NvmlGetUnsignedValue? _getFanSpeed;
+        private readonly NvmlGetClockInfo? _getClockInfo;
         private readonly nint[] _devices;
         private bool _disposed;
 
@@ -541,6 +581,7 @@ public sealed class NvidiaProvider : MetricProviderBase
             NvmlGetMemoryInfo getMemoryInfo,
             NvmlGetUnsignedValue? getPowerUsage,
             NvmlGetUnsignedValue? getFanSpeed,
+            NvmlGetClockInfo? getClockInfo,
             nint[] devices)
         {
             _library = library;
@@ -550,6 +591,7 @@ public sealed class NvidiaProvider : MetricProviderBase
             _getMemoryInfo = getMemoryInfo;
             _getPowerUsage = getPowerUsage;
             _getFanSpeed = getFanSpeed;
+            _getClockInfo = getClockInfo;
             _devices = devices;
         }
 
@@ -636,6 +678,9 @@ public sealed class NvidiaProvider : MetricProviderBase
                     TryGetDelegate<NvmlGetUnsignedValue>(
                         library,
                         "nvmlDeviceGetFanSpeed"),
+                    TryGetDelegate<NvmlGetClockInfo>(
+                        library,
+                        "nvmlDeviceGetClockInfo"),
                     devices.ToArray());
                 return true;
             }
@@ -673,6 +718,8 @@ public sealed class NvidiaProvider : MetricProviderBase
                 var memory = new NvmlMemory();
                 uint power = 0;
                 uint fan = 0;
+                uint graphicsClock = 0;
+                uint memoryClock = 0;
 
                 var utilizationValue =
                     _getUtilization(device, ref utilization) == Success
@@ -691,6 +738,14 @@ public sealed class NvidiaProvider : MetricProviderBase
                                _getFanSpeed(device, ref fan) == Success
                     ? fan
                     : (uint?)null;
+                var graphicsClockValue = _getClockInfo is not null &&
+                                         _getClockInfo(device, 0, ref graphicsClock) == Success
+                    ? graphicsClock
+                    : (uint?)null;
+                var memoryClockValue = _getClockInfo is not null &&
+                                       _getClockInfo(device, 2, ref memoryClock) == Success
+                    ? memoryClock
+                    : (uint?)null;
 
                 collected.Add(new NvidiaReading(
                     utilizationValue,
@@ -698,7 +753,9 @@ public sealed class NvidiaProvider : MetricProviderBase
                     memoryAvailable ? memory.Used : null,
                     memoryAvailable ? memory.Total : null,
                     powerValue,
-                    fanValue));
+                    fanValue,
+                    graphicsClockValue,
+                    memoryClockValue));
             }
 
             readings = collected;
@@ -821,5 +878,11 @@ public sealed class NvidiaProvider : MetricProviderBase
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate int NvmlGetUnsignedValue(nint device, ref uint value);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate int NvmlGetClockInfo(
+            nint device,
+            uint clockType,
+            ref uint clockMegahertz);
     }
 }

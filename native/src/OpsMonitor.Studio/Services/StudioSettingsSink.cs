@@ -20,7 +20,7 @@ public interface IStudioSettingsSink : IDisposable
 
 public sealed class LocalStudioSettingsSink : IStudioSettingsSink
 {
-    internal const int CurrentSchemaVersion = 2;
+    internal const int CurrentSchemaVersion = 3;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -188,6 +188,14 @@ internal static class StudioSettingsMigration
                 {
                     Layout = NormalizeLayout(scene.Layout),
                 })
+                .ToArray(),
+            SensorPins = snapshot.SensorPins?
+                .Where(pin =>
+                    !string.IsNullOrWhiteSpace(pin.MetricId) &&
+                    pin.MetricId.StartsWith("hardware.", StringComparison.Ordinal) &&
+                    pin.ModuleId is "cpu" or "gpu" or "ram" or "disk")
+                .DistinctBy(pin => pin.MetricId, StringComparer.Ordinal)
+                .Take(12)
                 .ToArray(),
         };
     }

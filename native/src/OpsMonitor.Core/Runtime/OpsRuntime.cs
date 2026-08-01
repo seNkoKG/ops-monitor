@@ -13,9 +13,11 @@ public sealed record OpsRuntimeOptions
     public bool IncludeWindowsNativeProvider { get; init; } = true;
     public bool IncludeConnectivityProvider { get; init; } = true;
     public bool IncludeCpuTemperatureBridgeProvider { get; init; } = true;
+    public bool IncludeHardwareSensorBridgeProvider { get; init; } = true;
     public bool IncludeNvidiaProvider { get; init; } = true;
     public ConnectivityProviderOptions Connectivity { get; init; } = new();
     public CpuTemperatureBridgeOptions CpuTemperatureBridge { get; init; } = new();
+    public HardwareSensorBridgeOptions HardwareSensorBridge { get; init; } = new();
     public NvidiaProviderOptions Nvidia { get; init; } = new();
     public IReadOnlyList<IMetricProvider> AdditionalProviders { get; init; } = [];
 }
@@ -107,6 +109,11 @@ public sealed class OpsRuntime : IAsyncDisposable
         if (options.IncludeCpuTemperatureBridgeProvider)
         {
             providers.Add(new CpuTemperatureBridgeProvider(options.CpuTemperatureBridge));
+        }
+
+        if (options.IncludeHardwareSensorBridgeProvider)
+        {
+            providers.Add(new HardwareSensorBridgeProvider(options.HardwareSensorBridge));
         }
 
         if (options.IncludeNvidiaProvider)
@@ -289,16 +296,41 @@ public sealed class OpsRuntime : IAsyncDisposable
         ProviderBatchPolledEventArgs eventArgs)
     {
         var settings = Settings;
+        IEnumerable<MetricSample> historySamples = eventArgs.Samples.Where(sample =>
+            ShouldRecordHistory(settings, sample.MetricId));
         if (settings.DataRetention.RecordUnavailableSamples)
         {
-            History.AddRange(eventArgs.Samples);
+            History.AddRange(historySamples);
         }
         else
         {
-            History.AddRange(eventArgs.Samples.Where(sample => sample.HasUsableValue));
+            History.AddRange(historySamples.Where(sample => sample.HasUsableValue));
         }
 
         Alerts.Evaluate(eventArgs.Samples);
+    }
+
+    internal static bool ShouldRecordHistory(
+        OpsSettingsDocument settings,
+        MetricId metricId)
+    {
+        if (string.IsNullOrWhiteSpace(metricId.Value) ||
+            !metricId.Value.StartsWith("hardware.", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (settings.AlertRules.Any(rule => rule.MetricId == metricId))
+        {
+            return true;
+        }
+
+        return settings.Widgets
+            .SelectMany(widget => widget.Modules)
+            .Any(module =>
+                module.PrimaryMetric == metricId ||
+                module.SecondaryMetric == metricId ||
+                (module.AdditionalMetrics ?? []).Contains(metricId));
     }
 
     private static PerformanceProfileSettings? ResolveActivePerformanceProfile(

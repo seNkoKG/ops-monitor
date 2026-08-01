@@ -11,14 +11,19 @@ crowding the monitor itself.
 - `OpsMonitor.Widget.exe` — live Pill, Rail, Dock, and Mini overlays
 - `OpsMonitor.Studio.exe` — full visual settings and diagnostics workspace
 - `OpsMonitor.Core.dll` — telemetry, history, alerts, settings, and providers
-- `SensorBridge\OpsMonitor.SensorBridge.exe` — optional isolated CPU sensor
-  broker
+- `SensorBridge\OpsMonitor.SensorBridge.exe` — optional isolated, batched
+  hardware sensor broker
 - deterministic behavioral tests for the Core and sensor contracts
 
-Metrics include CPU and NVIDIA GPU load/temperature, memory usage, network
-download/upload, ping, jitter, rolling packet loss, uptime, and battery when the
-hardware exposes them. Missing or stale sensors are labeled honestly instead of
-being replaced with invented values.
+Metrics include CPU load/temperature/effective clock/package power; NVIDIA GPU
+load, temperature, VRAM, graphics and memory clocks, board power, and fan;
+memory usage; system-drive capacity, activity, temperature and health; network
+download/upload, ping, jitter and rolling packet loss; uptime; and battery when
+the hardware exposes them. Studio's searchable sensor browser can pin up to
+three optional temperatures, fans, clocks, voltages, power readings, or storage
+health values into each module's expanded details. Compact and Mini layouts stay
+curated. Missing or stale sensors are labeled honestly instead of being replaced
+with invented values.
 
 Settings are written atomically under `%LOCALAPPDATA%\OPS Monitor`:
 
@@ -136,13 +141,16 @@ PawnIO because another hardware-monitoring app may use it.
 - History is bounded and downsampled; rendering is coalesced to the selected UI
   cadence. Dragging and resizing do not restart telemetry providers.
 - NVIDIA data uses NVML first and a bounded `nvidia-smi` fallback.
-- CPU temperature is read from an isolated broker installed under
+- CPU temperature and optional low-level hardware sensors are read from one
+  isolated, batched broker installed under
   `%ProgramFiles%\OPS Monitor Sensor`. Widget and Studio remain non-elevated.
   The broker selects the real AMD `Core (Tctl/Tdie)` package/control sensor,
-  rejects zero or implausible values, and publishes only a value plus UTC
-  timestamp to the current user's read-only `Data\<SID>` folder beneath that
-  protected install. Expired samples become `TEMP N/A`; OPS Monitor never
-  presents an old or invented value as live.
+  rejects zero or implausible values, and publishes a compact, versioned sensor
+  snapshot to the current user's read-only `Data\<SID>` folder beneath that
+  protected install. Polls never overlap, dynamic sensor descriptors are stable,
+  and the UI reads the cached snapshot instead of probing hardware itself.
+  Expired samples become unavailable; OPS Monitor never presents an old or
+  invented value as live.
 - Launch-at-sign-in is a per-user value named `OPS Monitor Widget` under
   `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 - `Ctrl+Alt+O` returns a locked or click-through Widget to Edit mode.

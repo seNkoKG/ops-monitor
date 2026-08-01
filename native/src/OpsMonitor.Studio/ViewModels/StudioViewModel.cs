@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Text.Json;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -33,6 +34,8 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     private string _selectedLayout = "Pill";
     private string _activeScene = "Daily driver";
     private string _searchText = string.Empty;
+    private string _sensorSearchText = string.Empty;
+    private string _sensorCatalogStatus = "Waiting for the hardware broker";
     private double _backgroundOpacity = 0.82;
     private double _contentOpacity = 1;
     private double _blurStrength = 24;
@@ -123,13 +126,18 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             NewModule("ram", "Memory", "▤", "System", "Physical memory pressure", "Windows memory status", "#43E7D2", "15.4 / 30.9 GB", "50% used", 50),
             NewModule("net", "Network", "↕", "Network", "Download and upload throughput", "Active network adapter", "#62A7FF", "937K / 27K", "KB/s  ↓ / ↑", 36),
             NewModule("latency", "Latency", "⌁", "Network", "Ping, jitter and packet loss", "ICMP health probe", "#FFC95C", "26 ms", "0% loss · 3 ms jitter", 22),
-            NewModule("disk", "Storage", "◫", "Storage", "Disk activity and remaining capacity", "Optional provider", "#63E6A6", "8%", "1.2 TB free", 8, false),
+            NewModule("disk", "Storage", "◫", "Storage", "System capacity, activity, temperature and health", "Windows + protected hardware broker", "#63E6A6", "68%", "42° · SMART", 68, false),
             NewModule("battery", "Power", "▥", "Power", "Battery, draw and remaining time", "Windows power API", "#8EEA78", "86%", "2h 48m · 17 W", 86, false),
         };
 
         VisibleModulesView = new ListCollectionView(Modules)
         {
             Filter = item => item is ModuleItem module && module.IsVisible,
+        };
+        SensorCatalog = [];
+        SensorCatalogView = new ListCollectionView(SensorCatalog)
+        {
+            Filter = FilterSensorCatalog,
         };
         foreach (var module in Modules)
         {
@@ -151,7 +159,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             new("NVIDIA NVML", "GPU load, temperature, VRAM, power and fan", "Automatic", "Adaptive", "When supported", "Built in", false, Brush("#FF63E6A6")),
             CreateCpuTemperatureProviderItem(),
             new("Network quality", "Ping, jitter and rolling packet loss", "Enabled", "Adaptive", "3 quality metrics", "Built in", false, Brush("#FF63E6A6")),
-            new("LibreHardwareMonitor", "Additional temperatures, fans and voltage", "Not connected", "—", "0 metrics", "Optional connector", true, Brush("#FF778397")),
+            new("Hardware sensor catalog", "Batched temperatures, fans, clocks, power, voltage and storage health", "Automatic", "3 s poll / 6 s cache", "Protected broker", "Built in", true, Brush("#FF63E6A6")),
         };
 
         Activities = new ObservableCollection<ActivityItem>
@@ -185,6 +193,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         UndoCommand = new RelayCommand(_ => Undo(), _ => _undo.Count > 0);
         RedoCommand = new RelayCommand(_ => Redo(), _ => _redo.Count > 0);
         TestProviderCommand = new RelayCommand(TestProvider);
+        RefreshSensorsCommand = new RelayCommand(_ => RefreshSensorCatalog());
         CopyDiagnosticsCommand = new RelayCommand(_ => CopyDiagnostics());
         ResetDemoCommand = new RelayCommand(_ => ResetDemo());
         SaveCommand = new RelayCommand(_ => SaveSettings());
@@ -237,6 +246,8 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     public ListCollectionView VisibleModulesView { get; }
     public ObservableCollection<SceneItem> Scenes { get; }
     public ObservableCollection<ProviderItem> Providers { get; }
+    public ObservableCollection<SensorCatalogItem> SensorCatalog { get; }
+    public ListCollectionView SensorCatalogView { get; }
     public ObservableCollection<ActivityItem> Activities { get; }
     public IReadOnlyList<string> Visualizations { get; } =
         ["Number only", "Bar", "Sparkline", "Bar + sparkline"];
@@ -264,6 +275,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     public ICommand UndoCommand { get; }
     public ICommand RedoCommand { get; }
     public ICommand TestProviderCommand { get; }
+    public ICommand RefreshSensorsCommand { get; }
     public ICommand CopyDiagnosticsCommand { get; }
     public ICommand ResetDemoCommand { get; }
     public ICommand SaveCommand { get; }
@@ -367,6 +379,24 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 NavigationView.Refresh();
             }
         }
+    }
+
+    public string SensorSearchText
+    {
+        get => _sensorSearchText;
+        set
+        {
+            if (SetProperty(ref _sensorSearchText, value))
+            {
+                SensorCatalogView.Refresh();
+            }
+        }
+    }
+
+    public string SensorCatalogStatus
+    {
+        get => _sensorCatalogStatus;
+        private set => SetProperty(ref _sensorCatalogStatus, value);
     }
 
     public double BackgroundOpacity
@@ -751,6 +781,11 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             module.PropertyChanged -= OnModulePropertyChanged;
         }
 
+        foreach (var sensor in SensorCatalog)
+        {
+            sensor.PinChanged -= SensorPin_OnChanged;
+        }
+
         if (_runtimeSettingsWatcher is not null)
         {
             _runtimeSettingsWatcher.ReloadRequested -=
@@ -867,6 +902,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 module.IsVisible = snapshot.VisibleModules.Contains(module.Id);
             }
             ApplyModuleSnapshots(snapshot.Modules);
+            RefreshSensorCatalog(snapshot.SensorPins ?? []);
 
             if (snapshot.Scenes is not null)
             {
@@ -1146,6 +1182,10 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         provider.Status = result.Status;
         provider.Latency = result.Detail;
         provider.StatusBrush = Brush(result.IsAvailable ? "#FF63E6A6" : "#FFFFC95C");
+        if (provider.Name.Equals("Hardware sensor catalog", StringComparison.Ordinal))
+        {
+            RefreshSensorCatalog();
+        }
         StatusMessage = $"{provider.Name}: {result.Status}";
     }
 
@@ -1159,7 +1199,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             "NVIDIA NVML" => ProbeNvidia(),
             "CPU temperature sensor" => ProbeCpuTemperatureBridge(),
             "Network quality" => ProbeNetwork(),
-            "LibreHardwareMonitor" => ProbeOptionalProcess("LibreHardwareMonitor"),
+            "Hardware sensor catalog" => ProbeHardwareSensorCatalog(),
             _ => new ProviderProbeResult("Unknown provider", "No probe", false)
         };
 
@@ -1255,6 +1295,43 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         }
     }
 
+    private static ProviderProbeResult ProbeHardwareSensorCatalog()
+    {
+        string path = HardwareSensorBridgeProvider.GetDefaultSnapshotPath();
+        if (!File.Exists(path))
+        {
+            return new ProviderProbeResult(
+                "Waiting",
+                "Open the widget to start the protected hardware broker",
+                false);
+        }
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(path));
+            JsonElement root = document.RootElement;
+            int count = root.TryGetProperty("sensors", out JsonElement sensors) &&
+                        sensors.ValueKind == JsonValueKind.Array
+                ? sensors.GetArrayLength()
+                : 0;
+            DateTimeOffset timestamp = root.TryGetProperty("timestampUtc", out JsonElement time) &&
+                                       time.TryGetDateTimeOffset(out DateTimeOffset parsed)
+                ? parsed
+                : DateTimeOffset.MinValue;
+            TimeSpan age = DateTimeOffset.UtcNow - timestamp;
+            bool live = count > 0 && age <= TimeSpan.FromSeconds(20);
+            return new ProviderProbeResult(
+                live ? "Available" : "Stale",
+                $"{count} sensors · {Math.Max(0, age.TotalSeconds):0} s old",
+                live);
+        }
+        catch (Exception exception) when (
+            exception is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return new ProviderProbeResult("Invalid snapshot", exception.Message, false);
+        }
+    }
+
     private static ProviderProbeResult ProbeNetwork()
     {
         using var ping = new System.Net.NetworkInformation.Ping();
@@ -1270,24 +1347,6 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 false);
     }
 
-    private static ProviderProbeResult ProbeOptionalProcess(string processName)
-    {
-        var processes = Process.GetProcessesByName(processName);
-        try
-        {
-            return processes.Length > 0
-                ? new ProviderProbeResult("Detected", "Connector not enabled", false)
-                : new ProviderProbeResult("Not connected", "Process not detected", false);
-        }
-        finally
-        {
-            foreach (var process in processes)
-            {
-                process.Dispose();
-            }
-        }
-    }
-
     private static string FormatAge(TimeSpan age) =>
         age.TotalHours >= 1
             ? $"{age.TotalHours:0.#} h"
@@ -1299,6 +1358,190 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         string Status,
         string Detail,
         bool IsAvailable);
+
+    private bool FilterSensorCatalog(object item)
+    {
+        if (item is not SensorCatalogItem sensor ||
+            string.IsNullOrWhiteSpace(SensorSearchText))
+        {
+            return true;
+        }
+
+        return sensor.Name.Contains(SensorSearchText, StringComparison.OrdinalIgnoreCase) ||
+               sensor.Hardware.Contains(SensorSearchText, StringComparison.OrdinalIgnoreCase) ||
+               sensor.SensorType.Contains(SensorSearchText, StringComparison.OrdinalIgnoreCase) ||
+               sensor.ModuleLabel.Contains(SensorSearchText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void RefreshSensorCatalog(
+        IReadOnlyList<StudioSensorPinSnapshot>? requestedPins = null)
+    {
+        var pins = requestedPins is null
+            ? SensorCatalog.Where(item => item.IsPinned)
+                .ToDictionary(item => item.MetricId, item => item.ModuleId, StringComparer.Ordinal)
+            : requestedPins
+                .Where(item => !string.IsNullOrWhiteSpace(item.MetricId))
+                .GroupBy(item => item.MetricId, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First().ModuleId, StringComparer.Ordinal);
+
+        foreach (SensorCatalogItem item in SensorCatalog)
+        {
+            item.PinChanged -= SensorPin_OnChanged;
+        }
+        SensorCatalog.Clear();
+
+        string path = HardwareSensorBridgeProvider.GetDefaultSnapshotPath();
+        if (!File.Exists(path))
+        {
+            SensorCatalogStatus = "No catalog yet. Open the widget; its broker will publish sensors automatically.";
+            return;
+        }
+
+        try
+        {
+            using var stream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            using JsonDocument document = JsonDocument.Parse(stream);
+            if (!document.RootElement.TryGetProperty("sensors", out JsonElement sensors) ||
+                sensors.ValueKind != JsonValueKind.Array)
+            {
+                throw new JsonException("Sensor array is missing.");
+            }
+
+            foreach (JsonElement sensor in sensors.EnumerateArray())
+            {
+                string identifier = JsonString(sensor, "sensorIdentifier");
+                string name = JsonString(sensor, "sensorName");
+                string hardware = JsonString(sensor, "hardwareName");
+                string hardwareType = JsonString(sensor, "hardwareType");
+                string sensorType = JsonString(sensor, "sensorType");
+                if (string.IsNullOrWhiteSpace(identifier) ||
+                    string.IsNullOrWhiteSpace(name) ||
+                    string.IsNullOrWhiteSpace(sensorType))
+                {
+                    continue;
+                }
+
+                string metricId = HardwareSensorBridgeProvider.GetMetricId(identifier).Value;
+                string moduleId = pins.TryGetValue(metricId, out string? pinnedModule)
+                    ? NormalizeSensorModule(pinnedModule)
+                    : SuggestSensorModule(hardwareType, identifier);
+                double? value = sensor.TryGetProperty("value", out JsonElement valueElement) &&
+                                valueElement.TryGetDouble(out double parsedValue)
+                    ? parsedValue
+                    : null;
+                var item = new SensorCatalogItem(
+                    metricId,
+                    name,
+                    hardware,
+                    sensorType,
+                    FormatSensorValue(sensorType, value),
+                    moduleId,
+                    pins.ContainsKey(metricId));
+                item.PinChanged += SensorPin_OnChanged;
+                SensorCatalog.Add(item);
+            }
+
+            SensorCatalogStatus = SensorCatalog.Count == 0
+                ? "The broker is live but exposed no compatible sensors."
+                : $"{SensorCatalog.Count} sensors · pin up to 3 details per module";
+            SensorCatalogView.Refresh();
+        }
+        catch (Exception exception) when (
+            exception is IOException or JsonException or UnauthorizedAccessException)
+        {
+            SensorCatalogStatus = $"Catalog unavailable: {exception.Message}";
+        }
+    }
+
+    private void SensorPin_OnChanged(object? sender, EventArgs eventArgs)
+    {
+        _ = sender;
+        _ = eventArgs;
+        if (_isRestoring)
+        {
+            return;
+        }
+
+        if (sender is SensorCatalogItem { IsPinned: true } pinned &&
+            SensorCatalog.Count(item =>
+                item.IsPinned &&
+                item.ModuleId.Equals(pinned.ModuleId, StringComparison.Ordinal)) > 3)
+        {
+            pinned.PinChanged -= SensorPin_OnChanged;
+            pinned.IsPinned = false;
+            pinned.PinChanged += SensorPin_OnChanged;
+            SensorCatalogStatus = $"{pinned.ModuleLabel} already has the maximum 3 optional details.";
+            return;
+        }
+
+        QueueLiveApply();
+        SensorCatalogStatus = $"{SensorCatalog.Count(item => item.IsPinned)} sensor details pinned";
+    }
+
+    private static string JsonString(JsonElement element, string propertyName) =>
+        element.TryGetProperty(propertyName, out JsonElement property) &&
+        property.ValueKind == JsonValueKind.String
+            ? property.GetString() ?? string.Empty
+            : string.Empty;
+
+    private static string SuggestSensorModule(string hardwareType, string identifier)
+    {
+        string value = $"{hardwareType} {identifier}".ToLowerInvariant();
+        if (value.Contains("gpu"))
+        {
+            return "gpu";
+        }
+        if (value.Contains("storage") || value.Contains("nvme"))
+        {
+            return "disk";
+        }
+        if (value.Contains("memory"))
+        {
+            return "ram";
+        }
+        return "cpu";
+    }
+
+    private static string NormalizeSensorModule(string value) =>
+        value is "cpu" or "gpu" or "ram" or "disk" ? value : "cpu";
+
+    private static string FormatSensorValue(string sensorType, double? value)
+    {
+        if (value is not { } actual || !double.IsFinite(actual))
+        {
+            return "N/A";
+        }
+
+        return sensorType.ToLowerInvariant() switch
+        {
+            "temperature" => $"{actual:0.#} °C",
+            "load" or "level" or "control" => $"{actual:0.#}%",
+            "clock" or "frequency" => $"{actual:0} MHz",
+            "power" => $"{actual:0.#} W",
+            "voltage" => $"{actual:0.###} V",
+            "fan" => $"{actual:0} RPM",
+            "data" => $"{actual:0.##} GB",
+            "smalldata" => $"{actual:0.##} MB",
+            "throughput" => FormatSensorRate(actual),
+            _ => actual.ToString("0.##", CultureInfo.InvariantCulture)
+        };
+    }
+
+    private static string FormatSensorRate(double bytesPerSecond)
+    {
+        var magnitude = Math.Abs(bytesPerSecond);
+        return magnitude switch
+        {
+            >= 1_000_000_000d => $"{bytesPerSecond / 1_000_000_000d:0.##} GB/s",
+            >= 1_000_000d => $"{bytesPerSecond / 1_000_000d:0.##} MB/s",
+            >= 1_000d => $"{bytesPerSecond / 1_000d:0.##} KB/s",
+            _ => $"{bytesPerSecond:0} B/s"
+        };
+    }
 
     private void CopyDiagnostics()
     {
@@ -1363,6 +1606,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         }
 
         ActiveScene = "Daily driver";
+        RefreshSensorCatalog([]);
         SelectedModule = Modules[0];
         ApplyTheme(Themes[0]);
         ApplyLayoutMetrics();
@@ -1582,7 +1826,15 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 item.Layout,
                 item.IsActive)).ToArray(),
             null,
-            DemoMetrics);
+            DemoMetrics,
+            LocalStudioSettingsSink.CurrentSchemaVersion,
+            SensorCatalog.Where(item => item.IsPinned)
+                .GroupBy(item => item.ModuleId, StringComparer.Ordinal)
+                .SelectMany(group => group.Take(3))
+                .Select(item => new StudioSensorPinSnapshot(
+                    item.MetricId,
+                    item.ModuleId))
+                .ToArray());
     }
 
     private void RefreshPreviewBrushes()

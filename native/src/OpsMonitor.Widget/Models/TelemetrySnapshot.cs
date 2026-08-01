@@ -1,3 +1,5 @@
+using OpsMonitor.Core.Metrics;
+
 namespace OpsMonitor.Widget.Models;
 
 public enum SensorState
@@ -41,9 +43,9 @@ public sealed record NetworkTelemetry(
     SensorState ConnectivityState = SensorState.Available);
 
 public sealed record StorageTelemetry(
-    double UsedPercent,
-    double ReadBytesPerSecond,
-    double WriteBytesPerSecond,
+    double? UsedPercent,
+    double? ReadBytesPerSecond,
+    double? WriteBytesPerSecond,
     double? TemperatureCelsius,
     string Health,
     SensorState State = SensorState.Available);
@@ -55,6 +57,13 @@ public sealed record BatteryTelemetry(
     double? DrawWatts,
     SensorState State);
 
+public sealed record GenericMetricTelemetry(
+    string Id,
+    string DisplayName,
+    double? Value,
+    MetricUnit Unit,
+    SensorState State);
+
 public sealed record TelemetrySnapshot(
     DateTimeOffset CapturedAt,
     CpuTelemetry Cpu,
@@ -62,4 +71,5 @@ public sealed record TelemetrySnapshot(
     MemoryTelemetry Memory,
     NetworkTelemetry Network,
     StorageTelemetry Storage,
-    BatteryTelemetry Battery);
+    BatteryTelemetry Battery,
+    IReadOnlyDictionary<string, GenericMetricTelemetry>? Metrics = null);

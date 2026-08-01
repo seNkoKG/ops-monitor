@@ -29,12 +29,14 @@ var tests = new (string Name, Func<Task> Run)[]
     ("invalid and future CPU bridge readings are rejected", TestInvalidCpuTemperatureAsync),
     ("CPU bridge defaults to protected per-user sensor data", TestCpuBridgeDefaultPathAsync),
     ("history is bounded and downsamples deterministically", TestHistoryAsync),
+    ("optional hardware history is retained only when selected", TestSelectedHardwareHistoryAsync),
     ("alerts honor pending, hysteresis, and cooldown", TestAlertsAsync),
     ("settings save atomically and round-trip", TestSettingsRoundTripAsync),
     ("future settings schemas remain read-only", TestFutureSettingsSchemaAsync),
     ("explicit null settings members fall back safely", TestNullSettingsMembersAsync),
     ("Studio settings migrate safely and save atomically", TestStudioSettingsMigrationAsync),
     ("Studio mapping preserves interaction and independent modules", TestStudioRuntimeMappingAsync),
+    ("Studio sensor pins and alerts reach the live runtime", TestStudioSensorPinMappingAsync),
     ("Studio merges concurrent edits without losing widget changes", TestStudioConflictMergeAsync),
     ("Studio controls support complete undo and valid command states", TestStudioControlSemanticsAsync),
     ("legacy null metric ids are repaired safely", TestLegacyMetricIdRepairAsync),
@@ -215,7 +217,7 @@ static async Task TestStudioSettingsMigrationAsync()
         store.Save(migrated);
         var roundTrip = store.Reload() ??
             throw new InvalidOperationException("saved Studio settings were not reloaded");
-        Assert.Equal(2, roundTrip.SchemaVersion, "Studio schema version");
+        Assert.Equal(3, roundTrip.SchemaVersion, "Studio schema version");
         Assert.False(
             Directory.EnumerateFiles(directory.FullName, "*.tmp").Any(),
             "temporary Studio settings file leaked");
@@ -645,6 +647,79 @@ static async Task TestStaleCpuTemperatureAsync()
     {
         directory.Delete(recursive: true);
     }
+}
+
+static Task TestSelectedHardwareHistoryAsync()
+{
+    var dynamicMetric = HardwareSensorBridgeProvider.GetMetricId("/amdcpu/0/power/0");
+    OpsSettingsDocument defaults = OpsSettingsDocument.CreateDefault();
+    Assert.False(
+        OpsRuntime.ShouldRecordHistory(defaults, dynamicMetric),
+        "an unpinned optional sensor would grow history indefinitely");
+    Assert.True(
+        OpsRuntime.ShouldRecordHistory(defaults, WellKnownMetrics.CpuTemperature),
+        "a curated metric was excluded from history");
+
+    WidgetInstanceSettings widget = defaults.Widgets[0] with
+    {
+        Modules = defaults.Widgets[0].Modules.Select(module =>
+            module.Id == "module-cpu"
+                ? module with { AdditionalMetrics = [dynamicMetric] }
+                : module).ToList()
+    };
+    OpsSettingsDocument pinned = defaults with { Widgets = [widget] };
+    Assert.True(
+        OpsRuntime.ShouldRecordHistory(pinned, dynamicMetric),
+        "a pinned optional sensor was excluded from history");
+    return Task.CompletedTask;
+}
+
+static Task TestStudioSensorPinMappingAsync()
+{
+    string sensorMetric = HardwareSensorBridgeProvider
+        .GetMetricId("/amdcpu/0/power/0")
+        .Value;
+    var snapshot = CreateStudioSnapshot() with
+    {
+        Modules =
+        [
+            new StudioModuleSnapshot(
+                "cpu", "CPU", 0, true, "Large", "Bar + sparkline",
+                true, true, true, "Whole numbers", "cpu", "#FF43E7F5")
+        ],
+        SensorPins = [new StudioSensorPinSnapshot(sensorMetric, "cpu")],
+        Alerts =
+        [
+            new StudioAlertSnapshot(
+                "cpu-hot", "CPU hot", "CPU temperature", "above",
+                "85", "10 seconds", "Critical", true)
+        ]
+    };
+
+    OpsSettingsDocument mapped = StudioCoreSettingsSink.MapRuntime(
+        snapshot,
+        OpsSettingsDocument.CreateDefault());
+    ModuleSettings cpu = mapped.Widgets
+        .SelectMany(item => item.Modules)
+        .Single(item => item.Id == "module-cpu");
+    Assert.SequenceEqual(
+        [sensorMetric],
+        cpu.AdditionalMetrics.Select(item => item.Value),
+        "pinned hardware sensor never reached the CPU module");
+
+    WidgetSettings widget = WidgetSettingsStore.MergeCoreSettings(
+        new WidgetSettings(),
+        mapped);
+    Assert.SequenceEqual(
+        [sensorMetric],
+        widget.ModuleMetricBindings[WidgetModuleCatalog.Cpu].AdditionalMetrics,
+        "widget discarded pinned module metrics");
+
+    AlertRule alert = mapped.AlertRules.Single(item => item.Name == "CPU hot");
+    Assert.Equal(WellKnownMetrics.CpuTemperature, alert.MetricId, "alert metric mapping");
+    Assert.Equal(85d, alert.Threshold, "alert threshold mapping");
+    Assert.True(alert.Enabled, "alert enabled state mapping");
+    return Task.CompletedTask;
 }
 
 static async Task TestInvalidCpuTemperatureAsync()

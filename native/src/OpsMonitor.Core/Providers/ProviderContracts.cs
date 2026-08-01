@@ -28,6 +28,7 @@ public sealed record ProviderHealth
 public sealed record ProviderPollResult
 {
     public required IReadOnlyList<MetricSample> Samples { get; init; }
+    public IReadOnlyList<MetricDescriptor> Descriptors { get; init; } = [];
     public ProviderHealthState HealthState { get; init; } = ProviderHealthState.Healthy;
     public MetricUnavailableReason Reason { get; init; }
     public string Message { get; init; } = string.Empty;
