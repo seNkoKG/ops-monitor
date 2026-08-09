@@ -3,7 +3,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/seNkoKG/ops-monitor/actions/workflows/ci.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/seNkoKG/ops-monitor/ci.yml?branch=main&style=flat-square&label=build"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-38C9FF?style=flat-square">
   <img alt="Framework" src="https://img.shields.io/badge/.NET-10.0-7655D9?style=flat-square">
   <img alt="UI" src="https://img.shields.io/badge/UI-Native%20WPF-63F6D8?style=flat-square&labelColor=111827">
