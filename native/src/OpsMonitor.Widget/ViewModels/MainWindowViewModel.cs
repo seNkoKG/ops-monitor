@@ -86,6 +86,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     ];
 
     private readonly ITelemetrySource _telemetrySource;
+    private readonly WeatherService _weatherService;
     private IReadOnlyList<ThemeDefinition> _themes;
     private readonly Dictionary<string, MetricCardViewModel> _metricIndex;
     private readonly List<AdditionalMetricSlot> _additionalMetricSlots = [];
@@ -97,6 +98,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     private bool _draggable;
     private bool _resizable;
     private bool _showBattery;
+    private bool _showWeather;
     private bool _startAtSignIn;
     private int _scalePercent;
     private double _updateCadenceSeconds;
@@ -149,11 +151,23 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         _draggable = settings.Draggable;
         _resizable = settings.Resizable;
         _showBattery = settings.ShowBattery;
+        _showWeather = settings.ShowWeather;
         _startAtSignIn = settings.StartAtSignIn;
         _scalePercent = Math.Clamp(settings.ScalePercent, 80, 160);
         _updateCadenceSeconds = NormalizeUpdateCadence(settings.UpdateCadenceSeconds);
         _surfaceOpacity = Math.Clamp(settings.SurfaceOpacity, 0.08, 1);
         _contentOpacity = Math.Clamp(settings.ContentOpacity, 0.82, 1);
+        WeatherLocation = new WeatherLocation(
+            settings.WeatherLocationName,
+            settings.WeatherCountry,
+            settings.WeatherLatitude,
+            settings.WeatherLongitude,
+            settings.WeatherTimeZone,
+            settings.WeatherArsoStationCode);
+        WeatherRefreshMinutes = Math.Clamp(settings.WeatherRefreshMinutes, 5, 60);
+        _weatherService = new WeatherService(
+            WeatherLocation,
+            TimeSpan.FromMinutes(WeatherRefreshMinutes));
 
         MetricCardViewModel[] metrics =
         [
@@ -163,7 +177,8 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
             CreateNetworkMetric(),
             CreateLatencyMetric(),
             CreateStorageMetric(),
-            CreateBatteryMetric()
+            CreateBatteryMetric(),
+            CreateWeatherMetric()
         ];
         Metrics = new ObservableCollection<MetricCardViewModel>(metrics);
         _metricIndex = metrics.ToDictionary(metric => metric.Key, StringComparer.Ordinal);
@@ -185,6 +200,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         _telemetrySource.SetUpdateCadence(
             TimeSpan.FromSeconds(_updateCadenceSeconds));
         _telemetrySource.SnapshotAvailable += OnSnapshotAvailable;
+        _weatherService.SnapshotAvailable += OnWeatherSnapshotAvailable;
     }
 
     public event EventHandler? TelemetryUpdated;
@@ -192,6 +208,12 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     public ObservableCollection<MetricCardViewModel> Metrics { get; }
 
     public ITelemetrySource TelemetrySource => _telemetrySource;
+
+    public WeatherService WeatherService => _weatherService;
+
+    public WeatherLocation WeatherLocation { get; private set; }
+
+    public int WeatherRefreshMinutes { get; }
 
     public IReadOnlyList<WidgetLayout> LayoutOptions { get; } = Enum.GetValues<WidgetLayout>();
 
@@ -216,6 +238,8 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     public MetricCardViewModel BatteryMetric => _metricIndex["battery"];
 
     public MetricCardViewModel StorageMetric => _metricIndex["storage"];
+
+    public MetricCardViewModel WeatherMetric => _metricIndex[WidgetModuleCatalog.Weather];
 
     public int VisibleModuleCount => Metrics.Count(metric => metric.IsVisible);
 
@@ -447,6 +471,23 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _isSettingsOpen, value);
     }
 
+    public bool ShowWeather
+    {
+        get => _showWeather;
+        set
+        {
+            if (!SetProperty(ref _showWeather, value))
+            {
+                return;
+            }
+
+            if (_metricIndex.TryGetValue(WidgetModuleCatalog.Weather, out var weather))
+            {
+                weather.IsVisible = value;
+            }
+        }
+    }
+
     public string LastUpdatedText
     {
         get => _lastUpdatedText;
@@ -543,7 +584,19 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _useTabularNumbers, value);
     }
 
-    public void Start() => _telemetrySource.Start();
+    public void Start()
+    {
+        _telemetrySource.Start();
+        _weatherService.Start();
+    }
+
+    public async Task SetWeatherLocationAsync(WeatherLocation location)
+    {
+        ArgumentNullException.ThrowIfNull(location);
+        WeatherLocation = location;
+        OnPropertyChanged(nameof(WeatherLocation));
+        await _weatherService.SetLocationAsync(location).ConfigureAwait(false);
+    }
 
     public void ApplyThemeConfiguration(
         string themeName,
@@ -610,6 +663,10 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
             ref _showBattery,
             enabledKeys.Contains(WidgetModuleCatalog.Battery),
             nameof(ShowBattery));
+        _ = SetProperty(
+            ref _showWeather,
+            enabledKeys.Contains(WidgetModuleCatalog.Weather),
+            nameof(ShowWeather));
         OnPropertyChanged(nameof(VisibleModuleCount));
     }
 
@@ -648,12 +705,14 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         _disposed = true;
         _telemetrySource.SnapshotAvailable -= OnSnapshotAvailable;
+        _weatherService.SnapshotAvailable -= OnWeatherSnapshotAvailable;
         foreach (var metric in Metrics)
         {
             metric.PropertyChanged -= Metric_OnPropertyChanged;
         }
 
         _telemetrySource.Dispose();
+        _weatherService.Dispose();
     }
 
     private void Metric_OnPropertyChanged(
@@ -742,6 +801,49 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
             SemanticAccent.Memory);
         metric.ConfigureDetails(("STATE", true), ("RUNTIME", true), ("DRAW", false));
         return metric;
+    }
+
+    private static MetricCardViewModel CreateWeatherMetric()
+    {
+        var metric = new MetricCardViewModel(
+            WidgetModuleCatalog.Weather,
+            "WEATHER",
+            ParseGeometry("M7,17 A5,5 0 1 1 10,8 A7,7 0 0 1 23,11 A4,4 0 0 1 20,18 L7,18 Z M4,4 L4,7 M1,9 L4,9 M7,2 L7,5"),
+            SemanticAccent.Weather);
+        metric.ConfigureDetails(("RAIN", true), ("WIND", true), ("HUMIDITY", false));
+        return metric;
+    }
+
+    private void OnWeatherSnapshotAvailable(object? sender, WeatherSnapshot snapshot)
+    {
+        _ = sender;
+        var application = Application.Current;
+        if (application is null || application.Dispatcher.CheckAccess())
+        {
+            ApplyWeatherSnapshot(snapshot);
+            return;
+        }
+
+        _ = application.Dispatcher.BeginInvoke(() => ApplyWeatherSnapshot(snapshot));
+    }
+
+    private void ApplyWeatherSnapshot(WeatherSnapshot snapshot)
+    {
+        var metric = _metricIndex[WidgetModuleCatalog.Weather];
+        metric.PrimaryValue = snapshot.TemperatureLabel;
+        metric.Progress = snapshot.PrecipitationProbability;
+        metric.IsProgressAvailable = true;
+        metric.State = snapshot.IsStale
+            ? SensorState.Stale
+            : snapshot.Alert is { Level: >= 2, IsActive: true }
+                ? SensorState.Warning
+                : SensorState.Available;
+        metric.Status = $"{snapshot.Location.Name} · {snapshot.Condition} · click for forecast and radar";
+        metric.SetDetailValues(
+            (snapshot.RainLabel, true),
+            (snapshot.WindLabel, true),
+            (snapshot.HumidityLabel, true));
+        metric.PushSample(snapshot.TemperatureCelsius, 42);
     }
 
     private void OnSnapshotAvailable(object? sender, TelemetrySnapshot snapshot)

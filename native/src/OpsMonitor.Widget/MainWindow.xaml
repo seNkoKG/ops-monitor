@@ -717,7 +717,9 @@
                                 <DataTemplate>
                                     <controls:MetricCard Layout="{Binding DataContext.Layout, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                          Density="{Binding DataContext.Density, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                                                         ContentOpacity="{Binding DataContext.ContentOpacity, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                                                         ContentOpacity="{Binding DataContext.ContentOpacity, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                         PreviewMouseLeftButtonDown="MetricCard_OnPreviewMouseLeftButtonDown"
+                                                         PreviewMouseLeftButtonUp="MetricCard_OnPreviewMouseLeftButtonUp" />
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -817,7 +819,9 @@
                                 <DataTemplate>
                                     <controls:MetricCard Layout="{Binding DataContext.Layout, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                          Density="{x:Static models:WidgetDensity.Compact}"
-                                                         ContentOpacity="{Binding DataContext.ContentOpacity, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                                                         ContentOpacity="{Binding DataContext.ContentOpacity, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                         PreviewMouseLeftButtonDown="MetricCard_OnPreviewMouseLeftButtonDown"
+                                                         PreviewMouseLeftButtonUp="MetricCard_OnPreviewMouseLeftButtonUp" />
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -1108,6 +1112,17 @@
                                   Content="Show battery module"
                                   IsChecked="{Binding ShowBattery, Mode=TwoWay}"
                                   Style="{StaticResource SettingToggleStyle}" />
+
+                    <UniformGrid Margin="0,0,0,14" Columns="2">
+                        <ToggleButton Margin="0,0,5,0"
+                                      Content="Show weather"
+                                      IsChecked="{Binding ShowWeather, Mode=TwoWay}"
+                                      Style="{StaticResource SettingToggleStyle}" />
+                        <Button Margin="5,0,0,0"
+                                Click="OpenWeatherButton_OnClick"
+                                Content="Forecast &amp; radar"
+                                Style="{StaticResource ActionButtonStyle}" />
+                    </UniformGrid>
 
                     <TextBlock Margin="0,0,0,7"
                                Style="{StaticResource SettingLabelStyle}"

@@ -47,7 +47,8 @@ internal enum SemanticAccent
     Gpu,
     Memory,
     Network,
-    Latency
+    Latency,
+    Weather
 }
 
 public sealed class WidgetSettings
@@ -67,6 +68,22 @@ public sealed class WidgetSettings
     public bool Resizable { get; set; } = true;
 
     public bool ShowBattery { get; set; }
+
+    public bool ShowWeather { get; set; } = true;
+
+    public string WeatherLocationName { get; set; } = "Celje";
+
+    public string WeatherCountry { get; set; } = "Slovenia";
+
+    public double WeatherLatitude { get; set; } = 46.2366;
+
+    public double WeatherLongitude { get; set; } = 15.2259;
+
+    public string WeatherTimeZone { get; set; } = "Europe/Ljubljana";
+
+    public string? WeatherArsoStationCode { get; set; } = "CELJE_MEDLOG";
+
+    public int WeatherRefreshMinutes { get; set; } = 10;
 
     public List<string> ModuleOrder { get; set; } =
         WidgetModuleCatalog.CreateDefaultOrder();

@@ -65,10 +65,10 @@ public static class WidgetSizingPolicy
             effectiveDensity == WidgetDensity.Compact &&
             scale < 1)
         {
-            // Mini swaps to 28px rows and a reduced header below 100%. Keep
-            // the shell at the exact readable floor instead of clipping the
-            // fifth row as the percentage footprint becomes smaller.
-            scaledHeight = Math.Max(176, scaledHeight);
+            // Mini swaps to 28px rows and a reduced header below 100%. Derive
+            // the floor from the live row count so optional modules never end
+            // up below the window edge.
+            scaledHeight = Math.Max(176, 36 + (modules * 28));
         }
 
         return new WidgetSizeRecommendation(

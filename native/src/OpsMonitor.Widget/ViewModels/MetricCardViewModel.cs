@@ -263,6 +263,7 @@ internal sealed class MetricCardViewModel : ObservableObject
             SemanticAccent.Memory => theme.MemoryAccent,
             SemanticAccent.Network => theme.NetworkAccent,
             SemanticAccent.Latency => theme.Warning,
+            SemanticAccent.Weather => theme.NetworkAccent,
             _ => theme.CpuAccent
         };
 

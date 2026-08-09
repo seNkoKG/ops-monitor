@@ -92,6 +92,27 @@ public static class WidgetSettingsStore
             ? Math.Clamp(settings.UpdateCadenceSeconds, 0.5, 10)
             : 1;
         settings.ScalePercent = Math.Clamp(settings.ScalePercent, 80, 160);
+        settings.WeatherRefreshMinutes = Math.Clamp(settings.WeatherRefreshMinutes, 5, 60);
+        settings.WeatherLatitude = double.IsFinite(settings.WeatherLatitude)
+            ? Math.Clamp(settings.WeatherLatitude, -90, 90)
+            : 46.2366;
+        settings.WeatherLongitude = double.IsFinite(settings.WeatherLongitude)
+            ? Math.Clamp(settings.WeatherLongitude, -180, 180)
+            : 15.2259;
+        if (string.IsNullOrWhiteSpace(settings.WeatherLocationName))
+        {
+            settings.WeatherLocationName = "Celje";
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.WeatherCountry))
+        {
+            settings.WeatherCountry = "Slovenia";
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.WeatherTimeZone))
+        {
+            settings.WeatherTimeZone = "Europe/Ljubljana";
+        }
 
         if (string.IsNullOrWhiteSpace(settings.Theme))
         {
@@ -107,6 +128,16 @@ public static class WidgetSettingsStore
             WidgetModuleCatalog.NormalizeOrder(settings.ModuleOrder);
         settings.EnabledModules =
             WidgetModuleCatalog.NormalizeEnabled(settings.EnabledModules);
+        if (settings.ShowWeather &&
+            !settings.EnabledModules.Contains(WidgetModuleCatalog.Weather, StringComparer.Ordinal))
+        {
+            settings.EnabledModules.Add(WidgetModuleCatalog.Weather);
+        }
+        else if (!settings.ShowWeather)
+        {
+            settings.EnabledModules.RemoveAll(key =>
+                StringComparer.Ordinal.Equals(key, WidgetModuleCatalog.Weather));
+        }
         if (settings.ShowBattery)
         {
             if (!settings.EnabledModules.Contains(
@@ -215,6 +246,10 @@ public static class WidgetSettingsStore
             WidgetModuleCatalog.FromCoreModules(widget.Modules);
         settings.ModuleOrder = [.. moduleConfiguration.Order];
         settings.EnabledModules = [.. moduleConfiguration.Enabled];
+        if (settings.ShowWeather)
+        {
+            settings.EnabledModules.Add(WidgetModuleCatalog.Weather);
+        }
         settings.ModulePresentation =
             WidgetModuleCatalog.GetPresentation(widget.Modules);
         settings.ModuleMetricBindings =

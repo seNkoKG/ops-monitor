@@ -21,6 +21,7 @@ public static class WidgetModuleCatalog
     public const string Latency = "latency";
     public const string Storage = "storage";
     public const string Battery = "battery";
+    public const string Weather = "weather";
 
     private static readonly string[] DefaultOrder =
     [
@@ -30,7 +31,8 @@ public static class WidgetModuleCatalog
         Network,
         Latency,
         Storage,
-        Battery
+        Battery,
+        Weather
     ];
 
     private static readonly HashSet<string> SupportedKeys =
@@ -39,7 +41,7 @@ public static class WidgetModuleCatalog
     public static List<string> CreateDefaultOrder() => [.. DefaultOrder];
 
     public static List<string> CreateDefaultEnabled() =>
-        [Cpu, Gpu, Memory, Network, Latency];
+        [Cpu, Gpu, Memory, Network, Latency, Weather];
 
     public static List<string> NormalizeOrder(IEnumerable<string>? keys)
     {

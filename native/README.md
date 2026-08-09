@@ -25,6 +25,14 @@ health values into each module's expanded details. Compact and Mini layouts stay
 curated. Missing or stale sensors are labeled honestly instead of being replaced
 with invented values.
 
+The optional Weather module adds a compact current-conditions row to the Widget.
+Opening it reveals a full local suite with hourly and eight-day forecasts,
+official ARSO warnings and animated Slovenia radar, air quality, pollutants,
+pollen, UV, sunrise, and sunset. Celje is the default location; location search
+and the last selection persist in Widget settings. Forecast and atmospheric
+data use Open-Meteo/CAMS, while Slovenian radar and warnings come from ARSO.
+Weather responses are cached and radar data is fetched only when its view opens.
+
 Settings are written atomically under `%LOCALAPPDATA%\OPS Monitor`:
 
 - `settings.json` — shared runtime configuration
@@ -140,6 +148,8 @@ PawnIO because another hardware-monitoring app may use it.
 - Telemetry providers run on adaptive, non-overlapping schedules.
 - History is bounded and downsampled; rendering is coalesced to the selected UI
   cadence. Dragging and resizing do not restart telemetry providers.
+- Weather refreshes on an independent low-frequency schedule, caches responses,
+  and never overlaps an in-flight network request.
 - NVIDIA data uses NVML first and a bounded `nvidia-smi` fallback.
 - CPU temperature and optional low-level hardware sensors are read from one
   isolated, batched broker installed under

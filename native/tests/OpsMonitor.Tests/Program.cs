@@ -42,6 +42,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("legacy null metric ids are repaired safely", TestLegacyMetricIdRepairAsync),
     ("invalid settings fall back without crashing", TestInvalidSettingsAsync),
     ("widget modules honor Core order and visibility", TestWidgetModulesAsync),
+    ("weather settings and ARSO feeds normalize safely", TestWeatherIntegrationAsync),
     ("widget battery changes preserve unrelated Core modules", TestWidgetBatterySaveAsync),
     ("widget module presentation saves without collapsing latency", TestWidgetModuleSaveAsync),
     ("widget sizing preserves classic footprints and expands by module count", TestWidgetSizingAsync),
@@ -1054,7 +1055,8 @@ static Task TestWidgetModulesAsync()
             WidgetModuleCatalog.Network,
             WidgetModuleCatalog.Latency,
             WidgetModuleCatalog.Battery,
-            WidgetModuleCatalog.Storage
+            WidgetModuleCatalog.Storage,
+            WidgetModuleCatalog.Weather
         ],
         configuration.Order,
         "supported module order");
@@ -1078,6 +1080,51 @@ static Task TestWidgetModulesAsync()
             WidgetModuleCatalog.Network,
             StringComparer.Ordinal),
         "disabled network module was incorrectly enabled by latency");
+    return Task.CompletedTask;
+}
+
+static Task TestWeatherIntegrationAsync()
+{
+    var disabled = WidgetSettingsStore.Normalize(new WidgetSettings
+    {
+        ShowWeather = false
+    });
+    Assert.False(
+        disabled.EnabledModules.Contains(WidgetModuleCatalog.Weather, StringComparer.Ordinal),
+        "disabled weather module was restored");
+
+    var enabled = WidgetSettingsStore.Normalize(new WidgetSettings
+    {
+        ShowWeather = true,
+        WeatherRefreshMinutes = 1,
+        WeatherLatitude = 500,
+        WeatherLongitude = -500
+    });
+    Assert.True(
+        enabled.EnabledModules.Contains(WidgetModuleCatalog.Weather, StringComparer.Ordinal),
+        "weather module was not enabled");
+    Assert.Equal(5, enabled.WeatherRefreshMinutes, "weather cadence minimum");
+    Assert.Equal(90d, enabled.WeatherLatitude, "weather latitude clamp");
+    Assert.Equal(-180d, enabled.WeatherLongitude, "weather longitude clamp");
+
+    const string observationXml = """
+        <data><metData><domain_longTitle>Far station</domain_longTitle><domain_lat>45</domain_lat><domain_lon>14</domain_lon><t>11</t><rh>50</rh></metData><metData><domain_longTitle>Celje</domain_longTitle><domain_lat>46.2366</domain_lat><domain_lon>15.2259</domain_lon><t>19.3</t><rh>93</rh><ff_val_kmh>3</ff_val_kmh><dd_shortText>JZ</dd_shortText><msl>1014.2</msl><tsValid_issued_RFC822>08 Aug 2026 05:30:00 +0000</tsValid_issued_RFC822></metData></data>
+        """;
+    var location = new WeatherLocation(
+        "Celje", "Slovenia", 46.2366, 15.2259, "Europe/Ljubljana", "CELJE_MEDLOG");
+    var observation = WeatherService.ParseArsoObservation(observationXml, location);
+    Assert.True(observation is not null, "ARSO observation was not parsed");
+    Assert.Equal("Celje", observation!.StationName, "nearest ARSO station");
+    Assert.Equal(19.3, observation.TemperatureCelsius, "ARSO temperature");
+    Assert.Equal(93, observation.RelativeHumidity, "ARSO humidity");
+
+    const string warningXml = """
+        <alert xmlns="urn:oasis:names:tc:emergency:cap:1.2"><info><language>en-GB</language><headline>Thunderstorm warning</headline><description>Local storms possible.</description><onset>2026-08-08T12:00:00+02:00</onset><expires>2026-08-08T18:00:00+02:00</expires><parameter><valueName>awareness_level</valueName><value>2; yellow; Moderate</value></parameter></info></alert>
+        """;
+    var warning = WeatherService.ParseWarning(warningXml);
+    Assert.True(warning is not null, "ARSO CAP warning was not parsed");
+    Assert.Equal(2, warning!.Level, "ARSO CAP awareness level");
+    Assert.Equal("Thunderstorm warning", warning.Headline, "ARSO CAP headline");
     return Task.CompletedTask;
 }
 
@@ -1240,6 +1287,12 @@ static Task TestWidgetSizingAsync()
         5,
         80);
     Assert.Equal(176d, miniEighty.SuggestedHeight, "80% Mini readable height floor");
+    var miniSixEighty = LiveWidgetSizingPolicy.Calculate(
+        WidgetLayout.Mini,
+        OpsMonitor.Widget.Models.WidgetDensity.Compact,
+        6,
+        80);
+    Assert.Equal(204d, miniSixEighty.SuggestedHeight, "six-module Mini avoids clipping");
 
     var dockFive = LiveWidgetSizingPolicy.Calculate(
         WidgetLayout.Dock,
@@ -1584,7 +1637,7 @@ static Task TestWidgetViewModelAsync()
     Assert.True(
         network.ShowSparkline,
         "pure sparkline mode lost its only primary visualization");
-    Assert.Equal(5, viewModel.VisibleModuleCount, "default visible module count");
+    Assert.Equal(6, viewModel.VisibleModuleCount, "default visible module count");
     Assert.Equal("Updated now", viewModel.LastUpdatedText, "snapshot update state");
     Assert.Equal(1, updatePulses, "each applied snapshot raises one visual update pulse");
     return Task.CompletedTask;

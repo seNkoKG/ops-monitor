@@ -12,6 +12,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using OpsMonitor.Core.Platform;
 using OpsMonitor.Widget.Interop;
+using OpsMonitor.Widget.Controls;
 using OpsMonitor.Widget.Models;
 using OpsMonitor.Widget.Services;
 using OpsMonitor.Widget.ViewModels;
@@ -40,6 +41,8 @@ public partial class MainWindow : Window
         nameof(MainWindowViewModel.Draggable),
         nameof(MainWindowViewModel.Resizable),
         nameof(MainWindowViewModel.ShowBattery),
+        nameof(MainWindowViewModel.ShowWeather),
+        nameof(MainWindowViewModel.WeatherLocation),
         nameof(MainWindowViewModel.StartAtSignIn),
         nameof(MainWindowViewModel.ScalePercent),
         nameof(MainWindowViewModel.UpdateCadenceSeconds),
@@ -60,6 +63,7 @@ public partial class MainWindow : Window
     private Forms.ToolStripMenuItem? _lockedTrayItem;
     private Forms.ToolStripMenuItem? _clickThroughTrayItem;
     private HwndSource? _windowSource;
+    private WeatherWindow? _weatherWindow;
     private HwndSourceHook? _hotkeyHook;
     private nint _windowHandle;
     private bool _isLoaded;
@@ -128,6 +132,11 @@ public partial class MainWindow : Window
         _saveTimer.Stop();
         _viewModel.PropertyChanged -= ViewModel_OnPropertyChanged;
         _viewModel.TelemetryUpdated -= ViewModel_OnTelemetryUpdated;
+        if (_weatherWindow is not null)
+        {
+            _weatherWindow.Close();
+            _weatherWindow = null;
+        }
         _viewModel.Dispose();
 
         if (_windowSource is not null && _hotkeyHook is not null)
@@ -301,7 +310,9 @@ public partial class MainWindow : Window
         }
 
         var easing = new QuadraticEase { EasingMode = EasingMode.EaseOut };
-        var ringDuration = new Duration(TimeSpan.FromMilliseconds(460));
+        // Keep the update acknowledgement crisp. A long animation on a
+        // transparent always-on-top window forces needless desktop repaints.
+        var ringDuration = new Duration(TimeSpan.FromMilliseconds(180));
 
         ring.BeginAnimation(
             OpacityProperty,
@@ -313,7 +324,7 @@ public partial class MainWindow : Window
             HandoffBehavior.SnapshotAndReplace);
         scale.BeginAnimation(
             ScaleTransform.ScaleXProperty,
-            new DoubleAnimation(0.6, 1.85, ringDuration)
+            new DoubleAnimation(0.72, 1.48, ringDuration)
             {
                 EasingFunction = easing,
                 FillBehavior = FillBehavior.Stop
@@ -321,7 +332,7 @@ public partial class MainWindow : Window
             HandoffBehavior.SnapshotAndReplace);
         scale.BeginAnimation(
             ScaleTransform.ScaleYProperty,
-            new DoubleAnimation(0.6, 1.85, ringDuration)
+            new DoubleAnimation(0.72, 1.48, ringDuration)
             {
                 EasingFunction = easing,
                 FillBehavior = FillBehavior.Stop
@@ -329,7 +340,7 @@ public partial class MainWindow : Window
             HandoffBehavior.SnapshotAndReplace);
         dot.BeginAnimation(
             OpacityProperty,
-            new DoubleAnimation(0.55, 1, TimeSpan.FromMilliseconds(150))
+            new DoubleAnimation(0.6, 1, TimeSpan.FromMilliseconds(80))
             {
                 AutoReverse = true,
                 EasingFunction = easing,
@@ -438,6 +449,7 @@ public partial class MainWindow : Window
         _trayMenu.Items.Add(_lockedTrayItem);
         _trayMenu.Items.Add(_clickThroughTrayItem);
         _trayMenu.Items.Add(new Forms.ToolStripSeparator());
+        _trayMenu.Items.Add(CreateTrayItem("Open weather", (_, _) => Dispatch(OpenWeatherWindow)));
         _trayMenu.Items.Add(CreateTrayItem("Open Studio", (_, _) => Dispatch(LaunchStudio)));
         _trayMenu.Items.Add(CreateTrayItem("Exit", (_, _) => Dispatch(Close)));
         _trayMenu.Opening += TrayMenu_OnOpening;
@@ -684,6 +696,54 @@ public partial class MainWindow : Window
         _viewModel.IsSettingsOpen = !_viewModel.IsSettingsOpen;
     }
 
+    private void OpenWeatherButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        _viewModel.IsSettingsOpen = false;
+        OpenWeatherWindow();
+    }
+
+    private void MetricCard_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is MetricCard { DataContext: MetricCardViewModel metric } &&
+            StringComparer.Ordinal.Equals(metric.Key, WidgetModuleCatalog.Weather))
+        {
+            e.Handled = true;
+        }
+    }
+
+    private void MetricCard_OnPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not MetricCard { DataContext: MetricCardViewModel metric } ||
+            !StringComparer.Ordinal.Equals(metric.Key, WidgetModuleCatalog.Weather))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        OpenWeatherWindow();
+    }
+
+    private void OpenWeatherWindow()
+    {
+        if (_weatherWindow is null)
+        {
+            _weatherWindow = new WeatherWindow(
+                _viewModel.WeatherService,
+                async location =>
+                {
+                    await _viewModel.SetWeatherLocationAsync(location).ConfigureAwait(true);
+                    ScheduleSave();
+                });
+            _weatherWindow.Closed += (_, _) => _weatherWindow = null;
+        }
+
+        _weatherWindow.Show();
+        _weatherWindow.WindowState = WindowState.Normal;
+        _weatherWindow.Activate();
+    }
+
     private void CloseSettings_OnClick(object sender, RoutedEventArgs e)
     {
         _ = sender;
@@ -925,6 +985,22 @@ public partial class MainWindow : Window
                 settings.ModuleOrder,
                 settings.EnabledModules,
                 settings.ModulePresentation);
+            if (!_viewModel.WeatherLocation.Equals(new WeatherLocation(
+                    settings.WeatherLocationName,
+                    settings.WeatherCountry,
+                    settings.WeatherLatitude,
+                    settings.WeatherLongitude,
+                    settings.WeatherTimeZone,
+                    settings.WeatherArsoStationCode)))
+            {
+                _ = _viewModel.SetWeatherLocationAsync(new WeatherLocation(
+                    settings.WeatherLocationName,
+                    settings.WeatherCountry,
+                    settings.WeatherLatitude,
+                    settings.WeatherLongitude,
+                    settings.WeatherTimeZone,
+                    settings.WeatherArsoStationCode));
+            }
             _viewModel.StartAtSignIn = settings.StartAtSignIn;
             _viewModel.ScalePercent = settings.ScalePercent;
             _viewModel.UpdateCadenceSeconds = settings.UpdateCadenceSeconds;
@@ -978,6 +1054,14 @@ public partial class MainWindow : Window
             Draggable = _viewModel.Draggable,
             Resizable = _viewModel.Resizable,
             ShowBattery = _viewModel.ShowBattery,
+            ShowWeather = _viewModel.ShowWeather,
+            WeatherLocationName = _viewModel.WeatherLocation.Name,
+            WeatherCountry = _viewModel.WeatherLocation.Country,
+            WeatherLatitude = _viewModel.WeatherLocation.Latitude,
+            WeatherLongitude = _viewModel.WeatherLocation.Longitude,
+            WeatherTimeZone = _viewModel.WeatherLocation.TimeZone,
+            WeatherArsoStationCode = _viewModel.WeatherLocation.ArsoStationCode,
+            WeatherRefreshMinutes = _viewModel.WeatherRefreshMinutes,
             ModuleOrder = [.. _viewModel.GetModuleOrder()],
             EnabledModules = [.. _viewModel.GetEnabledModules()],
             ModulePresentation = _viewModel.GetModulePresentation(),
