@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title desc">
+  <title id="title">OPS Monitor</title>
+  <desc id="desc">Native Windows telemetry, local weather, and a deeply customizable desktop widget.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#070B12"/>
+      <stop offset=".52" stop-color="#0C1420"/>
+      <stop offset="1" stop-color="#090C15"/>
+    </linearGradient>
+    <radialGradient id="aura" cx="0" cy="0" r="1" gradientTransform="translate(302 164) rotate(18) scale(410 280)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#29E2D0" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#29E2D0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cyan" x1="168" y1="96" x2="1070" y2="282" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#63F6D8"/>
+      <stop offset="1" stop-color="#2AC8FF"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000" flood-opacity=".45"/></filter>
+  </defs>
+  <rect width="1280" height="360" rx="34" fill="url(#bg)"/>
+  <rect width="1280" height="360" rx="34" fill="url(#aura)"/>
+  <path d="M0 305C252 245 359 352 605 292s413-17 675-89" fill="none" stroke="#2BDAEB" stroke-opacity=".08" stroke-width="2"/>
+
+  <g transform="translate(76 74) scale(.83)">
+    <rect x="18" y="18" width="220" height="220" rx="58" fill="#0A111B" stroke="#2B3D51" stroke-width="3"/>
+    <circle cx="58" cy="56" r="7" fill="#59F0B7"/>
+    <path d="M74 56h104" stroke="#243448" stroke-width="5" stroke-linecap="round"/>
+    <rect x="47" y="78" width="162" height="47" rx="16" fill="#0D1823" stroke="#27D7F0" stroke-opacity=".48" stroke-width="2"/>
+    <rect x="47" y="137" width="162" height="47" rx="16" fill="#121222" stroke="#F24DE7" stroke-opacity=".42" stroke-width="2"/>
+    <path d="M62 101h22m-22 8h36" stroke="url(#cyan)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M62 160h18" stroke="#F24DE7" stroke-width="6" stroke-linecap="round"/>
+    <path d="M93 160h18l9-11 14 23 13-15h45" fill="none" stroke="#F24DE7" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M58 203h140" stroke="#1A2A3B" stroke-width="5" stroke-linecap="round"/>
+    <path d="M58 203h92" stroke="url(#cyan)" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <text x="322" y="130" fill="#F4F8FF" font-size="62" font-weight="750" letter-spacing="1">OPS MONITOR</text>
+    <text x="325" y="174" fill="#63F6D8" font-size="19" font-weight="700" letter-spacing="4">WINDOWS TELEMETRY, REFINED</text>
+    <text x="325" y="222" fill="#A6B3C7" font-size="22">Hardware insight and local weather in one calm desktop layer.</text>
+    <g transform="translate(325 258)">
+      <rect width="134" height="38" rx="19" fill="#10202A" stroke="#2DDCC9" stroke-opacity=".38"/>
+      <text x="67" y="25" text-anchor="middle" fill="#72F2DB" font-size="14" font-weight="700">NATIVE WPF</text>
+      <rect x="146" width="158" height="38" rx="19" fill="#101925" stroke="#38C9FF" stroke-opacity=".3"/>
+      <text x="225" y="25" text-anchor="middle" fill="#8EDFFF" font-size="14" font-weight="700">WINDOWS 11</text>
+      <rect x="316" width="164" height="38" rx="19" fill="#191426" stroke="#F24DE7" stroke-opacity=".3"/>
+      <text x="398" y="25" text-anchor="middle" fill="#F58BEC" font-size="14" font-weight="700">LOCAL-FIRST</text>
+    </g>
+  </g>
+
+  <g transform="translate(1008 42)" filter="url(#shadow)" font-family="Segoe UI, Arial, sans-serif">
+    <rect width="208" height="276" rx="32" fill="#080D14" stroke="#28394E" stroke-width="2"/>
+    <circle cx="23" cy="25" r="5" fill="#5CF0B8"/>
+    <text x="36" y="30" fill="#DDE7F6" font-size="13" font-weight="700">OPS MINI</text>
+    <g transform="translate(15 51)">
+      <rect width="178" height="39" rx="10" fill="#0D1722" stroke="#25DDF2" stroke-opacity=".5"/>
+      <text x="12" y="16" fill="#54E8FA" font-size="11" font-weight="700">▦ CPU</text>
+      <text x="12" y="32" fill="#F1F6FF" font-size="17" font-weight="700">42%</text>
+      <text x="164" y="23" text-anchor="end" fill="#B9C8DC" font-size="11">65°C</text>
+    </g>
+    <g transform="translate(15 96)">
+      <rect width="178" height="39" rx="10" fill="#151120" stroke="#F24DE7" stroke-opacity=".46"/>
+      <text x="12" y="16" fill="#F36BEA" font-size="11" font-weight="700">▣ GPU</text>
+      <text x="12" y="32" fill="#F1F6FF" font-size="17" font-weight="700">17%</text>
+      <text x="164" y="23" text-anchor="end" fill="#B9C8DC" font-size="11">41°C</text>
+    </g>
+    <g transform="translate(15 141)">
+      <rect width="178" height="39" rx="10" fill="#0D191B" stroke="#59E8C4" stroke-opacity=".42"/>
+      <text x="12" y="16" fill="#62EFD1" font-size="11" font-weight="700">▤ RAM</text>
+      <text x="12" y="32" fill="#F1F6FF" font-size="14" font-weight="700">15.3 / 30.9 GB</text>
+    </g>
+    <g transform="translate(15 186)">
+      <rect width="178" height="39" rx="10" fill="#0D1722" stroke="#3CCBFF" stroke-opacity=".38"/>
+      <text x="12" y="16" fill="#50D8FF" font-size="11" font-weight="700">↕ NET</text>
+      <text x="12" y="32" fill="#F1F6FF" font-size="13" font-weight="700">937K/s  ·  27K/s</text>
+    </g>
+    <g transform="translate(15 231)">
+      <rect width="178" height="30" rx="10" fill="#171711" stroke="#F5C94A" stroke-opacity=".42"/>
+      <text x="12" y="20" fill="#FFD45C" font-size="11" font-weight="700">⌁ PING</text>
+      <text x="164" y="20" text-anchor="end" fill="#F1F6FF" font-size="13" font-weight="700">16 ms</text>
+    </g>
+  </g>
+</svg>
