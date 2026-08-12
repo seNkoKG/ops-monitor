@@ -84,12 +84,12 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
         Navigation = new ObservableCollection<NavigationItem>
         {
-            new("overview", "Overview", "Health and quick actions", "⌂"),
-            new("widgets", "Layout & Modules", "Form, order and visibility", "▦"),
-            new("appearance", "Widget Designer", "Palette, geometry, type and motion", "✦"),
-            new("window", "Window & Startup", "Size, interaction and sign-in", "⌗"),
-            new("providers", "Sensors", "Providers and polling", "◇"),
-            new("diagnostics", "Diagnostics & About", "Impact, logs and version", "ⓘ"),
+            new("overview", "Command center", "Runtime health, scenes and quick actions", "⌂"),
+            new("widgets", "Structure", "Layout, module order and card content", "▦"),
+            new("appearance", "Visual designer", "Presets, colors, geometry, type and motion", "✦"),
+            new("window", "Behavior", "Position, interaction, size and Windows startup", "⌗"),
+            new("providers", "Data sources", "Sensor health, polling and pinned readings", "◇"),
+            new("diagnostics", "System", "Resource impact, paths and maintenance", "ⓘ"),
         };
 
         NavigationView = CollectionViewSource.GetDefaultView(Navigation);
@@ -146,6 +146,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         Designer.DesignChanged += (_, _) =>
         {
             RefreshModuleAccentBrushes();
+            RefreshModulePresentation();
             RefreshPreviewBrushes();
             QueueLiveApply();
         };
@@ -218,7 +219,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         ReloadCommand = new RelayCommand(_ => ReloadSettings());
         OpenOrRestartWidgetCommand = new RelayCommand(_ => OpenOrRestartWidget());
 
-        SelectedNavigation = Navigation[0];
+        SelectedNavigation = Navigation[2];
         SelectedModule = Modules[0];
         SelectedTheme = Themes[0];
         Designer.ApplyPreset(Themes[0]);
@@ -226,6 +227,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         Layouts[0].IsSelected = true;
         ApplyLayoutMetrics();
         RefreshPreviewBrushes();
+        RefreshModulePresentation();
 
         _applyTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -677,7 +679,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     public string ResourceWakeups { get; } = "Adaptive";
     public string AppVersion { get; } =
-        $"OPS Monitor Studio · v{typeof(StudioViewModel).Assembly.GetName().Version?.ToString(3) ?? "3.0.0"}";
+        $"OPS Monitor Studio · v{typeof(StudioViewModel).Assembly.GetName().Version?.ToString(3) ?? "3.1.0"}";
     public string WidgetActionLabel
     {
         get => _widgetActionLabel;
@@ -954,6 +956,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         }
         VisibleModulesView.Refresh();
         RefreshPreviewBrushes();
+        RefreshModulePresentation();
         _undo.Clear();
         _redo.Clear();
         RaiseEditorCommandState();
@@ -1837,6 +1840,13 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     private void OnModulePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        // Preview-only notifications are outputs of ApplyPreviewDesign. Feeding them
+        // back into that method recursively overflows the WPF dispatcher stack.
+        if (e.PropertyName?.StartsWith("Preview", StringComparison.Ordinal) == true)
+        {
+            return;
+        }
+
         if (e.PropertyName == nameof(ModuleItem.IsVisible))
         {
             VisibleModulesView.Refresh();
@@ -1856,6 +1866,11 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             or nameof(ModuleItem.SecondaryValue))
         {
             return;
+        }
+
+        if (sender is ModuleItem module)
+        {
+            ApplyModulePreviewDesign(module);
         }
 
         QueueLiveApply();
@@ -2020,6 +2035,26 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     }
 
+    private void RefreshModulePresentation()
+    {
+        foreach (var module in Modules)
+        {
+            ApplyModulePreviewDesign(module);
+        }
+    }
+
+    private void ApplyModulePreviewDesign(ModuleItem module)
+    {
+        var maximumCardPadding = (SelectedLayout, Density) switch
+        {
+            ("Mini", _) => 1,
+            ("Rail", "Compact") => 3,
+            ("Pill", "Compact") => 5,
+            _ => 12,
+        };
+        module.ApplyPreviewDesign(Designer, maximumCardPadding);
+    }
+
     private static SolidColorBrush OpacityBrush(Color color, double opacity)
     {
         var brush = new SolidColorBrush(Color.FromArgb(
@@ -2071,11 +2106,14 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         _isApplyingLayoutMetrics = true;
         try
         {
+            var previewModuleHeight = SelectedLayout == "Mini"
+                ? Math.Max(30, moduleHeight * footprintScale)
+                : moduleHeight * footprintScale;
             (WidgetWidth, WidgetHeight, PreviewModuleWidth, PreviewModuleHeight, PreviewCornerRadius) =
                 (recommendation.SuggestedWidth,
                     recommendation.SuggestedHeight,
                     moduleWidth,
-                    moduleHeight * footprintScale,
+                    previewModuleHeight,
                     cornerRadius * footprintScale);
         }
         finally
@@ -2085,6 +2123,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
         OnPropertyChanged(nameof(WidgetWidth));
         OnPropertyChanged(nameof(WidgetHeight));
+        RefreshModulePresentation();
     }
 
     internal static OpsMonitor.Core.Settings.WidgetSizeRecommendation CalculateWidgetSize(

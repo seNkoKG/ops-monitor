@@ -10,6 +10,7 @@ using OpsMonitor.Core.Providers;
 using OpsMonitor.Core.Runtime;
 using OpsMonitor.Core.Settings;
 using OpsMonitor.Studio.Models;
+using OpsMonitor.Studio.Controls;
 using OpsMonitor.Studio.Services;
 using OpsMonitor.Studio.ViewModels;
 using OpsMonitor.Widget.Models;
@@ -1979,6 +1980,45 @@ static Task TestStudioApplicationResourcesAsync()
             Assert.True(
                 application.Resources.Contains("BooleanToVisibilityConverter"),
                 "Studio visibility converter resource was not registered");
+            using var viewModel = new StudioViewModel(new FakeStudioSettingsSink());
+            viewModel.SelectLayoutCommand.Execute("Mini");
+            viewModel.WidgetScalePercent = 80;
+            var preview = new LiveWidgetPreview
+            {
+                DataContext = viewModel,
+                Width = 420,
+                Height = 760,
+            };
+            var host = new System.Windows.Window
+            {
+                Content = preview,
+                Width = 420,
+                Height = 760,
+                ShowInTaskbar = false,
+                WindowStyle = System.Windows.WindowStyle.None,
+            };
+            host.Show();
+            preview.UpdateLayout();
+            var moduleList = FindVisualDescendant<System.Windows.Controls.ItemsControl>(preview);
+            Assert.True(moduleList is not null, "Studio live preview did not create its module list");
+            Assert.Equal(
+                viewModel.Modules.Count,
+                moduleList!.Items.Count,
+                "Studio live preview did not bind every module");
+            Assert.True(
+                moduleList.ActualHeight > 0 && moduleList.ActualWidth > 0,
+                $"Studio live preview module list was clipped ({moduleList.ActualWidth:0} x {moduleList.ActualHeight:0})");
+            var firstModule = moduleList.ItemContainerGenerator.ContainerFromIndex(0)
+                as System.Windows.FrameworkElement;
+            Assert.True(
+                firstModule?.ActualHeight > 0,
+                "Studio live preview module containers were not measurable");
+            var cpuLabel = FindVisualDescendants<System.Windows.Controls.TextBlock>(firstModule!)
+                .FirstOrDefault(item => item.Text == "CPU" && item.IsVisible);
+            Assert.True(
+                cpuLabel is { IsVisible: true, ActualHeight: > 0 },
+                "Studio live preview CPU label was not visible");
+            host.Close();
             application.Shutdown();
         }
         catch (Exception exception)
@@ -1999,6 +2039,45 @@ static Task TestStudioApplicationResourcesAsync()
     }
 
     return Task.CompletedTask;
+}
+
+static T? FindVisualDescendant<T>(System.Windows.DependencyObject parent)
+    where T : System.Windows.DependencyObject
+{
+    for (var index = 0; index < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); index++)
+    {
+        var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, index);
+        if (child is T match)
+        {
+            return match;
+        }
+
+        var descendant = FindVisualDescendant<T>(child);
+        if (descendant is not null)
+        {
+            return descendant;
+        }
+    }
+
+    return null;
+}
+
+static IEnumerable<T> FindVisualDescendants<T>(System.Windows.DependencyObject parent)
+    where T : System.Windows.DependencyObject
+{
+    for (var index = 0; index < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); index++)
+    {
+        var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, index);
+        if (child is T match)
+        {
+            yield return match;
+        }
+
+        foreach (var descendant in FindVisualDescendants<T>(child))
+        {
+            yield return descendant;
+        }
+    }
 }
 
 static Task TestEphemeralLaunchAsync()

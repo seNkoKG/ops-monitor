@@ -35,6 +35,18 @@ public sealed class ModuleItem : ObservableObject
     private double _labelSize = -1;
     private double _valueSize = -1;
     private double _iconSize = -1;
+    private Brush _previewCardBrush = Brushes.Transparent;
+    private Brush _previewBorderBrush = Brushes.Transparent;
+    private double _previewCardCornerRadius = 12;
+    private double _previewCardPadding = 10;
+    private double _previewAccentWidth = 3;
+    private double _previewProgressHeight = 4;
+    private double _previewLabelSize = 11;
+    private double _previewValueSize = 18;
+    private double _previewIconSize = 14;
+    private double _previewCompactLabelSize = 9;
+    private double _previewCompactValueSize = 13;
+    private double _previewCompactIconSize = 10;
 
     public ModuleItem(
         string id,
@@ -203,6 +215,38 @@ public sealed class ModuleItem : ObservableObject
 
     public string PreviewSecondaryValue => ApplyPrecision(SecondaryValue, Precision);
 
+    public Brush PreviewCardBrush { get => _previewCardBrush; private set => SetProperty(ref _previewCardBrush, value); }
+    public Brush PreviewBorderBrush { get => _previewBorderBrush; private set => SetProperty(ref _previewBorderBrush, value); }
+    public double PreviewCardCornerRadius { get => _previewCardCornerRadius; private set => SetProperty(ref _previewCardCornerRadius, value); }
+    public double PreviewCardPadding { get => _previewCardPadding; private set => SetProperty(ref _previewCardPadding, value); }
+    public double PreviewAccentWidth { get => _previewAccentWidth; private set => SetProperty(ref _previewAccentWidth, value); }
+    public double PreviewProgressHeight { get => _previewProgressHeight; private set => SetProperty(ref _previewProgressHeight, value); }
+    public double PreviewLabelSize { get => _previewLabelSize; private set => SetProperty(ref _previewLabelSize, value); }
+    public double PreviewValueSize { get => _previewValueSize; private set => SetProperty(ref _previewValueSize, value); }
+    public double PreviewIconSize { get => _previewIconSize; private set => SetProperty(ref _previewIconSize, value); }
+    public double PreviewCompactLabelSize { get => _previewCompactLabelSize; private set => SetProperty(ref _previewCompactLabelSize, value); }
+    public double PreviewCompactValueSize { get => _previewCompactValueSize; private set => SetProperty(ref _previewCompactValueSize, value); }
+    public double PreviewCompactIconSize { get => _previewCompactIconSize; private set => SetProperty(ref _previewCompactIconSize, value); }
+
+    public void ApplyPreviewDesign(WidgetDesignerState designer, double maximumCardPadding = 28)
+    {
+        ArgumentNullException.ThrowIfNull(designer);
+        PreviewCardBrush = OpacityBrush(designer.Card, designer.CardOpacity * CardOpacity);
+        PreviewBorderBrush = OpacityBrush(designer.Border, BorderOpacity);
+        PreviewCardCornerRadius = CardCornerRadius < 0 ? designer.CardCornerRadius : CardCornerRadius;
+        PreviewCardPadding = Math.Min(
+            CardPadding < 0 ? designer.CardPadding : CardPadding,
+            Math.Max(0, maximumCardPadding));
+        PreviewAccentWidth = AccentWidth < 0 ? designer.AccentWidth : AccentWidth;
+        PreviewProgressHeight = ProgressHeight < 0 ? designer.ProgressHeight : ProgressHeight;
+        PreviewLabelSize = LabelSize < 0 ? designer.LabelSize : LabelSize;
+        PreviewValueSize = ValueSize < 0 ? designer.ValueSize : ValueSize;
+        PreviewIconSize = IconSize < 0 ? Math.Max(designer.LabelSize + 2, 10) : IconSize;
+        PreviewCompactLabelSize = Math.Clamp(PreviewLabelSize * 0.72, 8, 10);
+        PreviewCompactValueSize = Math.Clamp(PreviewValueSize * 0.72, 10, 14);
+        PreviewCompactIconSize = Math.Clamp(PreviewIconSize * 0.72, 8, 11);
+    }
+
     private bool SetEditorProperty<T>(
         ref T field,
         T value,
@@ -255,6 +299,15 @@ public sealed class ModuleItem : ObservableObject
                     decimals == 0 ? "0" : $"0.{new string('0', decimals)}",
                     CultureInfo.InvariantCulture)
                 : match.Value);
+    }
+
+    private static SolidColorBrush OpacityBrush(string colorText, double opacity)
+    {
+        var color = ColorText.Parse(colorText, Colors.Transparent);
+        color.A = (byte)Math.Round(color.A * Math.Clamp(opacity, 0, 1));
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
     }
 
     public ModuleItem Clone(string suffix)

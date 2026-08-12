@@ -1,163 +1,155 @@
-<ResourceDictionary
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:models="clr-namespace:OpsMonitor.Studio.Models">
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="clr-namespace:OpsMonitor.Studio.Controls"
+                    xmlns:models="clr-namespace:OpsMonitor.Studio.Models">
+
+    <Style x:Key="PageStack" TargetType="StackPanel">
+        <Setter Property="Margin" Value="0,0,8,30"/>
+    </Style>
+
+    <Style x:Key="SectionLabel" TargetType="TextBlock" BasedOn="{StaticResource EyebrowText}">
+        <Setter Property="Margin" Value="2,0,0,9"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Accent}"/>
+    </Style>
 
     <Style x:Key="SettingRow" TargetType="Border">
-        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="0,12"/>
         <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
         <Setter Property="BorderThickness" Value="0,0,0,1"/>
-        <Setter Property="Padding" Value="0,14"/>
     </Style>
 
     <Style x:Key="MiniMetric" TargetType="Border" BasedOn="{StaticResource InsetBorder}">
-        <Setter Property="Padding" Value="14,12"/>
         <Setter Property="Margin" Value="0,0,10,0"/>
-        <Setter Property="MinWidth" Value="118"/>
+        <Setter Property="MinHeight" Value="92"/>
     </Style>
 
     <Style x:Key="SmallProgress" TargetType="ProgressBar">
-        <Setter Property="Height" Value="4"/>
-        <Setter Property="Minimum" Value="0"/>
-        <Setter Property="Maximum" Value="100"/>
-        <Setter Property="Foreground" Value="{StaticResource Brush.Accent}"/>
+        <Setter Property="Height" Value="3"/>
         <Setter Property="Background" Value="{StaticResource Brush.Surface3}"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Accent}"/>
         <Setter Property="BorderThickness" Value="0"/>
     </Style>
 
+    <Style x:Key="DesignerTabItem" TargetType="TabItem">
+        <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}"/>
+        <Setter Property="FontFamily" Value="{StaticResource Font.Display}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="14,10"/>
+        <Setter Property="Margin" Value="0,0,6,0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Border x:Name="TabSurface" Padding="{TemplateBinding Padding}" Background="Transparent"
+                            BorderBrush="Transparent" BorderThickness="1" CornerRadius="9">
+                        <ContentPresenter ContentSource="Header"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="TabSurface" Property="Background" Value="{StaticResource Brush.Surface2}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="TabSurface" Property="Background" Value="#1848DCF9"/>
+                            <Setter TargetName="TabSurface" Property="BorderBrush" Value="#4D48DCF9"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="TabSurface" Property="BorderBrush" Value="{StaticResource Brush.Accent}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="DesignerTabControl" TargetType="TabControl">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource DesignerTabItem}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabControl">
+                    <Grid KeyboardNavigation.TabNavigation="Local">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                        <Border Margin="0,0,0,16" Padding="5" HorizontalAlignment="Left"
+                                Background="{StaticResource Brush.Surface1}" BorderBrush="{StaticResource Brush.Border}"
+                                BorderThickness="1" CornerRadius="12">
+                            <TabPanel IsItemsHost="True"/>
+                        </Border>
+                        <ContentPresenter Grid.Row="1" ContentSource="SelectedContent"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <DataTemplate x:Key="SceneCardTemplate" DataType="{x:Type models:SceneItem}">
-        <Border Style="{StaticResource InsetBorder}" Margin="0,0,10,10" Width="210">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+        <Border Width="210" Margin="0,0,10,10" Padding="14" Background="{StaticResource Brush.Surface1}" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" CornerRadius="11">
+            <StackPanel>
                 <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold"/>
-                    <Border Grid.Column="1" Style="{StaticResource TagBorder}">
-                        <TextBlock Text="{Binding Layout}" Style="{StaticResource CaptionText}"/>
+                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"/>
+                    <Border HorizontalAlignment="Right" Padding="7,3" Background="{StaticResource Brush.Surface3}" CornerRadius="6">
+                        <TextBlock Text="{Binding Layout}" FontFamily="{StaticResource Font.Mono}" FontSize="9" Foreground="{Binding Accent}"/>
                     </Border>
                 </Grid>
-                <TextBlock Grid.Row="1"
-                           Margin="0,8,0,10"
-                           Text="{Binding Description}"
-                           Style="{StaticResource CaptionText}"
-                           TextWrapping="Wrap"
-                           TextTrimming="None"/>
-                <Button Grid.Row="2"
-                        Margin="0,12,0,0"
+                <TextBlock Margin="0,7,0,12" MinHeight="32" Text="{Binding Description}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" TextTrimming="None"/>
+                <Button Content="Activate scene"
                         Command="{Binding DataContext.ActivateSceneCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         CommandParameter="{Binding}"
-                        Content="Make active"
                         Style="{StaticResource StudioButton}"/>
-            </Grid>
+            </StackPanel>
         </Border>
     </DataTemplate>
 
     <DataTemplate x:Key="Page.Overview">
         <ScrollViewer>
-            <StackPanel Margin="0,0,8,28">
-                <Border Style="{StaticResource CardBorder}" BorderBrush="#5543E7D2">
+            <StackPanel Style="{StaticResource PageStack}">
+                <TextBlock Text="RUNTIME" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}" BorderBrush="#5548DCF9">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="9" Height="9" Fill="{StaticResource Brush.Success}" Margin="0,3,9,0"/>
-                                <TextBlock Text="RUNTIME CONNECTED" Style="{StaticResource EyebrowText}" Foreground="{StaticResource Brush.Success}"/>
+                                <Ellipse Width="8" Height="8" Fill="{StaticResource Brush.Success}" Margin="0,4,8,0"/>
+                                <TextBlock Text="WIDGET CONNECTED" FontFamily="{StaticResource Font.Mono}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource Brush.Success}"/>
                             </StackPanel>
-                            <TextBlock Margin="0,12,0,0"
-                                       Text="Make the desktop yours."
-                                       Style="{StaticResource PageTitleText}"
-                                       FontSize="28"/>
-                            <TextBlock Margin="0,7,0,0"
-                                       Text="Every visible control on these pages writes to the live widget configuration."
-                                       Style="{StaticResource BodyText}"
-                                       TextWrapping="Wrap"/>
-                            <StackPanel Margin="0,18,0,0" Orientation="Horizontal">
-                                <Button Content="Design widget"
-                                        Command="{Binding NavigateCommand}"
-                                        CommandParameter="widgets"
-                                        Style="{StaticResource PrimaryButton}"
-                                        Margin="0,0,8,0"/>
-                                <Button Content="Tune sensors"
-                                        Command="{Binding NavigateCommand}"
-                                        CommandParameter="providers"
-                                        Style="{StaticResource StudioButton}"/>
+                            <TextBlock Margin="0,13,0,0" Text="Your desktop instrument is live." FontFamily="{StaticResource Font.Display}" FontSize="24" FontWeight="SemiBold"/>
+                            <TextBlock Margin="0,6,30,0" Text="Settings are synchronized locally. Changes apply without restarting telemetry providers." Style="{StaticResource BodyText}" TextWrapping="Wrap"/>
+                            <StackPanel Margin="0,17,0,0" Orientation="Horizontal">
+                                <Button Content="Open visual designer" Command="{Binding NavigateCommand}" CommandParameter="appearance" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/>
+                                <Button Content="Configure data sources" Command="{Binding NavigateCommand}" CommandParameter="providers" Style="{StaticResource StudioButton}"/>
                             </StackPanel>
                         </StackPanel>
-                        <Border Grid.Column="1"
-                                Width="150"
-                                Margin="20,0,0,0"
-                                Padding="16"
-                                Background="#1443E7D2"
-                                BorderBrush="#4443E7D2"
-                                BorderThickness="1"
-                                CornerRadius="16">
+                        <Border Grid.Column="1" MinWidth="150" Padding="16" Background="#1848DCF9" BorderBrush="#3D48DCF9" BorderThickness="1" CornerRadius="12">
                             <StackPanel>
                                 <TextBlock Text="ACTIVE SCENE" Style="{StaticResource EyebrowText}"/>
-                                <TextBlock Margin="0,8,0,0"
-                                           Text="{Binding ActiveScene, Mode=OneWay}"
-                                           FontSize="17"
-                                           FontWeight="SemiBold"/>
-                                <TextBlock Margin="0,4,0,0"
-                                           Text="{Binding SelectedLayout}"
-                                           Foreground="{StaticResource Brush.Accent}"
-                                           FontSize="13"/>
-                                <TextBlock Margin="0,18,0,0"
-                                           Text="LIVE"
-                                           FontSize="12"
-                                           FontWeight="Bold"
-                                           Foreground="{StaticResource Brush.Success}"/>
+                                <TextBlock Margin="0,8,0,0" Text="{Binding ActiveScene, Mode=OneWay}" FontSize="17" FontWeight="SemiBold"/>
+                                <TextBlock Margin="0,5,0,0" Text="{Binding SelectedLayout}" Foreground="{StaticResource Brush.Accent}" FontFamily="{StaticResource Font.Mono}" FontSize="11"/>
+                                <TextBlock Margin="0,14,0,0" Text="LIVE APPLY" Style="{StaticResource EyebrowText}" Foreground="{StaticResource Brush.Success}"/>
                             </StackPanel>
                         </Border>
                     </Grid>
                 </Border>
 
-                <TextBlock Margin="0,24,0,10" Text="Measured resource impact" Style="{StaticResource SectionTitleText}"/>
+                <TextBlock Margin="2,22,0,9" Text="RESOURCE IMPACT" Style="{StaticResource SectionLabel}"/>
                 <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Border Grid.Column="0" Style="{StaticResource MiniMetric}">
-                        <StackPanel>
-                            <TextBlock Text="CPU" Style="{StaticResource EyebrowText}"/>
-                            <TextBlock Margin="0,6,0,2" Text="{Binding ResourceCpu}" FontSize="20" FontWeight="SemiBold"/>
-                            <TextBlock Text="Studio + widget" Style="{StaticResource CaptionText}"/>
-                        </StackPanel>
+                        <StackPanel><TextBlock Text="CPU" Style="{StaticResource EyebrowText}"/><TextBlock Margin="0,8,0,3" Text="{Binding ResourceCpu}" FontFamily="{StaticResource Font.Display}" FontSize="21" FontWeight="SemiBold"/><TextBlock Text="Studio and widget" Style="{StaticResource CaptionText}"/><ProgressBar Margin="0,9,0,0" Style="{StaticResource SmallProgress}" Value="{Binding ResourceCpuPercent}"/></StackPanel>
                     </Border>
                     <Border Grid.Column="1" Style="{StaticResource MiniMetric}">
-                        <StackPanel>
-                            <TextBlock Text="MEMORY" Style="{StaticResource EyebrowText}"/>
-                            <TextBlock Margin="0,6,0,2" Text="{Binding ResourceMemory}" FontSize="20" FontWeight="SemiBold"/>
-                            <TextBlock Text="Combined working set" Style="{StaticResource CaptionText}"/>
-                        </StackPanel>
+                        <StackPanel><TextBlock Text="MEMORY" Style="{StaticResource EyebrowText}"/><TextBlock Margin="0,8,0,3" Text="{Binding ResourceMemory}" FontFamily="{StaticResource Font.Display}" FontSize="21" FontWeight="SemiBold"/><TextBlock Text="Combined working set" Style="{StaticResource CaptionText}"/></StackPanel>
                     </Border>
                     <Border Grid.Column="2" Style="{StaticResource MiniMetric}" Margin="0">
-                        <StackPanel>
-                            <TextBlock Text="POLLING" Style="{StaticResource EyebrowText}"/>
-                            <TextBlock Margin="0,6,0,2" Text="{Binding ResourceWakeups}" FontSize="20" FontWeight="SemiBold"/>
-                            <TextBlock Text="{Binding PerformanceMode}" Style="{StaticResource CaptionText}"/>
-                        </StackPanel>
+                        <StackPanel><TextBlock Text="POLLING POLICY" Style="{StaticResource EyebrowText}"/><TextBlock Margin="0,8,0,3" Text="{Binding ResourceWakeups}" FontFamily="{StaticResource Font.Display}" FontSize="21" FontWeight="SemiBold"/><TextBlock Text="{Binding PerformanceMode}" Style="{StaticResource CaptionText}"/></StackPanel>
                     </Border>
                 </Grid>
 
-                <TextBlock Margin="0,24,0,10" Text="Scene presets" Style="{StaticResource SectionTitleText}"/>
+                <TextBlock Margin="2,22,0,9" Text="SCENES" Style="{StaticResource SectionLabel}"/>
                 <ItemsControl ItemsSource="{Binding Scenes}" ItemTemplate="{StaticResource SceneCardTemplate}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                 </ItemsControl>
             </StackPanel>
         </ScrollViewer>
@@ -165,53 +157,23 @@
 
     <DataTemplate x:Key="Page.Widgets">
         <ScrollViewer>
-            <StackPanel Margin="0,0,8,28">
+            <StackPanel Style="{StaticResource PageStack}">
+                <TextBlock Text="FORM FACTOR" Style="{StaticResource SectionLabel}"/>
                 <Border Style="{StaticResource CardBorder}">
                     <StackPanel>
-                        <TextBlock Text="Form factor" Style="{StaticResource SectionTitleText}"/>
-                        <TextBlock Margin="0,5,0,14"
-                                   Text="Choose a live layout, from the full Pill to the tiny Mini capsule."
-                                   Style="{StaticResource BodyText}"
-                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="Choose the widget silhouette" Style="{StaticResource SectionTitleText}"/>
+                        <TextBlock Margin="0,5,0,15" Text="Each layout has independent readability clamps. The canvas shows the exact selected form." Style="{StaticResource BodyText}" TextWrapping="Wrap"/>
                         <ItemsControl ItemsSource="{Binding Layouts}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Width="154"
-                                            Margin="0,0,10,10"
-                                            Padding="14"
-                                            HorizontalContentAlignment="Stretch"
+                                    <Button Margin="0,0,8,0" Padding="13" HorizontalContentAlignment="Stretch"
                                             Command="{Binding DataContext.SelectLayoutCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding Id}"
-                                            Style="{StaticResource StudioButton}">
+                                            CommandParameter="{Binding Id}" Style="{StaticResource StudioButton}">
                                         <StackPanel>
-                                            <TextBlock Text="{Binding Icon}" FontSize="22" Foreground="{StaticResource Brush.Accent}"/>
-                                            <TextBlock Margin="0,8,0,0" Text="{Binding Name}" FontSize="15" FontWeight="SemiBold"/>
-                                            <TextBlock Margin="0,4,0,0"
-                                                       Text="{Binding Description}"
-                                                       Style="{StaticResource CaptionText}"
-                                                       TextWrapping="Wrap"
-                                                       TextTrimming="None"/>
-                                            <TextBlock Margin="0,10,0,0"
-                                                       Text="ACTIVE"
-                                                       FontSize="10"
-                                                       FontWeight="Bold"
-                                                       Foreground="{StaticResource Brush.Accent}">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
+                                            <TextBlock Text="{Binding Icon}" FontSize="21" Foreground="{StaticResource Brush.Accent}"/>
+                                            <TextBlock Margin="0,7,0,0" Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"/>
+                                            <TextBlock Margin="0,3,0,0" Text="{Binding Description}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" TextTrimming="None"/>
                                         </StackPanel>
                                     </Button>
                                 </DataTemplate>
@@ -220,77 +182,25 @@
                     </StackPanel>
                 </Border>
 
-                <Grid Margin="0,14,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1.15*"/>
-                        <ColumnDefinition Width="0.85*"/>
-                    </Grid.ColumnDefinitions>
-
+                <TextBlock Margin="2,22,0,9" Text="MODULE STACK" Style="{StaticResource SectionLabel}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="0.95*"/><ColumnDefinition Width="1.05*"/></Grid.ColumnDefinitions>
                     <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,12,0">
                         <StackPanel>
-                            <Grid Margin="0,0,0,14">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="Modules" Style="{StaticResource SectionTitleText}"/>
-                                    <TextBlock Margin="0,4,0,0"
-                                               Text="Toggle, select, and reorder the metrics shown in the widget."
-                                               Style="{StaticResource CaptionText}"
-                                               TextWrapping="Wrap"
-                                               TextTrimming="None"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                    <Button Content="Undo" Command="{Binding UndoCommand}" Style="{StaticResource StudioButton}" Margin="0,0,6,0"/>
-                                    <Button Content="Redo" Command="{Binding RedoCommand}" Style="{StaticResource StudioButton}"/>
-                                </StackPanel>
-                            </Grid>
-
-                            <ListBox ItemsSource="{Binding Modules}"
-                                     SelectedItem="{Binding SelectedModule}"
-                                     ItemContainerStyle="{StaticResource CompactListItem}">
+                            <TextBlock Text="Order and visibility" Style="{StaticResource SectionTitleText}"/>
+                            <TextBlock Margin="0,5,0,14" Text="Select a module to edit it. Toggle visibility or change its order without losing settings." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
+                            <ListBox ItemsSource="{Binding Modules}" SelectedItem="{Binding SelectedModule}" ItemContainerStyle="{StaticResource CompactListItem}" MaxHeight="560">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="34"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding Icon}"
-                                                       Foreground="{Binding Accent}"
-                                                       FontSize="18"
-                                                       VerticalAlignment="Center"/>
-                                            <StackPanel Grid.Column="1" Margin="2,0,12,0">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                                <TextBlock Margin="0,3,0,0"
-                                                           Text="{Binding Description}"
-                                                           Style="{StaticResource CaptionText}"
-                                                           TextWrapping="Wrap"
-                                                           TextTrimming="None"/>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                            <Border Width="27" Height="27" Background="#16212E3D" CornerRadius="7"><TextBlock Text="{Binding Icon}" Foreground="{Binding Accent}" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                            <StackPanel Grid.Column="1" Margin="8,0,10,0"><TextBlock Text="{Binding Name}" FontWeight="SemiBold"/><TextBlock Margin="0,2,0,0" Text="{Binding Category}" Style="{StaticResource CaptionText}"/></StackPanel>
+                                            <CheckBox Grid.Column="2" Margin="0,0,7,0" IsChecked="{Binding IsVisible}" Style="{StaticResource ToggleSwitch}" AutomationProperties.Name="{Binding Name, StringFormat=Show {0}}"/>
+                                            <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                                <Button Content="↑" Command="{Binding DataContext.MoveModuleUpCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource IconButton}" Margin="0,0,4,0" ToolTip="Move up"/>
+                                                <Button Content="↓" Command="{Binding DataContext.MoveModuleDownCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource IconButton}" ToolTip="Move down"/>
                                             </StackPanel>
-                                            <CheckBox Grid.Column="2"
-                                                      Margin="0,0,10,0"
-                                                      VerticalAlignment="Center"
-                                                      IsChecked="{Binding IsVisible}"
-                                                      Style="{StaticResource ToggleSwitch}"
-                                                      ToolTip="Show this module"/>
-                                            <Button Grid.Column="3"
-                                                    Margin="0,0,5,0"
-                                                    Content="↑"
-                                                    Command="{Binding DataContext.MoveModuleUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}"
-                                                    Style="{StaticResource IconButton}"
-                                                    ToolTip="Move up"/>
-                                            <Button Grid.Column="4"
-                                                    Content="↓"
-                                                    Command="{Binding DataContext.MoveModuleDownCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}"
-                                                    Style="{StaticResource IconButton}"
-                                                    ToolTip="Move down"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -298,184 +208,66 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Grid.Column="1"
-                            Style="{StaticResource CardBorder}"
-                            DataContext="{Binding SelectedModule}">
+                    <Border Grid.Column="1" Style="{StaticResource CardBorder}" DataContext="{Binding SelectedModule}">
                         <StackPanel>
-                            <TextBlock Text="Module presentation" Style="{StaticResource SectionTitleText}"/>
-                            <TextBlock Margin="0,5,0,14"
-                                       Text="{Binding Name, StringFormat=Editing {0}}"
-                                       Foreground="{Binding Accent}"
-                                       FontWeight="SemiBold"/>
-
-                            <TextBlock Text="Visualization" Style="{StaticResource EyebrowText}"/>
-                            <ComboBox Margin="0,6,0,12"
-                                      ItemsSource="{Binding DataContext.Visualizations, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      SelectedItem="{Binding Visualization}"/>
-
-                            <TextBlock Text="Number precision" Style="{StaticResource EyebrowText}"/>
-                            <ComboBox Margin="0,6,0,14"
-                                      ItemsSource="{Binding DataContext.PrecisionOptions, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      SelectedItem="{Binding Precision}"/>
-
-                            <UniformGrid Columns="2" Margin="0,0,0,8">
-                                <StackPanel Margin="0,0,8,0">
-                                    <TextBlock Text="Custom title" Style="{StaticResource EyebrowText}"/>
-                                    <TextBox Margin="0,6,0,0" MaxLength="24" Text="{Binding CustomTitle, UpdateSourceTrigger=LostFocus}"/>
-                                </StackPanel>
-                                <StackPanel>
-                                    <TextBlock Text="Icon / emoji" Style="{StaticResource EyebrowText}"/>
-                                    <TextBox Margin="0,6,0,0" MaxLength="8" Text="{Binding CustomIcon, UpdateSourceTrigger=LostFocus}"/>
-                                </StackPanel>
+                            <Grid Margin="0,0,0,15"><StackPanel><TextBlock Text="Module inspector" Style="{StaticResource SectionTitleText}"/><TextBlock Margin="0,4,0,0" Text="{Binding Name, StringFormat=Editing {0}}" Foreground="{Binding Accent}"/></StackPanel><TextBlock HorizontalAlignment="Right" Text="{Binding Source}" MaxWidth="180" TextAlignment="Right" Style="{StaticResource CaptionText}" TextWrapping="Wrap"/></Grid>
+                            <UniformGrid Columns="2">
+                                <controls:StudioSettingField Margin="0,0,8,12" Header="Display title" Description="24 chars" MaxLength="24" Text="{Binding CustomTitle}"/>
+                                <controls:StudioSettingField Margin="8,0,0,12" Header="Icon or glyph" Description="8 chars" MaxLength="8" Text="{Binding CustomIcon}"/>
+                                <controls:StudioSettingField Margin="0,0,8,12" Header="Accent color" Description="ARGB hex" Text="{Binding AccentHex}"/>
+                                <StackPanel Margin="8,0,0,12"><TextBlock Text="Visualization" FontWeight="SemiBold"/><ComboBox Margin="0,7,0,0" ItemsSource="{Binding DataContext.Visualizations, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Visualization}" AutomationProperties.Name="Visualization"/></StackPanel>
+                                <StackPanel Margin="0,0,8,12"><TextBlock Text="Number precision" FontWeight="SemiBold"/><ComboBox Margin="0,7,0,0" ItemsSource="{Binding DataContext.PrecisionOptions, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Precision}" AutomationProperties.Name="Number precision"/></StackPanel>
                             </UniformGrid>
-                            <TextBlock Text="Accent color" Style="{StaticResource EyebrowText}"/>
-                            <TextBox Margin="0,6,0,12" Text="{Binding AccentHex, UpdateSourceTrigger=LostFocus}"/>
-                            <CheckBox Margin="0,0,0,8" Content="Override the global module accent" IsChecked="{Binding UseCustomAccent}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
-
-                            <Border Style="{StaticResource SettingRow}">
-                                <Grid>
-                                    <StackPanel>
-                                        <TextBlock Text="Show label" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,58,0" Text="Module name and icon" Style="{StaticResource CaptionText}"/>
-                                    </StackPanel>
-                                    <CheckBox HorizontalAlignment="Right"
-                                              VerticalAlignment="Center"
-                                              IsChecked="{Binding ShowLabel}"
-                                              Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource SettingRow}">
-                                <Grid>
-                                    <StackPanel><TextBlock Text="Show icon" FontWeight="SemiBold"/><TextBlock Margin="0,3,58,0" Text="Use the module icon or emoji" Style="{StaticResource CaptionText}"/></StackPanel>
-                                    <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding ShowIcon}" Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource SettingRow}">
-                                <Grid>
-                                    <StackPanel><TextBlock Text="Accent rail" FontWeight="SemiBold"/><TextBlock Margin="0,3,58,0" Text="Colored module edge" Style="{StaticResource CaptionText}"/></StackPanel>
-                                    <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding ShowAccent}" Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource SettingRow}">
-                                <Grid>
-                                    <StackPanel>
-                                        <TextBlock Text="Show trend" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,58,0" Text="Sparkline when the visualization supports it" Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                    <CheckBox HorizontalAlignment="Right"
-                                              VerticalAlignment="Center"
-                                              IsChecked="{Binding ShowSparkline}"
-                                              Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
-                            <Border Padding="0,14,0,0">
-                                <Grid>
-                                    <StackPanel>
-                                        <TextBlock Text="Secondary value" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,58,0" Text="Temperature, upload, usage, or packet loss" Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                    <CheckBox HorizontalAlignment="Right"
-                                              VerticalAlignment="Center"
-                                              IsChecked="{Binding ShowTemperature}"
-                                              Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
-                            <TextBlock Margin="0,16,0,4" Text="Per-module overrides" Style="{StaticResource EyebrowText}"/>
-                            <TextBlock Text="Set a slider to the far left (-1) to inherit the global design token." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
-                            <TextBlock Margin="0,12,0,0" Text="Card opacity"/><Slider Minimum="0.2" Maximum="1" Value="{Binding CardOpacity}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Border opacity"/><Slider Minimum="0" Maximum="1" Value="{Binding BorderOpacity}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Card radius"/><Slider Minimum="-1" Maximum="40" Value="{Binding CardCornerRadius}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Card padding"/><Slider Minimum="-1" Maximum="28" Value="{Binding CardPadding}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Accent width"/><Slider Minimum="-1" Maximum="10" Value="{Binding AccentWidth}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Progress height"/><Slider Minimum="-1" Maximum="12" Value="{Binding ProgressHeight}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Label size"/><Slider Minimum="-1" Maximum="26" Value="{Binding LabelSize}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Value size"/><Slider Minimum="-1" Maximum="42" Value="{Binding ValueSize}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Icon size"/><Slider Minimum="-1" Maximum="32" Value="{Binding IconSize}"/>
+                            <UniformGrid Columns="2">
+                                <controls:StudioSettingToggle Margin="0,0,6,7" Header="Custom accent" Description="Override semantic color" IsChecked="{Binding UseCustomAccent}"/>
+                                <controls:StudioSettingToggle Margin="6,0,0,7" Header="Module label" Description="Show title" IsChecked="{Binding ShowLabel}"/>
+                                <controls:StudioSettingToggle Margin="0,0,6,7" Header="Icon" Description="Show module glyph" IsChecked="{Binding ShowIcon}"/>
+                                <controls:StudioSettingToggle Margin="6,0,0,7" Header="Accent rail" Description="Colored edge" IsChecked="{Binding ShowAccent}"/>
+                                <controls:StudioSettingToggle Margin="0,0,6,7" Header="Trend" Description="Sparkline when supported" IsChecked="{Binding ShowSparkline}"/>
+                                <controls:StudioSettingToggle Margin="6,0,0,7" Header="Secondary reading" Description="Temperature or quality" IsChecked="{Binding ShowTemperature}"/>
+                            </UniformGrid>
+                            <Expander Margin="0,12,0,0" Header="Advanced module overrides" IsExpanded="False">
+                                <StackPanel Margin="0,14,0,0">
+                                    <TextBlock Margin="0,0,0,12" Text="INHERIT means this card follows the global design token." Style="{StaticResource CaptionText}"/>
+                                    <controls:StudioSettingSlider Header="Card opacity" Description="Module surface only" Minimum="0.2" Maximum="1" SmallChange="0.02" ValueFormat="0%" Value="{Binding CardOpacity}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Border opacity" Description="Module outline only" Minimum="0" Maximum="1" SmallChange="0.02" ValueFormat="0%" Value="{Binding BorderOpacity}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Card radius" Description="Override global corner radius" Minimum="-1" Maximum="40" SmallChange="1" Unit=" px" InheritAtMinimum="True" Value="{Binding CardCornerRadius}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Card padding" Description="Override global inner spacing" Minimum="-1" Maximum="28" SmallChange="1" Unit=" px" InheritAtMinimum="True" Value="{Binding CardPadding}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Accent width" Description="Override colored rail thickness" Minimum="-1" Maximum="10" SmallChange="0.5" ValueFormat="0.0" Unit=" px" InheritAtMinimum="True" Value="{Binding AccentWidth}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Progress height" Description="Override progress or graph height" Minimum="-1" Maximum="12" SmallChange="0.5" ValueFormat="0.0" Unit=" px" InheritAtMinimum="True" Value="{Binding ProgressHeight}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Label size" Description="Override module label type" Minimum="-1" Maximum="26" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding LabelSize}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Value size" Description="Override primary value type" Minimum="-1" Maximum="42" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding ValueSize}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Icon size" Description="Override the module glyph" Minimum="-1" Maximum="32" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding IconSize}"/>
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </Border>
                 </Grid>
-
-                <TextBlock Margin="0,22,0,10" Text="Scene presets" Style="{StaticResource SectionTitleText}"/>
-                <ItemsControl ItemsSource="{Binding Scenes}" ItemTemplate="{StaticResource SceneCardTemplate}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
             </StackPanel>
         </ScrollViewer>
     </DataTemplate>
 
     <DataTemplate x:Key="Page.Appearance">
-        <ScrollViewer>
-            <StackPanel Margin="0,0,8,28">
-                <Border Style="{StaticResource CardBorder}">
+        <TabControl Style="{StaticResource DesignerTabControl}">
+            <TabItem Header="Presets">
+                <ScrollViewer>
+                    <StackPanel Style="{StaticResource PageStack}">
+                <TextBlock Text="DESIGN SYSTEM" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}" BorderBrush="#5548DCF9">
                     <StackPanel>
                         <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="Widget Designer" Style="{StaticResource SectionTitleText}"/>
-                                <TextBlock Margin="0,5,18,14"
-                                           Text="Start from a preset, then tune every token. Changes apply live and remain portable."
-                                           Style="{StaticResource BodyText}" TextWrapping="Wrap"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                                <Button Content="Import design" Command="{Binding ImportDesignCommand}" Style="{StaticResource StudioButton}" Margin="0,0,8,0"/>
-                                <Button Content="Export design" Command="{Binding ExportDesignCommand}" Style="{StaticResource PrimaryButton}"/>
-                            </StackPanel>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel><TextBlock Text="Start from a complete visual system" Style="{StaticResource SectionTitleText}"/><TextBlock Margin="0,5,20,14" Text="Presets change every linked token. Fine-tune below, then export a portable design file." Style="{StaticResource BodyText}" TextWrapping="Wrap"/></StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top"><Button Content="Import .opsdesign" Command="{Binding ImportDesignCommand}" Style="{StaticResource StudioButton}" Margin="0,0,8,0"/><Button Content="Export design" Command="{Binding ExportDesignCommand}" Style="{StaticResource PrimaryButton}"/></StackPanel>
                         </Grid>
                         <ItemsControl ItemsSource="{Binding Themes}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Width="210"
-                                            Margin="0,0,10,10"
-                                            Padding="0"
-                                            HorizontalContentAlignment="Stretch"
-                                            Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}"
-                                            Style="{StaticResource StudioButton}">
-                                        <Border Padding="14"
-                                                Background="{Binding SurfaceBrush}"
-                                                BorderBrush="{Binding BorderBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="8">
-                                            <StackPanel>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Ellipse Width="12" Height="12" Fill="{Binding AccentBrush}" Margin="0,2,8,0"/>
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{Binding PreviewTextBrush}"/>
-                                                </StackPanel>
-                                                <TextBlock Margin="0,8,0,0"
-                                                           Text="{Binding Description}"
-                                                           FontSize="11"
-                                                           Foreground="{Binding PreviewSecondaryTextBrush}"
-                                                           TextWrapping="Wrap"
-                                                           TextTrimming="None"/>
-                                                <TextBlock Margin="0,9,0,0"
-                                                           Text="ACTIVE PALETTE"
-                                                           FontSize="9.5"
-                                                           FontWeight="Bold"
-                                                           Foreground="{Binding AccentBrush}">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </StackPanel>
+                                    <Button Width="158" Margin="0,0,8,8" Padding="0" HorizontalContentAlignment="Stretch"
+                                            Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource StudioButton}">
+                                        <Border Padding="12" Background="{Binding SurfaceBrush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" CornerRadius="8">
+                                            <StackPanel><StackPanel Orientation="Horizontal"><Ellipse Width="10" Height="10" Fill="{Binding AccentBrush}" Margin="0,2,7,0"/><TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{Binding PreviewTextBrush}"/></StackPanel><TextBlock Margin="0,7,0,0" MinHeight="32" Text="{Binding Description}" FontSize="10" Foreground="{Binding PreviewSecondaryTextBrush}" TextWrapping="Wrap" TextTrimming="None"/></StackPanel>
                                         </Border>
                                     </Button>
                                 </DataTemplate>
@@ -484,512 +276,240 @@
                     </StackPanel>
                 </Border>
 
-                <Grid Margin="0,14,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                <TextBlock Margin="2,22,0,9" Text="COMPOSITION" Style="{StaticResource SectionLabel}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,12,0">
                         <StackPanel>
-                            <TextBlock Text="Glass &amp; readability" Style="{StaticResource SectionTitleText}"/>
-                            <Grid Margin="0,18,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="Shell opacity" FontWeight="SemiBold"/>
-                                    <TextBlock Margin="0,3,0,0"
-                                               Text="Outer glass only; card opacity is controlled independently below"
-                                               Style="{StaticResource CaptionText}"/>
-                                </StackPanel>
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding BackgroundOpacity, StringFormat={}{0:P0}}"
-                                           Foreground="{StaticResource Brush.Accent}"
-                                           FontWeight="SemiBold"/>
-                            </Grid>
-                            <Slider Margin="0,8,0,16"
-                                    AutomationProperties.Name="Shell opacity"
-                                    Minimum="0.08"
-                                    Maximum="1"
-                                    SmallChange="0.02"
-                                    LargeChange="0.1"
-                                    Value="{Binding BackgroundOpacity}"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="Content opacity" FontWeight="SemiBold"/>
-                                    <TextBlock Margin="0,3,0,0" Text="Text, icons, graphs, and values" Style="{StaticResource CaptionText}"/>
-                                </StackPanel>
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding ContentOpacity, StringFormat={}{0:P0}}"
-                                           Foreground="{StaticResource Brush.Accent}"
-                                           FontWeight="SemiBold"/>
-                            </Grid>
-                            <Slider Margin="0,8,0,0"
-                                    AutomationProperties.Name="Content opacity"
-                                    Minimum="0.82"
-                                    Maximum="1"
-                                    SmallChange="0.01"
-                                    LargeChange="0.05"
-                                    Value="{Binding ContentOpacity}"/>
+                            <TextBlock Text="Transparency" Style="{StaticResource SectionTitleText}"/>
+                            <TextBlock Margin="0,5,0,15" Text="Shell and content opacity are independent, so text can remain readable over a light desktop." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
+                            <controls:StudioSettingSlider Header="Shell opacity" Description="Outer widget surface" Minimum="0.08" Maximum="1" SmallChange="0.02" ValueFormat="0%" Value="{Binding BackgroundOpacity}"/>
+                            <controls:StudioSettingSlider Margin="0,12,0,0" Header="Content opacity" Description="Text, icons, graphs and values" Minimum="0.82" Maximum="1" SmallChange="0.01" ValueFormat="0%" Value="{Binding ContentOpacity}"/>
                         </StackPanel>
                     </Border>
-
                     <Border Grid.Column="1" Style="{StaticResource CardBorder}">
                         <StackPanel>
-                            <TextBlock Text="Spacing &amp; motion" Style="{StaticResource SectionTitleText}"/>
-                            <TextBlock Margin="0,18,0,6" Text="Density" Style="{StaticResource EyebrowText}"/>
-                            <ComboBox AutomationProperties.Name="Information density"
-                                      IsEnabled="{Binding CanChangeDensity}"
-                                      ItemsSource="{Binding DensityOptions}"
-                                      SelectedItem="{Binding Density}"
-                                      ToolTip="Dock is intentionally fixed to Compact so it stays a slim one-row strip."/>
-                            <Border Margin="0,16,0,0" Padding="0,14,0,0" BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,0">
-                                <Grid>
-                                    <StackPanel>
-                                        <TextBlock Text="Reduced motion" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,58,0"
-                                                   Text="Disable Studio page transitions"
-                                                   Style="{StaticResource CaptionText}"/>
-                                    </StackPanel>
-                                    <CheckBox HorizontalAlignment="Right"
-                                              VerticalAlignment="Center"
-                                              IsChecked="{Binding ReducedMotion}"
-                                              Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
+                            <TextBlock Text="Density and access" Style="{StaticResource SectionTitleText}"/>
+                            <TextBlock Margin="0,5,0,15" Text="Density changes content spacing. Dock stays compact to preserve its one-row contract." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
+                            <TextBlock Text="Information density" FontWeight="SemiBold"/><ComboBox Margin="0,7,0,12" ItemsSource="{Binding DensityOptions}" SelectedItem="{Binding Density}" IsEnabled="{Binding CanChangeDensity}" AutomationProperties.Name="Information density"/>
+                            <controls:StudioSettingToggle Header="Reduce Studio motion" Description="Disable page transitions in this app" IsChecked="{Binding ReducedMotion}"/>
                         </StackPanel>
                     </Border>
                 </Grid>
 
-                <Border Margin="0,14,0,0" Style="{StaticResource CardBorder}" DataContext="{Binding Designer}">
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Colors">
+                <ScrollViewer>
+                    <StackPanel Style="{StaticResource PageStack}">
+                <TextBlock Text="COLOR TOKENS" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}" DataContext="{Binding Designer}">
                     <StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="Palette lab" Style="{StaticResource SectionTitleText}"/>
-                                <TextBlock Margin="0,4,0,0" Text="ARGB hex colors; invalid input safely keeps the last valid value." Style="{StaticResource CaptionText}"/>
-                            </StackPanel>
-                            <Border Grid.Column="1" Padding="10,6" Background="{Binding CardBrush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" CornerRadius="9">
-                                <StackPanel Orientation="Horizontal">
-                                    <Ellipse Width="8" Height="8" Margin="0,0,7,0" Fill="{Binding CpuAccentBrush}"/>
-                                    <TextBlock Text="LIVE TOKENS" Style="{StaticResource EyebrowText}"/>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
+                        <Grid><StackPanel><TextBlock Text="Palette" Style="{StaticResource SectionTitleText}"/><TextBlock Margin="0,5,0,0" Text="Enter RGB or ARGB hex. Invalid values retain the last valid color." Style="{StaticResource CaptionText}"/></StackPanel><Border HorizontalAlignment="Right" Padding="9,5" Background="{Binding CardBrush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" CornerRadius="8"><TextBlock Text="LIVE TOKENS" FontFamily="{StaticResource Font.Mono}" FontSize="9" Foreground="{Binding CpuAccentBrush}"/></Border></Grid>
                         <UniformGrid Columns="3" Margin="0,16,0,0">
-                            <StackPanel Margin="0,0,12,12"><TextBlock Text="Shell" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Surface, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,0,12,12"><TextBlock Text="Cards" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Card, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,0,0,12"><TextBlock Text="Borders" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Border, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,0,12,12"><TextBlock Text="Primary text" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding PrimaryText, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,0,12,12"><TextBlock Text="Secondary text" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding SecondaryText, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,0,0,12"><TextBlock Text="Tracks" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Track, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,0,12,12"><TextBlock Text="CPU" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding CpuAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,0,12,12"><TextBlock Text="GPU" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding GpuAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,0,0,12"><TextBlock Text="Memory" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding MemoryAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,0,12,0"><TextBlock Text="Network" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding NetworkAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,0,12,0"><TextBlock Text="Latency" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding LatencyAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel><TextBlock Text="Weather" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding WeatherAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,12,12,0"><TextBlock Text="Warning" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Warning, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,12,12,0"><TextBlock Text="Critical" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Critical, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                            <StackPanel Margin="0,12,0,0"><TextBlock Text="Success" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Success, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <controls:StudioSettingField Margin="0,0,8,12" Header="Shell" Description="Background" Text="{Binding Surface}"/>
+                            <controls:StudioSettingField Margin="8,0,8,12" Header="Cards" Description="Module surface" Text="{Binding Card}"/>
+                            <controls:StudioSettingField Margin="8,0,0,12" Header="Borders" Description="All outlines" Text="{Binding Border}"/>
+                            <controls:StudioSettingField Margin="0,0,8,12" Header="Primary text" Description="Values" Text="{Binding PrimaryText}"/>
+                            <controls:StudioSettingField Margin="8,0,8,12" Header="Secondary text" Description="Metadata" Text="{Binding SecondaryText}"/>
+                            <controls:StudioSettingField Margin="8,0,0,12" Header="Tracks" Description="Graph base" Text="{Binding Track}"/>
+                            <controls:StudioSettingField Margin="0,0,8,12" Header="CPU" Description="Processor" Text="{Binding CpuAccent}"/>
+                            <controls:StudioSettingField Margin="8,0,8,12" Header="GPU" Description="Graphics" Text="{Binding GpuAccent}"/>
+                            <controls:StudioSettingField Margin="8,0,0,12" Header="Memory" Description="RAM and disks" Text="{Binding MemoryAccent}"/>
+                            <controls:StudioSettingField Margin="0,0,8,12" Header="Network" Description="Throughput" Text="{Binding NetworkAccent}"/>
+                            <controls:StudioSettingField Margin="8,0,8,12" Header="Latency" Description="Ping and loss" Text="{Binding LatencyAccent}"/>
+                            <controls:StudioSettingField Margin="8,0,0,12" Header="Weather" Description="Forecast" Text="{Binding WeatherAccent}"/>
+                            <controls:StudioSettingField Margin="0,0,8,0" Header="Warning" Description="Caution" Text="{Binding Warning}"/>
+                            <controls:StudioSettingField Margin="8,0,8,0" Header="Critical" Description="Danger" Text="{Binding Critical}"/>
+                            <controls:StudioSettingField Margin="8,0,0,0" Header="Success" Description="Healthy" Text="{Binding Success}"/>
                         </UniformGrid>
                     </StackPanel>
                 </Border>
 
-                <Grid Margin="0,14,0,0" DataContext="{Binding Designer}">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,12,0">
-                        <StackPanel>
-                            <TextBlock Text="Shell &amp; cards" Style="{StaticResource SectionTitleText}"/>
-                            <TextBlock Margin="0,4,0,14" Text="Shape, spacing and visualization geometry" Style="{StaticResource CaptionText}"/>
-                            <TextBlock Text="Shell radius"/><Slider Minimum="0" Maximum="48" Value="{Binding CornerRadius}"/><TextBlock Text="{Binding CornerRadius, StringFormat={}{0:0} px}" HorizontalAlignment="Right" Style="{StaticResource CaptionText}"/>
-                            <TextBlock Margin="0,10,0,0" Text="Card radius"/><Slider Minimum="0" Maximum="40" Value="{Binding CardCornerRadius}"/><TextBlock Text="{Binding CardCornerRadius, StringFormat={}{0:0} px}" HorizontalAlignment="Right" Style="{StaticResource CaptionText}"/>
-                            <TextBlock Margin="0,10,0,0" Text="Card gap"/><Slider Minimum="0" Maximum="20" Value="{Binding CardGap}"/>
-                            <TextBlock Margin="0,10,0,0" Text="Shell content padding"/><Slider Minimum="0" Maximum="28" Value="{Binding ContentPadding}"/>
-                            <TextBlock Margin="0,10,0,0" Text="Card padding"/><Slider Minimum="0" Maximum="28" Value="{Binding CardPadding}"/>
-                            <TextBlock Margin="0,10,0,0" Text="Card opacity"/><Slider Minimum="0" Maximum="1" Value="{Binding CardOpacity}"/>
-                            <UniformGrid Columns="2" Margin="0,14,0,0">
-                                <StackPanel Margin="0,0,12,0"><TextBlock Text="Shell border" Style="{StaticResource EyebrowText}"/><Slider Minimum="0" Maximum="4" Value="{Binding BorderWidth}"/></StackPanel>
-                                <StackPanel><TextBlock Text="Card border" Style="{StaticResource EyebrowText}"/><Slider Minimum="0" Maximum="4" Value="{Binding CardBorderWidth}"/></StackPanel>
-                            </UniformGrid>
-                            <UniformGrid Columns="3" Margin="0,14,0,0">
-                                <StackPanel Margin="0,0,8,0"><TextBlock Text="Accent" Style="{StaticResource EyebrowText}"/><Slider Minimum="0" Maximum="10" Value="{Binding AccentWidth}"/></StackPanel>
-                                <StackPanel Margin="0,0,8,0"><TextBlock Text="Progress" Style="{StaticResource EyebrowText}"/><Slider Minimum="1" Maximum="12" Value="{Binding ProgressHeight}"/></StackPanel>
-                                <StackPanel><TextBlock Text="Sparkline" Style="{StaticResource EyebrowText}"/><Slider Minimum="0.5" Maximum="5" Value="{Binding SparklineThickness}"/></StackPanel>
-                            </UniformGrid>
-                        </StackPanel>
-                    </Border>
-                    <Border Grid.Column="1" Style="{StaticResource CardBorder}">
-                        <StackPanel>
-                            <TextBlock Text="Typography" Style="{StaticResource SectionTitleText}"/>
-                            <TextBlock Margin="0,4,0,14" Text="Readable limits are clamped automatically" Style="{StaticResource CaptionText}"/>
-                            <TextBlock Text="Font family" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"/>
-                            <TextBlock Margin="0,12,0,0" Text="Header size"/><Slider Minimum="8" Maximum="24" Value="{Binding HeaderSize}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Label size"/><Slider Minimum="8" Maximum="26" Value="{Binding LabelSize}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Secondary size"/><Slider Minimum="8" Maximum="24" Value="{Binding SecondarySize}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Value size"/><Slider Minimum="10" Maximum="42" Value="{Binding ValueSize}"/>
-                            <TextBlock Margin="0,8,0,0" Text="Minimum readable size"/><Slider Minimum="8" Maximum="18" Value="{Binding MinimumReadableSize}"/>
-                            <UniformGrid Columns="2" Margin="0,12,0,0">
-                                <StackPanel Margin="0,0,12,8"><TextBlock Text="Header weight" Style="{StaticResource EyebrowText}"/><Slider Minimum="100" Maximum="900" TickFrequency="50" Value="{Binding HeaderWeight}"/></StackPanel>
-                                <StackPanel Margin="0,0,0,8"><TextBlock Text="Secondary weight" Style="{StaticResource EyebrowText}"/><Slider Minimum="100" Maximum="900" TickFrequency="50" Value="{Binding SecondaryWeight}"/></StackPanel>
-                                <StackPanel Margin="0,0,12,0"><TextBlock Text="Label weight" Style="{StaticResource EyebrowText}"/><Slider Minimum="100" Maximum="900" TickFrequency="50" Value="{Binding LabelWeight}"/></StackPanel>
-                                <StackPanel><TextBlock Text="Value weight" Style="{StaticResource EyebrowText}"/><Slider Minimum="100" Maximum="900" TickFrequency="50" Value="{Binding ValueWeight}"/></StackPanel>
-                            </UniformGrid>
-                            <CheckBox Margin="0,14,0,0" Content="Tabular numbers" IsChecked="{Binding UseTabularNumbers}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Geometry">
+                <ScrollViewer>
+                    <StackPanel Style="{StaticResource PageStack}">
+                <TextBlock Text="GEOMETRY" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}" DataContext="{Binding Designer}">
+                    <StackPanel>
+                        <TextBlock Text="Shell and module measurements" Style="{StaticResource SectionTitleText}"/>
+                        <TextBlock Margin="0,5,0,16" Text="All values are clamped to safe bounds for Pill, Rail, Dock and Mini." Style="{StaticResource CaptionText}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <controls:StudioSettingSlider Header="Shell radius" Description="Outer corner curve" Minimum="0" Maximum="48" SmallChange="1" Unit=" px" Value="{Binding CornerRadius}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Card radius" Description="Module corner curve" Minimum="0" Maximum="40" SmallChange="1" Unit=" px" Value="{Binding CardCornerRadius}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Card gap" Description="Space between modules" Minimum="0" Maximum="20" SmallChange="1" Unit=" px" Value="{Binding CardGap}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Shell padding" Description="Space inside the widget" Minimum="0" Maximum="28" SmallChange="1" Unit=" px" Value="{Binding ContentPadding}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Card padding" Description="Space inside each module" Minimum="0" Maximum="28" SmallChange="1" Unit=" px" Value="{Binding CardPadding}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Card opacity" Description="Module surface alpha" Minimum="0" Maximum="1" SmallChange="0.02" ValueFormat="0%" Value="{Binding CardOpacity}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <controls:StudioSettingSlider Header="Shell border" Description="Outer outline" Minimum="0" Maximum="4" SmallChange="0.25" ValueFormat="0.00" Unit=" px" Value="{Binding BorderWidth}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Card border" Description="Module outline" Minimum="0" Maximum="4" SmallChange="0.25" ValueFormat="0.00" Unit=" px" Value="{Binding CardBorderWidth}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Accent width" Description="Colored module rail" Minimum="0" Maximum="10" SmallChange="0.5" ValueFormat="0.0" Unit=" px" Value="{Binding AccentWidth}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Progress height" Description="Bars and compact graphs" Minimum="1" Maximum="12" SmallChange="0.5" ValueFormat="0.0" Unit=" px" Value="{Binding ProgressHeight}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Sparkline stroke" Description="Trend line thickness" Minimum="0.5" Maximum="5" SmallChange="0.25" ValueFormat="0.00" Unit=" px" Value="{Binding SparklineThickness}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Header height" Description="Widget title area" Minimum="18" Maximum="64" SmallChange="1" Unit=" px" Value="{Binding HeaderHeight}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
 
-                <Grid Margin="0,14,0,0" DataContext="{Binding Designer}">
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Typography">
+                <ScrollViewer>
+                    <StackPanel Style="{StaticResource PageStack}">
+                <TextBlock Text="TYPE SYSTEM" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}" DataContext="{Binding Designer}">
+                    <StackPanel>
+                        <TextBlock Text="Typography" Style="{StaticResource SectionTitleText}"/>
+                        <TextBlock Margin="0,5,0,16" Text="The minimum readable size protects compact layouts from becoming illegible." Style="{StaticResource CaptionText}"/>
+                        <controls:StudioSettingField Header="Font family" Description="Installed Windows font" Text="{Binding FontFamily}"/>
+                        <Grid Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <controls:StudioSettingSlider Header="Header size" Description="Widget title" Minimum="8" Maximum="24" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding HeaderSize}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Label size" Description="Module names" Minimum="8" Maximum="26" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding LabelSize}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Secondary size" Description="Temperatures and metadata" Minimum="8" Maximum="24" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding SecondarySize}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Value size" Description="Primary metric values" Minimum="10" Maximum="42" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding ValueSize}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Readable minimum" Description="Lower safety bound" Minimum="8" Maximum="18" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding MinimumReadableSize}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <controls:StudioSettingSlider Header="Header weight" Description="100 thin to 900 black" Minimum="100" Maximum="900" SmallChange="50" TickFrequency="50" IsSnapToTickEnabled="True" Value="{Binding HeaderWeight}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Label weight" Description="Module name weight" Minimum="100" Maximum="900" SmallChange="50" TickFrequency="50" IsSnapToTickEnabled="True" Value="{Binding LabelWeight}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Secondary weight" Description="Metadata weight" Minimum="100" Maximum="900" SmallChange="50" TickFrequency="50" IsSnapToTickEnabled="True" Value="{Binding SecondaryWeight}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Value weight" Description="Primary metric weight" Minimum="100" Maximum="900" SmallChange="50" TickFrequency="50" IsSnapToTickEnabled="True" Value="{Binding ValueWeight}"/>
+                                <controls:StudioSettingToggle Margin="0,13,0,0" Header="Tabular numbers" Description="Keep changing values aligned" IsChecked="{Binding UseTabularNumbers}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Effects &amp; motion">
+                <ScrollViewer>
+                    <StackPanel Style="{StaticResource PageStack}">
+                <TextBlock Text="CHROME AND MOTION" Style="{StaticResource SectionLabel}"/>
+                <Grid DataContext="{Binding Designer}">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,12,0">
                         <StackPanel>
-                            <TextBlock Text="Chrome &amp; effects" Style="{StaticResource SectionTitleText}"/>
-                            <CheckBox Margin="0,14,0,0" Content="Show header" IsChecked="{Binding HeaderVisible}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
-                            <CheckBox Margin="0,10,0,0" Content="Show update indicator" IsChecked="{Binding StatusIndicatorVisible}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
-                            <CheckBox Margin="0,10,0,0" Content="Show settings cog" IsChecked="{Binding SettingsButtonVisible}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
-                            <TextBlock Margin="0,12,0,0" Text="Header height"/><Slider Minimum="18" Maximum="64" Value="{Binding HeaderHeight}"/>
-                            <CheckBox Margin="0,10,0,0" Content="Drop shadow" IsChecked="{Binding ShadowEnabled}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
-                            <Slider Minimum="0" Maximum="0.8" Value="{Binding ShadowOpacity}"/>
-                            <CheckBox Margin="0,10,0,0" Content="Top glow" IsChecked="{Binding GlowEnabled}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
-                            <Slider Minimum="0" Maximum="0.5" Value="{Binding GlowOpacity}"/>
+                            <TextBlock Text="Visible chrome" Style="{StaticResource SectionTitleText}"/>
+                            <TextBlock Margin="0,5,0,14" Text="Hide nonessential elements without losing drag recovery." Style="{StaticResource CaptionText}"/>
+                            <controls:StudioSettingToggle Margin="0,0,0,7" Header="Header" Description="Widget title region" IsChecked="{Binding HeaderVisible}"/>
+                            <controls:StudioSettingToggle Margin="0,0,0,7" Header="Update indicator" Description="Pulse when fresh data arrives" IsChecked="{Binding StatusIndicatorVisible}"/>
+                            <controls:StudioSettingToggle Margin="0,0,0,7" Header="Settings button" Description="Open Studio from the widget" IsChecked="{Binding SettingsButtonVisible}"/>
+                            <controls:StudioSettingToggle Margin="0,0,0,7" Header="Drop shadow" Description="Separate the widget from the desktop" IsChecked="{Binding ShadowEnabled}"/>
+                            <controls:StudioSettingSlider Margin="0,5,0,9" Header="Shadow opacity" Description="Outer depth" Minimum="0" Maximum="0.8" SmallChange="0.02" ValueFormat="0%" Value="{Binding ShadowOpacity}"/>
+                            <controls:StudioSettingToggle Margin="0,0,0,7" Header="Top glow" Description="Subtle light along the shell" IsChecked="{Binding GlowEnabled}"/>
+                            <controls:StudioSettingSlider Margin="0,5,0,0" Header="Glow opacity" Description="Highlight strength" Minimum="0" Maximum="0.5" SmallChange="0.02" ValueFormat="0%" Value="{Binding GlowOpacity}"/>
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="1" Style="{StaticResource CardBorder}">
                         <StackPanel>
-                            <TextBlock Text="Motion &amp; accessibility" Style="{StaticResource SectionTitleText}"/>
-                            <CheckBox Margin="0,14,0,0" Content="Enable widget motion" IsChecked="{Binding MotionEnabled}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
-                            <CheckBox Margin="0,10,0,0" Content="Pulse on data updates" IsChecked="{Binding PulseStatusIndicator}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
-                            <CheckBox Margin="0,10,0,0" Content="Respect Windows reduced motion" IsChecked="{Binding RespectReducedMotion}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
-                            <TextBlock Margin="0,14,0,0" Text="Transition time"/><Slider Minimum="0" Maximum="600" Value="{Binding TransitionMilliseconds}"/>
-                            <Border Margin="0,16,0,0" Padding="12" Background="{Binding CardBrush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" CornerRadius="10">
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <StackPanel><TextBlock Text="CONTRAST CHECK" Style="{StaticResource EyebrowText}"/><TextBlock Margin="0,5,12,0" Text="{Binding ContrastSummary}" Style="{StaticResource CaptionText}"/></StackPanel>
-                                    <Button Grid.Column="1" Content="Auto-fix" Command="{Binding DataContext.FixContrastCommand, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource StudioButton}"/>
-                                </Grid>
+                            <TextBlock Text="Motion and accessibility" Style="{StaticResource SectionTitleText}"/>
+                            <TextBlock Margin="0,5,0,14" Text="Motion is optional and always yields to the Windows accessibility setting." Style="{StaticResource CaptionText}"/>
+                            <controls:StudioSettingToggle Margin="0,0,0,7" Header="Widget motion" Description="Allow visual transitions" IsChecked="{Binding MotionEnabled}"/>
+                            <controls:StudioSettingToggle Margin="0,0,0,7" Header="Update pulse" Description="Animate the freshness indicator" IsChecked="{Binding PulseStatusIndicator}"/>
+                            <controls:StudioSettingToggle Margin="0,0,0,12" Header="Respect reduced motion" Description="Follow the Windows animation preference" IsChecked="{Binding RespectReducedMotion}"/>
+                            <controls:StudioSettingSlider Header="Transition duration" Description="Update pulse duration" Minimum="0" Maximum="600" SmallChange="10" Unit=" ms" Value="{Binding TransitionMilliseconds}"/>
+                            <Border Margin="0,16,0,0" Padding="13" Background="{Binding CardBrush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" CornerRadius="10">
+                                <Grid><StackPanel><TextBlock Text="CONTRAST GUARD" Style="{StaticResource EyebrowText}"/><TextBlock Margin="0,5,90,0" Text="{Binding ContrastSummary}" Style="{StaticResource CaptionText}" TextWrapping="Wrap"/></StackPanel><Button HorizontalAlignment="Right" VerticalAlignment="Center" Content="Repair" Command="{Binding DataContext.FixContrastCommand, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource StudioButton}"/></Grid>
                             </Border>
                         </StackPanel>
                     </Border>
                 </Grid>
-
-            </StackPanel>
-        </ScrollViewer>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
     </DataTemplate>
 
     <DataTemplate x:Key="Page.Window">
         <ScrollViewer>
-            <StackPanel Margin="0,0,8,28">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,12,0">
-                        <StackPanel>
-                            <TextBlock Text="Window behavior" Style="{StaticResource SectionTitleText}"/>
+            <StackPanel Style="{StaticResource PageStack}">
+                <TextBlock Text="INTERACTION" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="Desktop behavior" Style="{StaticResource SectionTitleText}"/>
+                        <TextBlock Margin="0,5,0,15" Text="These settings affect only the widget window. Studio remains fully interactive." Style="{StaticResource CaptionText}"/>
+                        <UniformGrid Columns="2">
+                            <controls:StudioSettingToggle Margin="0,0,6,7" Header="Always on top" Description="Stay above regular windows" IsChecked="{Binding AlwaysOnTop}"/>
+                            <controls:StudioSettingToggle Margin="6,0,0,7" Header="Lock position" Description="Prevent accidental movement" IsChecked="{Binding PositionLocked}"/>
+                            <controls:StudioSettingToggle Margin="0,0,6,7" Header="Draggable" Description="Allow movement while unlocked" IsChecked="{Binding Draggable}"/>
+                            <controls:StudioSettingToggle Margin="6,0,0,7" Header="Resizable" Description="Enable the corner resize hit area" IsChecked="{Binding Resizable}"/>
+                            <controls:StudioSettingToggle Margin="0,0,6,0" Header="Click-through" Description="Pass mouse input to apps below" IsChecked="{Binding ClickThrough}"/>
+                            <controls:StudioSettingToggle Margin="6,0,0,0" Header="Launch at sign-in" Description="Start for this Windows user" IsChecked="{Binding StartAtSignIn}"/>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
 
-                            <Border Style="{StaticResource SettingRow}">
-                                <Grid>
-                                    <StackPanel>
-                                        <TextBlock Text="Always on top" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,58,0" Text="Keep the widget above regular windows" Style="{StaticResource CaptionText}"/>
-                                    </StackPanel>
-                                    <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding AlwaysOnTop}" Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource SettingRow}">
-                                <Grid>
-                                    <StackPanel>
-                                        <TextBlock Text="Lock position" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,58,0" Text="Prevent accidental movement; Studio shortcut Ctrl+L" Style="{StaticResource CaptionText}"/>
-                                    </StackPanel>
-                                    <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding PositionLocked}" Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource SettingRow}">
-                                <Grid>
-                                    <StackPanel>
-                                        <TextBlock Text="Draggable" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,58,0" Text="Allow click-and-drag while unlocked" Style="{StaticResource CaptionText}"/>
-                                    </StackPanel>
-                                    <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding Draggable}" Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource SettingRow}">
-                                <Grid>
-                                    <StackPanel>
-                                        <TextBlock Text="Resizable" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,58,0" Text="Resize from the clean bottom-right corner hit area" Style="{StaticResource CaptionText}"/>
-                                    </StackPanel>
-                                    <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding Resizable}" Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
-                            <Border Padding="0,14,0,0">
-                                <Grid>
-                                    <StackPanel>
-                                        <TextBlock Text="Click-through" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,58,0" Text="Mouse input passes to apps below; enabling it clears Lock" Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                    <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding ClickThrough}" Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Column="1" Style="{StaticResource CardBorder}">
-                        <StackPanel>
-                            <TextBlock Text="Size &amp; scale" Style="{StaticResource SectionTitleText}"/>
-                            <Grid Margin="0,18,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Scale preset" FontWeight="SemiBold"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding WidgetScalePercent, StringFormat={}{0}%}"
-                                           Foreground="{StaticResource Brush.Accent}"
-                                           FontWeight="SemiBold"/>
-                            </Grid>
-                            <Slider Margin="0,7,0,14"
-                                    Minimum="80"
-                                    Maximum="160"
-                                    TickFrequency="10"
-                                    IsSnapToTickEnabled="True"
-                                    Value="{Binding WidgetScalePercent}"/>
-                            <Grid Margin="0,-4,0,16">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="6"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="6"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0"
-                                        Content="80% Slim"
-                                        Command="{Binding SetScaleCommand}"
-                                        CommandParameter="80"
-                                        Style="{StaticResource StudioButton}"
-                                        Padding="7,6"/>
-                                <Button Grid.Column="2"
-                                        Content="100% Normal"
-                                        Command="{Binding SetScaleCommand}"
-                                        CommandParameter="100"
-                                        Style="{StaticResource StudioButton}"
-                                        Padding="7,6"/>
-                                <Button Grid.Column="4"
-                                        Content="125% Large"
-                                        Command="{Binding SetScaleCommand}"
-                                        CommandParameter="125"
-                                        Style="{StaticResource StudioButton}"
-                                        Padding="7,6"/>
-                            </Grid>
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="12"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="Width" Style="{StaticResource EyebrowText}"/>
-                                    <TextBox Margin="0,6,0,0"
-                                             Text="{Binding WidgetWidth, UpdateSourceTrigger=LostFocus, StringFormat={}{0:F0}}"
-                                             Style="{StaticResource StudioTextBox}"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="Height" Style="{StaticResource EyebrowText}"/>
-                                    <TextBox Margin="0,6,0,0"
-                                             Text="{Binding WidgetHeight, UpdateSourceTrigger=LostFocus, StringFormat={}{0:F0}}"
-                                             Style="{StaticResource StudioTextBox}"/>
-                                </StackPanel>
-                            </Grid>
-                            <TextBlock Margin="0,10,0,0"
-                                       Text="Manual dimensions are clamped to readable bounds. The live widget can also be resized from its invisible bottom-right hit area."
-                                       Style="{StaticResource CaptionText}"
-                                       TextWrapping="Wrap"
-                                       TextTrimming="None"/>
-
-                            <Border Margin="0,18,0,0" Padding="0,16,0,0" BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,0">
-                                <Grid>
-                                    <StackPanel>
-                                        <TextBlock Text="Launch at Windows sign-in" FontWeight="SemiBold"/>
-                                        <TextBlock Margin="0,3,58,0" Text="Per-user startup registration" Style="{StaticResource CaptionText}"/>
-                                    </StackPanel>
-                                    <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding StartAtSignIn}" Style="{StaticResource ToggleSwitch}"/>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                <TextBlock Margin="2,22,0,9" Text="SIZE" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="Scale and dimensions" Style="{StaticResource SectionTitleText}"/>
+                        <TextBlock Margin="0,5,0,16" Text="Scale changes the complete widget. Manual dimensions are validated against the selected layout." Style="{StaticResource CaptionText}"/>
+                        <controls:StudioSettingSlider Header="Widget scale" Description="Readable range across monitors" Minimum="80" Maximum="160" SmallChange="10" TickFrequency="10" IsSnapToTickEnabled="True" Unit="%" Value="{Binding WidgetScalePercent}"/>
+                        <UniformGrid Columns="3" Margin="0,13,0,16"><Button Margin="0,0,6,0" Content="80%  Slim" Command="{Binding SetScaleCommand}" CommandParameter="80" Style="{StaticResource StudioButton}"/><Button Margin="6,0" Content="100%  Standard" Command="{Binding SetScaleCommand}" CommandParameter="100" Style="{StaticResource StudioButton}"/><Button Margin="6,0,0,0" Content="125%  Large" Command="{Binding SetScaleCommand}" CommandParameter="125" Style="{StaticResource StudioButton}"/></UniformGrid>
+                        <UniformGrid Columns="2">
+                            <controls:StudioSettingField Margin="0,0,8,0" Header="Window width" Description="pixels" Text="{Binding WidgetWidth, StringFormat={}{0:F0}}"/>
+                            <controls:StudioSettingField Margin="8,0,0,0" Header="Window height" Description="pixels" Text="{Binding WidgetHeight, StringFormat={}{0:F0}}"/>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
     </DataTemplate>
 
     <DataTemplate x:Key="Page.Providers">
         <ScrollViewer>
-            <StackPanel Margin="0,0,8,28">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="0.75*"/>
-                        <ColumnDefinition Width="1.25*"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,12,0">
-                        <StackPanel>
-                            <TextBlock Text="Polling policy" Style="{StaticResource SectionTitleText}"/>
-                            <TextBlock Margin="0,5,0,16"
-                                       Text="Providers run independently and never overlap their own previous sample."
-                                       Style="{StaticResource BodyText}"
-                                       TextWrapping="Wrap"/>
-                            <TextBlock Text="Update frequency" Style="{StaticResource EyebrowText}"/>
-                            <ComboBox Margin="0,6,0,14"
-                                      ItemsSource="{Binding UpdateRates}"
-                                      SelectedItem="{Binding UpdateRate}"/>
-                            <TextBlock Text="Performance mode" Style="{StaticResource EyebrowText}"/>
-                            <ComboBox Margin="0,6,0,0"
-                                      ItemsSource="{Binding PerformanceModes}"
-                                      SelectedItem="{Binding PerformanceMode}"/>
-                            <TextBlock Margin="0,12,0,0"
-                                       Text="Efficiency reduces wakeups; Performance favors fresher values."
-                                       Style="{StaticResource CaptionText}"
-                                       TextWrapping="Wrap"/>
-                        </StackPanel>
-                    </Border>
+            <StackPanel Style="{StaticResource PageStack}">
+                <TextBlock Text="SAMPLING" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="Update frequency" Style="{StaticResource SectionTitleText}"/><TextBlock Margin="0,5,0,14" Text="The UI refresh rate. Providers keep independent non-overlapping schedules." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/><ComboBox ItemsSource="{Binding UpdateRates}" SelectedItem="{Binding UpdateRate}" AutomationProperties.Name="Update frequency"/></StackPanel>
+                        <StackPanel Grid.Column="2"><TextBlock Text="Performance policy" Style="{StaticResource SectionTitleText}"/><TextBlock Margin="0,5,0,14" Text="Efficiency reduces wakeups. Performance prioritizes fresher data." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/><ComboBox ItemsSource="{Binding PerformanceModes}" SelectedItem="{Binding PerformanceMode}" AutomationProperties.Name="Performance policy"/></StackPanel>
+                    </Grid>
+                </Border>
 
-                    <Border Grid.Column="1" Style="{StaticResource CardBorder}">
-                        <StackPanel>
-                            <TextBlock Text="Sensor providers" Style="{StaticResource SectionTitleText}"/>
-                            <TextBlock Margin="0,5,0,14"
-                                       Text="Run a bounded health probe without changing provider configuration."
-                                       Style="{StaticResource BodyText}"
-                                       TextWrapping="Wrap"
-                                       TextTrimming="None"/>
-                            <ItemsControl ItemsSource="{Binding Providers}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Style="{StaticResource SettingRow}">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="9"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Ellipse Width="8" Height="8" Fill="{Binding StatusBrush}" VerticalAlignment="Top" Margin="0,5,0,0"/>
-                                                <StackPanel Grid.Column="1" Margin="10,0,14,0">
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                                    <TextBlock Margin="0,3,0,0"
-                                                               Text="{Binding Description}"
-                                                               Style="{StaticResource CaptionText}"
-                                                               TextWrapping="Wrap"
-                                                               TextTrimming="None"/>
-                                                    <StackPanel Margin="0,6,0,0" Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding Status}" Foreground="{Binding StatusBrush}" FontSize="11" FontWeight="SemiBold"/>
-                                                        <TextBlock Text="  ·  " Style="{StaticResource CaptionText}"/>
-                                                        <TextBlock Text="{Binding Latency}" Style="{StaticResource CaptionText}"/>
-                                                        <TextBlock Text="  ·  " Style="{StaticResource CaptionText}"/>
-                                                        <TextBlock Text="{Binding Sensors}" Style="{StaticResource CaptionText}"/>
-                                                    </StackPanel>
-                                                </StackPanel>
-                                                <Button Grid.Column="2"
-                                                        Content="Test"
-                                                        Command="{Binding DataContext.TestProviderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        Style="{StaticResource StudioButton}"
-                                                        VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-
-                <Border Margin="0,14,0,0" Style="{StaticResource CardBorder}">
+                <TextBlock Margin="2,22,0,9" Text="PROVIDER HEALTH" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}">
                     <StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="220"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="Sensor browser" Style="{StaticResource SectionTitleText}"/>
-                                <TextBlock Margin="0,4,0,0"
-                                           Text="Pin optional readings into CPU, GPU, memory, or storage details. Compact and Mini layouts stay clean."
-                                           Style="{StaticResource CaptionText}"
-                                           TextWrapping="Wrap"/>
-                            </StackPanel>
-                            <TextBox Grid.Column="1"
-                                     Margin="16,0,8,0"
-                                     VerticalAlignment="Center"
-                                     Padding="10,7"
-                                     Text="{Binding SensorSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Filter by hardware, sensor, type, or target module"
-                                     Style="{StaticResource StudioTextBox}"/>
-                            <Button Grid.Column="2"
-                                    Content="Refresh"
-                                    Command="{Binding RefreshSensorsCommand}"
-                                    Style="{StaticResource StudioButton}"
-                                    VerticalAlignment="Center"/>
-                        </Grid>
-                        <TextBlock Margin="0,12,0,8"
-                                   Text="{Binding SensorCatalogStatus}"
-                                   Style="{StaticResource CaptionText}"/>
-                        <ListBox MaxHeight="380"
-                                 ItemsSource="{Binding SensorCatalogView}"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 ScrollViewer.CanContentScroll="True"
-                                 VirtualizingPanel.IsVirtualizing="True"
-                                 VirtualizingPanel.VirtualizationMode="Recycling">
-                            <ListBox.ItemTemplate>
+                        <TextBlock Text="Telemetry sources" Style="{StaticResource SectionTitleText}"/>
+                        <TextBlock Margin="0,5,0,12" Text="Test a source without changing its configuration or interrupting the widget." Style="{StaticResource CaptionText}"/>
+                        <ItemsControl ItemsSource="{Binding Providers}">
+                            <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Style="{StaticResource SettingRow}" Padding="8,7">
+                                    <Border Style="{StaticResource SettingRow}">
                                         <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="110"/>
-                                                <ColumnDefinition Width="120"/>
-                                            </Grid.ColumnDefinitions>
-                                            <CheckBox Margin="0,0,10,0"
-                                                      VerticalAlignment="Center"
-                                                      IsChecked="{Binding IsPinned}"
-                                                      ToolTip="Show this sensor as an optional module detail"/>
-                                            <StackPanel Grid.Column="1">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                                <TextBlock Margin="0,2,0,0"
-                                                           Text="{Binding Hardware}"
-                                                           Style="{StaticResource CaptionText}"
-                                                           TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2">
-                                                <TextBlock Text="{Binding Value}"
-                                                           HorizontalAlignment="Right"
-                                                           FontFamily="{StaticResource Font.Mono}"
-                                                           Foreground="{StaticResource Brush.Accent}"/>
-                                                <TextBlock Text="{Binding SensorType}"
-                                                           HorizontalAlignment="Right"
-                                                           Style="{StaticResource CaptionText}"/>
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="3"
-                                                       Margin="14,0,0,0"
-                                                       VerticalAlignment="Center"
-                                                       Text="{Binding ModuleLabel}"
-                                                       Style="{StaticResource CaptionText}"/>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                            <Ellipse Width="8" Height="8" Fill="{Binding StatusBrush}" VerticalAlignment="Top" Margin="0,5,0,0"/>
+                                            <StackPanel Grid.Column="1" Margin="10,0,16,0"><TextBlock Text="{Binding Name}" FontWeight="SemiBold"/><TextBlock Margin="0,3,0,0" Text="{Binding Description}" Style="{StaticResource CaptionText}" TextWrapping="Wrap"/><StackPanel Margin="0,6,0,0" Orientation="Horizontal"><TextBlock Text="{Binding Status}" Foreground="{Binding StatusBrush}" FontSize="11" FontWeight="SemiBold"/><TextBlock Text="  ·  " Style="{StaticResource CaptionText}"/><TextBlock Text="{Binding Latency}" Style="{StaticResource CaptionText}"/><TextBlock Text="  ·  " Style="{StaticResource CaptionText}"/><TextBlock Text="{Binding Sensors}" Style="{StaticResource CaptionText}"/></StackPanel></StackPanel>
+                                            <Button Grid.Column="2" Content="Run test" Command="{Binding DataContext.TestProviderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource StudioButton}" VerticalAlignment="Center"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
-                            </ListBox.ItemTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Margin="2,22,0,9" Text="OPTIONAL SENSORS" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="220"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Sensor browser" Style="{StaticResource SectionTitleText}"/><TextBlock Margin="0,4,0,0" Text="Pin up to three additional readings per module. Mini remains curated." Style="{StaticResource CaptionText}"/></StackPanel><TextBox Grid.Column="1" Margin="14,0,8,0" Text="{Binding SensorSearchText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Filter sensors" Style="{StaticResource StudioTextBox}"/><Button Grid.Column="2" Content="Refresh" Command="{Binding RefreshSensorsCommand}" Style="{StaticResource StudioButton}"/></Grid>
+                        <TextBlock Margin="0,12,0,7" Text="{Binding SensorCatalogStatus}" Style="{StaticResource CaptionText}"/>
+                        <ListBox MaxHeight="390" ItemsSource="{Binding SensorCatalogView}" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                            <ListBox.ItemTemplate><DataTemplate><Border Style="{StaticResource SettingRow}" Padding="8,7"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="105"/><ColumnDefinition Width="105"/></Grid.ColumnDefinitions><CheckBox Margin="0,0,10,0" VerticalAlignment="Center" IsChecked="{Binding IsPinned}" AutomationProperties.Name="{Binding Name, StringFormat=Pin {0}}"/><StackPanel Grid.Column="1"><TextBlock Text="{Binding Name}" FontWeight="SemiBold"/><TextBlock Margin="0,2,0,0" Text="{Binding Hardware}" Style="{StaticResource CaptionText}"/></StackPanel><StackPanel Grid.Column="2"><TextBlock Text="{Binding Value}" HorizontalAlignment="Right" FontFamily="{StaticResource Font.Mono}" Foreground="{StaticResource Brush.Accent}"/><TextBlock Text="{Binding SensorType}" HorizontalAlignment="Right" Style="{StaticResource CaptionText}"/></StackPanel><TextBlock Grid.Column="3" Margin="12,0,0,0" Text="{Binding ModuleLabel}" VerticalAlignment="Center" Style="{StaticResource CaptionText}"/></Grid></Border></DataTemplate></ListBox.ItemTemplate>
                         </ListBox>
                     </StackPanel>
                 </Border>
@@ -999,68 +519,28 @@
 
     <DataTemplate x:Key="Page.Diagnostics">
         <ScrollViewer>
-            <StackPanel Margin="0,0,8,28">
-                <Border Style="{StaticResource CardBorder}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel>
-                            <TextBlock Text="Runtime health" Style="{StaticResource SectionTitleText}"/>
-                            <TextBlock Margin="0,5,0,16"
-                                       Text="Measured impact and exact configuration locations for support."
-                                       Style="{StaticResource BodyText}"/>
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource TagBorder}" Margin="0,0,8,0">
-                                    <TextBlock Text="{Binding ResourceCpu, StringFormat=CPU {0}}" Foreground="{StaticResource Brush.Accent}"/>
-                                </Border>
-                                <Border Style="{StaticResource TagBorder}" Margin="0,0,8,0">
-                                    <TextBlock Text="{Binding ResourceMemory, StringFormat=RAM {0}}" Foreground="{StaticResource Brush.Blue}"/>
-                                </Border>
-                                <Border Style="{StaticResource TagBorder}">
-                                    <TextBlock Text="{Binding ImpactLabel}" Foreground="{StaticResource Brush.Success}"/>
-                                </Border>
-                            </StackPanel>
-                        </StackPanel>
-                        <Button Grid.Column="1"
-                                Margin="18,0,0,0"
-                                Content="Copy diagnostics"
-                                Command="{Binding CopyDiagnosticsCommand}"
-                                Style="{StaticResource PrimaryButton}"
-                                VerticalAlignment="Top"/>
-                    </Grid>
+            <StackPanel Style="{StaticResource PageStack}">
+                <TextBlock Text="HEALTH" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}" BorderBrush="#5548DCF9">
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Runtime health" Style="{StaticResource SectionTitleText}"/><TextBlock Margin="0,5,0,15" Text="Measured resource impact and configuration state." Style="{StaticResource BodyText}"/><StackPanel Orientation="Horizontal"><Border Style="{StaticResource TagBorder}" Margin="0,0,8,0"><TextBlock Text="{Binding ResourceCpu, StringFormat=CPU  {0}}" Foreground="{StaticResource Brush.Accent}"/></Border><Border Style="{StaticResource TagBorder}" Margin="0,0,8,0"><TextBlock Text="{Binding ResourceMemory, StringFormat=RAM  {0}}" Foreground="{StaticResource Brush.Blue}"/></Border><Border Style="{StaticResource TagBorder}"><TextBlock Text="{Binding ImpactLabel}" Foreground="{StaticResource Brush.Success}"/></Border></StackPanel></StackPanel><Button Grid.Column="1" Content="Copy diagnostics" Command="{Binding CopyDiagnosticsCommand}" Style="{StaticResource PrimaryButton}" VerticalAlignment="Top"/></Grid>
                 </Border>
 
-                <Border Margin="0,14,0,0" Style="{StaticResource CardBorder}">
+                <TextBlock Margin="2,22,0,9" Text="FILES" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}">
                     <StackPanel>
                         <TextBlock Text="Configuration paths" Style="{StaticResource SectionTitleText}"/>
-                        <TextBlock Margin="0,14,0,4" Text="STUDIO DOCUMENT" Style="{StaticResource EyebrowText}"/>
-                        <TextBlock Text="{Binding SettingsPath}" FontFamily="{StaticResource Font.Mono}" FontSize="11" TextWrapping="Wrap" TextTrimming="None"/>
-                        <TextBlock Margin="0,14,0,4" Text="SHARED RUNTIME DOCUMENT" Style="{StaticResource EyebrowText}"/>
-                        <TextBlock Text="{Binding RuntimeSettingsPath}" FontFamily="{StaticResource Font.Mono}" FontSize="11" TextWrapping="Wrap" TextTrimming="None"/>
-                        <TextBlock Margin="0,14,0,4" Text="WIDGET EXECUTABLE" Style="{StaticResource EyebrowText}"/>
-                        <TextBlock Text="{Binding WidgetExecutablePath}" FontFamily="{StaticResource Font.Mono}" FontSize="11" TextWrapping="Wrap" TextTrimming="None"/>
+                        <TextBlock Margin="0,14,0,4" Text="STUDIO DOCUMENT" Style="{StaticResource EyebrowText}"/><TextBlock Text="{Binding SettingsPath}" FontFamily="{StaticResource Font.Mono}" FontSize="11" TextWrapping="Wrap"/>
+                        <TextBlock Margin="0,14,0,4" Text="SHARED RUNTIME DOCUMENT" Style="{StaticResource EyebrowText}"/><TextBlock Text="{Binding RuntimeSettingsPath}" FontFamily="{StaticResource Font.Mono}" FontSize="11" TextWrapping="Wrap"/>
+                        <TextBlock Margin="0,14,0,4" Text="WIDGET EXECUTABLE" Style="{StaticResource EyebrowText}"/><TextBlock Text="{Binding WidgetExecutablePath}" FontFamily="{StaticResource Font.Mono}" FontSize="11" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
 
-                <Border Margin="0,14,0,0" Style="{StaticResource CardBorder}">
+                <TextBlock Margin="2,22,0,9" Text="MAINTENANCE" Style="{StaticResource SectionLabel}"/>
+                <Border Style="{StaticResource CardBorder}">
                     <StackPanel>
-                        <TextBlock Text="Maintenance" Style="{StaticResource SectionTitleText}"/>
-                        <Border Style="{StaticResource SettingRow}">
-                            <Grid>
-                                <StackPanel>
-                                    <TextBlock Text="Animate sample preview values" FontWeight="SemiBold"/>
-                                    <TextBlock Margin="0,3,58,0" Text="Studio-only visual activity; never alters live telemetry" Style="{StaticResource CaptionText}"/>
-                                </StackPanel>
-                                <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding DemoMetrics}" Style="{StaticResource ToggleSwitch}"/>
-                            </Grid>
-                        </Border>
-                        <StackPanel Margin="0,14,0,0" Orientation="Horizontal">
-                            <Button Content="Reload from disk" Command="{Binding ReloadCommand}" Style="{StaticResource StudioButton}" Margin="0,0,8,0"/>
-                            <Button Content="{Binding WidgetActionLabel}" Command="{Binding OpenOrRestartWidgetCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/>
-                            <Button Content="Restore defaults" Command="{Binding ResetDemoCommand}" Style="{StaticResource StudioButton}"/>
-                        </StackPanel>
+                        <controls:StudioSettingToggle Header="Use sample telemetry" Description="Animate the Studio canvas only; live widget telemetry is unchanged." IsChecked="{Binding DemoMetrics}"/>
+                        <StackPanel Margin="0,15,0,0" Orientation="Horizontal"><Button Content="Reload settings" Command="{Binding ReloadCommand}" Style="{StaticResource StudioButton}" Margin="0,0,8,0"/><Button Content="{Binding WidgetActionLabel}" Command="{Binding OpenOrRestartWidgetCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/><Button Content="Restore defaults" Command="{Binding ResetDemoCommand}" Style="{StaticResource DangerButton}"/></StackPanel>
+                        <TextBlock Margin="0,12,0,0" Text="Restore defaults resets Studio and widget presentation settings. It does not uninstall sensors or delete telemetry history." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
