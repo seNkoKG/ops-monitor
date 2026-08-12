@@ -25,6 +25,12 @@ public partial class MetricCard : UserControl
         typeof(MetricCard),
         new PropertyMetadata(1d));
 
+    public static readonly DependencyProperty ThemeContextProperty = DependencyProperty.Register(
+        nameof(ThemeContext),
+        typeof(object),
+        typeof(MetricCard),
+        new PropertyMetadata(null));
+
     public MetricCard()
     {
         InitializeComponent();
@@ -46,5 +52,11 @@ public partial class MetricCard : UserControl
     {
         get => (double)GetValue(ContentOpacityProperty);
         set => SetValue(ContentOpacityProperty, value);
+    }
+
+    public object? ThemeContext
+    {
+        get => GetValue(ThemeContextProperty);
+        set => SetValue(ThemeContextProperty, value);
     }
 }

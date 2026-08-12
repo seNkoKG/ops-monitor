@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OpsMonitor.Core\OpsMonitor.Core.csproj" />
+    <ProjectReference Include="..\OpsMonitor.Widget\OpsMonitor.Widget.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

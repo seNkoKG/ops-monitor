@@ -20,7 +20,7 @@
             <Setter Property="Minimum" Value="0" />
             <Setter Property="Maximum" Value="100" />
             <Setter Property="Background"
-                    Value="{Binding DataContext.TrackBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                    Value="{Binding ThemeContext.TrackBrush, ElementName=Root}" />
             <Setter Property="Foreground" Value="{Binding AccentBrush}" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -53,20 +53,20 @@
                BasedOn="{StaticResource WidgetReadableText}"
                TargetType="{x:Type TextBlock}">
             <Setter Property="FontFamily"
-                    Value="{Binding DataContext.WidgetFontFamily, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                    Value="{Binding ThemeContext.WidgetFontFamily, ElementName=Root}" />
             <Setter Property="FontSize"
-                    Value="{Binding DataContext.LabelFontSize, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                    Value="{Binding ThemeContext.LabelFontSize, ElementName=Root}" />
             <Setter Property="FontWeight"
-                    Value="{Binding DataContext.LabelFontWeight, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                    Value="{Binding ThemeContext.LabelFontWeight, ElementName=Root}" />
         </Style>
 
         <Style x:Key="MetricMetaTextStyle"
                BasedOn="{StaticResource WidgetReadableText}"
                TargetType="{x:Type TextBlock}">
             <Setter Property="FontFamily"
-                    Value="{Binding DataContext.WidgetFontFamily, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                    Value="{Binding ThemeContext.WidgetFontFamily, ElementName=Root}" />
             <Setter Property="FontSize"
-                    Value="{Binding DataContext.LabelFontSize, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                    Value="{Binding ThemeContext.LabelFontSize, ElementName=Root}" />
             <Setter Property="FontWeight" Value="Normal" />
         </Style>
 
@@ -74,13 +74,13 @@
                BasedOn="{StaticResource WidgetReadableText}"
                TargetType="{x:Type TextBlock}">
             <Setter Property="FontFamily"
-                    Value="{Binding DataContext.WidgetFontFamily, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                    Value="{Binding ThemeContext.WidgetFontFamily, ElementName=Root}" />
             <Setter Property="FontSize"
-                    Value="{Binding DataContext.ValueFontSize, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                    Value="{Binding ThemeContext.ValueFontSize, ElementName=Root}" />
             <Setter Property="FontWeight"
-                    Value="{Binding DataContext.ValueFontWeight, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                    Value="{Binding ThemeContext.ValueFontWeight, ElementName=Root}" />
             <Style.Triggers>
-                <DataTrigger Binding="{Binding DataContext.UseTabularNumbers, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                <DataTrigger Binding="{Binding ThemeContext.UseTabularNumbers, ElementName=Root}"
                              Value="True">
                     <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
                 </DataTrigger>
@@ -211,7 +211,7 @@
                                    Value="{x:Static models:WidgetLayout.Pill}" />
                         <Condition Binding="{Binding Density, ElementName=Root}"
                                    Value="{x:Static models:WidgetDensity.Compact}" />
-                        <Condition Binding="{Binding DataContext.IsReducedScale, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                        <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                    Value="True" />
                     </MultiDataTrigger.Conditions>
                     <Setter Property="Height" Value="46" />
@@ -223,7 +223,7 @@
                                    Value="{x:Static models:WidgetLayout.Mini}" />
                         <Condition Binding="{Binding Density, ElementName=Root}"
                                    Value="{x:Static models:WidgetDensity.Compact}" />
-                        <Condition Binding="{Binding DataContext.IsReducedScale, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                        <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                    Value="True" />
                     </MultiDataTrigger.Conditions>
                     <Setter Property="Height" Value="28" />
@@ -285,7 +285,7 @@
                         <Border Width="14"
                                 Height="14"
                                 HorizontalAlignment="Left"
-                                Background="{Binding DataContext.TrackBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                Background="{Binding ThemeContext.TrackBrush, ElementName=Root}"
                                 CornerRadius="5"
                                 Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Grid>
@@ -325,7 +325,7 @@
                                      Fill="{Binding StateBrush}" />
                             <TextBlock MaxWidth="84"
                                        FontSize="10.5"
-                                       Foreground="{Binding DataContext.TextSecondaryBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                       Foreground="{Binding ThemeContext.TextSecondaryBrush, ElementName=Root}"
                                        Style="{StaticResource MetricMetaTextStyle}"
                                        Text="{Binding Status}"
                                        TextTrimming="CharacterEllipsis" />
@@ -335,7 +335,7 @@
                     <TextBlock Grid.Row="1"
                                VerticalAlignment="Center"
                                FontSize="15"
-                               Foreground="{Binding DataContext.TextPrimaryBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                               Foreground="{Binding ThemeContext.TextPrimaryBrush, ElementName=Root}"
                                Style="{StaticResource MetricValueTextStyle}"
                                Text="{Binding CompactPrimaryValue}"
                                TextTrimming="CharacterEllipsis"
@@ -380,7 +380,7 @@
                                            Value="{x:Static models:WidgetLayout.Mini}" />
                                 <Condition Binding="{Binding Density, ElementName=Root}"
                                            Value="{x:Static models:WidgetDensity.Compact}" />
-                                <Condition Binding="{Binding DataContext.IsReducedScale, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                            Value="True" />
                             </MultiDataTrigger.Conditions>
                             <Setter Property="Padding" Value="3,0" />
@@ -421,7 +421,7 @@
                         <Border Width="12"
                                 Height="12"
                                 HorizontalAlignment="Left"
-                                Background="{Binding DataContext.TrackBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                Background="{Binding ThemeContext.TrackBrush, ElementName=Root}"
                                 CornerRadius="4"
                                 Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Grid>
@@ -461,7 +461,7 @@
                                      Fill="{Binding StateBrush}" />
                             <TextBlock MaxWidth="64"
                                        FontSize="10.5"
-                                       Foreground="{Binding DataContext.TextSecondaryBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                       Foreground="{Binding ThemeContext.TextSecondaryBrush, ElementName=Root}"
                                        Style="{StaticResource MetricMetaTextStyle}"
                                        Text="{Binding Status}"
                                        TextTrimming="CharacterEllipsis" />
@@ -471,7 +471,7 @@
                     <TextBlock Grid.Row="1"
                                VerticalAlignment="Center"
                                FontSize="13"
-                               Foreground="{Binding DataContext.TextPrimaryBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                               Foreground="{Binding ThemeContext.TextPrimaryBrush, ElementName=Root}"
                                LineHeight="14"
                                LineStackingStrategy="BlockLineHeight"
                                Style="{StaticResource MetricValueTextStyle}"
@@ -566,7 +566,7 @@
                                        Value="{x:Static models:WidgetLayout.Pill}" />
                             <Condition Binding="{Binding Density, ElementName=Root}"
                                        Value="{x:Static models:WidgetDensity.Compact}" />
-                            <Condition Binding="{Binding DataContext.IsReducedScale, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                            <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                        Value="True" />
                         </MultiDataTrigger.Conditions>
                         <Setter Property="Margin" Value="0,0,0,2" />
@@ -579,7 +579,18 @@
 
         <Grid Opacity="{Binding ContentOpacity, ElementName=Root}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{Binding EffectiveAccentWidth}" />
+                <ColumnDefinition>
+                    <ColumnDefinition.Style>
+                        <Style TargetType="{x:Type ColumnDefinition}">
+                            <Setter Property="Width" Value="{Binding EffectiveAccentWidth}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowAccent}" Value="False">
+                                    <Setter Property="Width" Value="0" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ColumnDefinition.Style>
+                </ColumnDefinition>
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
@@ -594,6 +605,9 @@
                     <Style TargetType="{x:Type StackPanel}">
                         <Setter Property="Margin" Value="10,0,0,0" />
                         <Style.Triggers>
+                            <DataTrigger Binding="{Binding ShowAccent}" Value="False">
+                                <Setter Property="Margin" Value="0" />
+                            </DataTrigger>
                             <MultiDataTrigger>
                                 <MultiDataTrigger.Conditions>
                                     <Condition Binding="{Binding Layout, ElementName=Root}"
@@ -609,7 +623,7 @@
                                                Value="{x:Static models:WidgetLayout.Pill}" />
                                     <Condition Binding="{Binding Density, ElementName=Root}"
                                                Value="{x:Static models:WidgetDensity.Compact}" />
-                                    <Condition Binding="{Binding DataContext.IsReducedScale, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                    <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                                Value="True" />
                                 </MultiDataTrigger.Conditions>
                                 <Setter Property="Margin" Value="6,0,0,0" />
@@ -624,7 +638,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Border Background="{Binding DataContext.TrackBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                    <Border Background="{Binding ThemeContext.TrackBrush, ElementName=Root}"
                             Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Border.Style>
                             <Style TargetType="{x:Type Border}">
@@ -658,7 +672,7 @@
                                                        Value="{x:Static models:WidgetLayout.Pill}" />
                                             <Condition Binding="{Binding Density, ElementName=Root}"
                                                        Value="{x:Static models:WidgetDensity.Compact}" />
-                                            <Condition Binding="{Binding DataContext.IsReducedScale, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                            <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                                        Value="True" />
                                         </MultiDataTrigger.Conditions>
                                         <Setter Property="Width" Value="16" />
@@ -706,7 +720,7 @@
                                                            Value="{x:Static models:WidgetLayout.Pill}" />
                                                 <Condition Binding="{Binding Density, ElementName=Root}"
                                                            Value="{x:Static models:WidgetDensity.Compact}" />
-                                                <Condition Binding="{Binding DataContext.IsReducedScale, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                                            Value="True" />
                                             </MultiDataTrigger.Conditions>
                                             <Setter Property="Width" Value="10" />
@@ -765,7 +779,7 @@
                                  Margin="0,0,3,0"
                                  Fill="{Binding StateBrush}" />
                         <TextBlock VerticalAlignment="Center"
-                                   Foreground="{Binding DataContext.TextSecondaryBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                   Foreground="{Binding ThemeContext.TextSecondaryBrush, ElementName=Root}"
                                    TextTrimming="CharacterEllipsis">
                             <TextBlock.Style>
                                 <Style BasedOn="{StaticResource MetricMetaTextStyle}"
@@ -806,7 +820,7 @@
                     </StackPanel>
                 </Grid>
 
-                <TextBlock Foreground="{Binding DataContext.TextPrimaryBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                <TextBlock Foreground="{Binding ThemeContext.TextPrimaryBrush, ElementName=Root}"
                            TextTrimming="CharacterEllipsis"
                            Visibility="{Binding ShowValue, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock.Style>
@@ -863,7 +877,7 @@
                                                    Value="{x:Static models:WidgetLayout.Pill}" />
                                         <Condition Binding="{Binding Density, ElementName=Root}"
                                                    Value="{x:Static models:WidgetDensity.Compact}" />
-                                        <Condition Binding="{Binding DataContext.IsReducedScale, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                        <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                                    Value="True" />
                                     </MultiDataTrigger.Conditions>
                                     <Setter Property="FontSize" Value="16" />
@@ -885,7 +899,7 @@
                                                    Value="{x:Static models:WidgetLayout.Pill}" />
                                         <Condition Binding="{Binding Density, ElementName=Root}"
                                                    Value="{x:Static models:WidgetDensity.Compact}" />
-                                        <Condition Binding="{Binding DataContext.IsReducedScale, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                        <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                                    Value="True" />
                                     </MultiDataTrigger.Conditions>
                                     <Setter Property="Height" Value="2" />
@@ -942,12 +956,12 @@
                                     </Style>
                                 </Border.Style>
                                 <StackPanel>
-                                    <TextBlock Foreground="{Binding DataContext.TextSecondaryBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                    <TextBlock Foreground="{Binding ThemeContext.TextSecondaryBrush, ElementName=Root}"
                                                Style="{StaticResource MetricMetaTextStyle}"
                                                Text="{Binding Label}" />
                                     <TextBlock Margin="0,1,0,0"
                                                FontSize="13"
-                                               Foreground="{Binding DataContext.TextPrimaryBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                               Foreground="{Binding ThemeContext.TextPrimaryBrush, ElementName=Root}"
                                                Text="{Binding Value}">
                                         <TextBlock.Style>
                                             <Style BasedOn="{StaticResource MetricLabelTextStyle}"

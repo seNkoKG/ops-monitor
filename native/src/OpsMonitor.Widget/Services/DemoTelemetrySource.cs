@@ -10,6 +10,7 @@ internal sealed class DemoTelemetrySource : ITelemetrySource
     private readonly DateTimeOffset _startedAt = DateTimeOffset.UtcNow;
     private System.Threading.Timer? _timer;
     private TimeSpan _cadence = TimeSpan.FromSeconds(1);
+    private bool _workstationLocked;
     private bool _disposed;
 
     public string Name => "Demo telemetry";
@@ -44,6 +45,22 @@ internal sealed class DemoTelemetrySource : ITelemetrySource
                 null,
                 TimeSpan.Zero,
                 _cadence);
+        }
+    }
+
+    public void SetWorkstationLocked(bool isLocked)
+    {
+        lock (_gate)
+        {
+            if (_disposed || _workstationLocked == isLocked)
+            {
+                return;
+            }
+
+            _workstationLocked = isLocked;
+            _timer?.Change(
+                isLocked ? Timeout.InfiniteTimeSpan : TimeSpan.Zero,
+                isLocked ? Timeout.InfiniteTimeSpan : _cadence);
         }
     }
 

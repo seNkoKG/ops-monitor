@@ -22,6 +22,11 @@ public sealed class HardwareSensorBridgeProvider : MetricProviderBase
     [
         Descriptor(WellKnownMetrics.CpuClock, "CPU effective clock", "CPU clock", MetricCategory.Cpu, MetricUnit.Hertz, 0),
         Descriptor(WellKnownMetrics.CpuPackagePower, "CPU package power", "CPU power", MetricCategory.Cpu, MetricUnit.Watts, 1, true),
+        Descriptor(WellKnownMetrics.GpuPrimaryUtilization, "Primary GPU utilization", "GPU load", MetricCategory.Gpu, MetricUnit.Percent, 0, true, 0, 100),
+        Descriptor(WellKnownMetrics.GpuPrimaryTemperature, "Primary GPU temperature", "GPU temp", MetricCategory.Gpu, MetricUnit.Celsius, 0, true, 0, 125),
+        Descriptor(WellKnownMetrics.GpuPrimaryMemoryUsedBytes, "Primary GPU memory used", "VRAM used", MetricCategory.Gpu, MetricUnit.Bytes, 1),
+        Descriptor(WellKnownMetrics.GpuPrimaryMemoryTotalBytes, "Primary GPU memory total", "VRAM total", MetricCategory.Gpu, MetricUnit.Bytes, 1),
+        Descriptor(WellKnownMetrics.GpuPrimaryClock, "Primary GPU core clock", "GPU clock", MetricCategory.Gpu, MetricUnit.Hertz, 0),
         Descriptor(WellKnownMetrics.StorageUsedPercent, "System drive used", "Drive used", MetricCategory.Storage, MetricUnit.Percent, 0, true, 0, 100),
         Descriptor(WellKnownMetrics.StorageReadRate, "System storage read rate", "Disk read", MetricCategory.Storage, MetricUnit.BytesPerSecond, 1),
         Descriptor(WellKnownMetrics.StorageWriteRate, "System storage write rate", "Disk write", MetricCategory.Storage, MetricUnit.BytesPerSecond, 1),
@@ -202,6 +207,7 @@ public sealed class HardwareSensorBridgeProvider : MetricProviderBase
         MetricSource source)
     {
         AddCpuClock(samples, mapped, timestampUtc, source);
+        AddPrimaryGpu(samples, mapped, timestampUtc, source);
         AddSelected(samples, mapped, WellKnownMetrics.CpuPackagePower, timestampUtc, source,
             item => IsCpu(item.Sensor) && IsType(item.Sensor, "Power") &&
                     item.Sensor.SensorName.Contains("Package", StringComparison.OrdinalIgnoreCase),
@@ -218,6 +224,40 @@ public sealed class HardwareSensorBridgeProvider : MetricProviderBase
                     (item.Sensor.SensorName.Contains("Life", StringComparison.OrdinalIgnoreCase) ||
                      item.Sensor.SensorName.Contains("Health", StringComparison.OrdinalIgnoreCase)) &&
                     item.Descriptor.Unit == MetricUnit.Percent, values => values.Min());
+    }
+
+    private static void AddPrimaryGpu(
+        List<MetricSample> samples,
+        IReadOnlyList<(HardwareSensorDocument Sensor, MetricDescriptor Descriptor, double? Value)> mapped,
+        DateTimeOffset timestampUtc,
+        MetricSource source)
+    {
+        var gpu = mapped.Where(item => IsGpu(item.Sensor)).ToArray();
+        AddSelected(samples, gpu, WellKnownMetrics.GpuPrimaryUtilization, timestampUtc, source,
+            item => IsType(item.Sensor, "Load") &&
+                    (item.Sensor.SensorName.Equals("GPU Core", StringComparison.OrdinalIgnoreCase) ||
+                     item.Sensor.SensorName.Equals("GPU Total", StringComparison.OrdinalIgnoreCase) ||
+                     item.Sensor.SensorName.Contains("D3D 3D", StringComparison.OrdinalIgnoreCase)),
+            values => values.Max());
+        AddSelected(samples, gpu, WellKnownMetrics.GpuPrimaryTemperature, timestampUtc, source,
+            item => IsType(item.Sensor, "Temperature") &&
+                    (item.Sensor.SensorName.Contains("Core", StringComparison.OrdinalIgnoreCase) ||
+                     item.Sensor.SensorName.Equals("GPU", StringComparison.OrdinalIgnoreCase)),
+            values => values.Max());
+        AddSelected(samples, gpu, WellKnownMetrics.GpuPrimaryClock, timestampUtc, source,
+            item => IsType(item.Sensor, "Clock") &&
+                    item.Sensor.SensorName.Contains("Core", StringComparison.OrdinalIgnoreCase),
+            values => values.Max());
+        AddSelected(samples, gpu, WellKnownMetrics.GpuPrimaryMemoryUsedBytes, timestampUtc, source,
+            item => item.Descriptor.Unit == MetricUnit.Bytes &&
+                    item.Sensor.SensorName.Contains("Memory", StringComparison.OrdinalIgnoreCase) &&
+                    item.Sensor.SensorName.Contains("Used", StringComparison.OrdinalIgnoreCase),
+            values => values.Max());
+        AddSelected(samples, gpu, WellKnownMetrics.GpuPrimaryMemoryTotalBytes, timestampUtc, source,
+            item => item.Descriptor.Unit == MetricUnit.Bytes &&
+                    item.Sensor.SensorName.Contains("Memory", StringComparison.OrdinalIgnoreCase) &&
+                    item.Sensor.SensorName.Contains("Total", StringComparison.OrdinalIgnoreCase),
+            values => values.Max());
     }
 
     private static void AddCpuClock(
@@ -358,6 +398,10 @@ public sealed class HardwareSensorBridgeProvider : MetricProviderBase
         sensor.HardwareType.Equals("Storage", StringComparison.OrdinalIgnoreCase) ||
         sensor.HardwareIdentifier.Contains("storage", StringComparison.OrdinalIgnoreCase) ||
         sensor.HardwareIdentifier.Contains("nvme", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsGpu(HardwareSensorDocument sensor) =>
+        sensor.HardwareType.Contains("Gpu", StringComparison.OrdinalIgnoreCase) ||
+        sensor.HardwareIdentifier.Contains("gpu", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsType(HardwareSensorDocument sensor, string type) =>
         sensor.SensorType.Equals(type, StringComparison.OrdinalIgnoreCase);

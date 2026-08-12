@@ -9,6 +9,15 @@
                 <ResourceDictionary Source="Views/SectionTemplates.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <DropShadowEffect x:Key="WidgetTextHalo"
+                              BlurRadius="2"
+                              Color="#FF000000"
+                              Opacity="1"
+                              RenderingBias="Performance"
+                              ShadowDepth="0"/>
+            <Style x:Key="WidgetReadableText" TargetType="{x:Type TextBlock}">
+                <Setter Property="Effect" Value="{StaticResource WidgetTextHalo}"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -41,7 +41,7 @@ public enum WidgetModuleVisualization
     ValueAndSparkline
 }
 
-internal enum SemanticAccent
+public enum SemanticAccent
 {
     Cpu,
     Gpu,

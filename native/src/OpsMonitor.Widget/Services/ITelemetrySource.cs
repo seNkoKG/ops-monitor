@@ -12,5 +12,7 @@ public interface ITelemetrySource : IDisposable
 
     void SetUpdateCadence(TimeSpan cadence);
 
+    void SetWorkstationLocked(bool isLocked);
+
     void Start();
 }

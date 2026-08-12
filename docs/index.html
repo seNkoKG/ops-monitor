@@ -5,28 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#03060a">
   <meta name="color-scheme" content="dark">
-  <title>OPS Monitor v3.1 — Windows telemetry, designed by you</title>
+  <title>OPS Monitor v3.2 — Windows telemetry, designed by you</title>
   <meta name="description" content="A native, local-first Windows 11 monitor with deep widget design controls, live hardware telemetry, network quality, and Slovenian weather intelligence.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="OPS Monitor v3.1 — Your desktop. Your signal.">
+  <meta property="og:title" content="OPS Monitor v3.2 — Your desktop. Your signal.">
   <meta property="og:description" content="Native Windows telemetry and a widget you can redesign down to the pixel.">
   <meta property="og:image" content="https://senkokg.github.io/ops-monitor/assets/ops-monitor-v3-social.png">
   <meta property="og:url" content="https://senkokg.github.io/ops-monitor/">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="assets/ops-monitor-mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=3.2.0">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"OPS Monitor","operatingSystem":"Windows 11","applicationCategory":"UtilitiesApplication","softwareVersion":"3.1.0","isAccessibleForFree":true,"codeRepository":"https://github.com/seNkoKG/ops-monitor"}
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"OPS Monitor","operatingSystem":"Windows 11","applicationCategory":"UtilitiesApplication","softwareVersion":"3.2.0","isAccessibleForFree":true,"codeRepository":"https://github.com/seNkoKG/ops-monitor"}
   </script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
+  <span id="top" aria-hidden="true"></span>
   <div class="signal-progress" aria-hidden="true"><span id="signal-progress"></span></div>
 
-  <header class="site-header" id="top">
+  <header class="site-header">
     <a class="brand" href="#top" aria-label="OPS Monitor home">
       <img src="assets/ops-monitor-mark.svg" width="32" height="32" alt="">
-      <span>OPS MONITOR</span><small>v3.1</small>
+      <span>OPS MONITOR</span><small>v3.2</small>
     </a>
     <nav aria-label="Primary navigation">
       <a href="#system">System</a>
@@ -34,7 +35,7 @@
       <a href="#weather">Weather</a>
       <a href="#architecture">Architecture</a>
     </nav>
-    <a class="button button-small" href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.1.0">Get v3.1 <span aria-hidden="true">↗</span></a>
+    <a class="button button-small" href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.2.0">Get v3.2 <span aria-hidden="true">↗</span></a>
   </header>
 
   <main id="main">
@@ -44,7 +45,7 @@
         <h1 id="hero-title">Your desktop.<br><span>Your signal.</span></h1>
         <p class="hero-lede">Native hardware telemetry, local weather intelligence, and a desktop widget you can redesign down to the pixel. No account. No cloud collector. No visual dead weight.</p>
         <div class="hero-actions">
-          <a class="button button-primary" href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.1.0">Download v3.1 <span aria-hidden="true">↓</span></a>
+          <a class="button button-primary" href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.2.0">Download v3.2 <span aria-hidden="true">↓</span></a>
           <a class="button" href="#designer">Open the designer <span aria-hidden="true">↘</span></a>
         </div>
         <div class="hero-facts" aria-label="Product facts">
@@ -175,12 +176,12 @@
       </div>
 
       <button class="studio-showcase reveal" type="button"
-              data-dialog-image="assets/screenshots/studio-overview.png"
-              aria-label="Open the OPS Monitor 3.1 Control Studio screenshot">
-        <img src="assets/screenshots/studio-overview.png"
-             alt="OPS Monitor 3.1 Control Studio with the tabbed visual designer and live Mini preview"
+          data-dialog-image="assets/screenshots/studio-v3.2.png"
+              aria-label="Open the OPS Monitor 3.2 Control Studio screenshot">
+        <img src="assets/screenshots/studio-v3.2.png"
+             alt="OPS Monitor 3.2 Control Studio with the tabbed visual designer and live production-renderer preview"
              loading="lazy">
-        <span><b>CONTROL STUDIO // 3.1</b><em>PRESETS · COLORS · GEOMETRY · TYPOGRAPHY · EFFECTS</em><i>OPEN FULL VIEW ↗</i></span>
+        <span><b>CONTROL STUDIO // 3.2</b><em>ONE RENDERER · PRESETS · TOKENS · MODULE OVERRIDES</em><i>OPEN FULL VIEW ↗</i></span>
       </button>
 
       <div class="feature-grid reveal">
@@ -199,7 +200,7 @@
       </div>
       <div class="telemetry-matrix reveal">
         <article><span class="matrix-icon cyan">▦</span><h3>Processor</h3><p>Load · clocks · package temperature · per-core sensors</p><b>WINDOWS + SENSOR BRIDGE</b></article>
-        <article><span class="matrix-icon magenta">▣</span><h3>Graphics</h3><p>Load · temperature · VRAM · power · fan · clocks</p><b>NVIDIA NVML</b></article>
+        <article><span class="matrix-icon magenta">▣</span><h3>Graphics</h3><p>Load · temperature · VRAM · power · fan · clocks</p><b>NVML + VENDOR-NEUTRAL FALLBACK</b></article>
         <article><span class="matrix-icon mint">▤</span><h3>Memory & storage</h3><p>RAM used/total · capacity · activity · SMART telemetry</p><b>NATIVE + HARDWARE CATALOG</b></article>
         <article><span class="matrix-icon blue">↕</span><h3>Network quality</h3><p>Download · upload · ping · jitter · rolling packet loss</p><b>ACTIVE ADAPTER + ICMP</b></article>
         <article><span class="matrix-icon amber">⚡</span><h3>Power</h3><p>Battery · draw · remaining time · battery-saver adaptation</p><b>WINDOWS POWER API</b></article>
@@ -255,13 +256,28 @@
       </div>
     </section>
 
+    <section class="section release-notes" aria-labelledby="release-notes-title">
+      <div class="section-heading reveal">
+        <p class="eyebrow">06 // RELEASE 3.2</p>
+        <h2 id="release-notes-title">Preview is truth.<br>Updates are verified.</h2>
+        <p>Version 3.2 turns the customization system into a production contract: Studio renders the exact live card, Windows power state controls real work, and every release has a repeatable path from source to installed desktop.</p>
+      </div>
+      <div class="release-grid reveal">
+        <article><span>ONE RENDERER</span><h3>What you design is what ships.</h3><p>Pill, Rail, Dock, and Mini use one card renderer, checked at three scales before release.</p></article>
+        <article><span>POWER AWARE</span><h3>Quiet when Windows is quiet.</h3><p>Polling and UI publication pause on lock and automatically back off in battery saver.</p></article>
+        <article><span>GPU FALLBACK</span><h3>Not NVIDIA-only anymore.</h3><p>AMD, Intel, and NVIDIA sensors can feed the primary graphics module through the protected broker.</p></article>
+        <article><span>SUPPLY CHAIN</span><h3>Versioned, hashed, auditable.</h3><p>Windows CI, CodeQL, dependency review, SHA-256 packages, and verified updater metadata.</p></article>
+      </div>
+      <p class="release-links reveal"><a href="https://github.com/seNkoKG/ops-monitor/blob/main/CHANGELOG.md">Read changelog ↗</a><a href="https://github.com/seNkoKG/ops-monitor/blob/main/ROADMAP.md">Open roadmap ↗</a><a href="https://github.com/seNkoKG/ops-monitor/blob/main/SECURITY.md">Security policy ↗</a></p>
+    </section>
+
     <section class="release-cta reveal">
       <img src="assets/ops-monitor-mark.svg" width="64" height="64" alt="">
-      <p class="eyebrow">OPS MONITOR // v3.1</p>
+      <p class="eyebrow">OPS MONITOR // v3.2</p>
       <h2>Build your instrument.</h2>
       <p>Free, open source, and built for Windows 11.</p>
       <div class="hero-actions">
-        <a class="button button-primary" href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.1.0">Download release <span aria-hidden="true">↓</span></a>
+        <a class="button button-primary" href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.2.0">Download release <span aria-hidden="true">↓</span></a>
         <a class="button" href="https://github.com/seNkoKG/ops-monitor">View source <span aria-hidden="true">↗</span></a>
       </div>
       <div class="build-command"><code>dotnet build native/OpsMonitor.slnx -c Release</code><button type="button" id="copy-build">COPY</button></div>
@@ -279,6 +295,6 @@
     <img src="" alt="Expanded OPS Monitor screenshot">
   </dialog>
 
-  <script src="script.js"></script>
+  <script src="script.js?v=3.2.0"></script>
 </body>
 </html>

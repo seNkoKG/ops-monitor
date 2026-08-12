@@ -11,7 +11,21 @@ param(
     [ValidateRange(5, 120)]
     [int]$SampleSeconds = 15,
 
-    [string]$JsonOutputPath
+    [string]$JsonOutputPath,
+
+    [ValidateRange(0, 100)]
+    [double]$MaximumCpuPercentWholeMachine = 0,
+
+    [ValidateRange(0, 4096)]
+    [double]$MaximumWorkingSetPeakMB = 0,
+
+    [ValidateRange(0, 100000)]
+    [int]$MaximumHandlesPeak = 0,
+
+    [ValidateRange(0, 10000)]
+    [int]$MaximumThreadsPeak = 0,
+
+    [switch]$FailOnBudgetExceeded
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,6 +74,25 @@ try {
     $singleCorePercent = 100.0 * $cpuSeconds / $stopwatch.Elapsed.TotalSeconds
     $wholeMachinePercent = $singleCorePercent / [Environment]::ProcessorCount
 
+    $cpuPercentWholeMachine = [Math]::Round($wholeMachinePercent, 3)
+    $workingSetPeakMB = [Math]::Round(($workingSetSamples | Measure-Object -Maximum).Maximum, 2)
+    $handlesPeak = ($handleSamples | Measure-Object -Maximum).Maximum
+    $threadsPeak = ($threadSamples | Measure-Object -Maximum).Maximum
+    $violations = [Collections.Generic.List[string]]::new()
+    if ($MaximumCpuPercentWholeMachine -gt 0 -and
+        $cpuPercentWholeMachine -gt $MaximumCpuPercentWholeMachine) {
+        $violations.Add("CPU $cpuPercentWholeMachine% exceeds $MaximumCpuPercentWholeMachine%")
+    }
+    if ($MaximumWorkingSetPeakMB -gt 0 -and $workingSetPeakMB -gt $MaximumWorkingSetPeakMB) {
+        $violations.Add("working set $workingSetPeakMB MB exceeds $MaximumWorkingSetPeakMB MB")
+    }
+    if ($MaximumHandlesPeak -gt 0 -and $handlesPeak -gt $MaximumHandlesPeak) {
+        $violations.Add("handles $handlesPeak exceeds $MaximumHandlesPeak")
+    }
+    if ($MaximumThreadsPeak -gt 0 -and $threadsPeak -gt $MaximumThreadsPeak) {
+        $violations.Add("threads $threadsPeak exceeds $MaximumThreadsPeak")
+    }
+
     $result = [pscustomobject]@{
         Executable = $resolvedExecutable
         ProcessId = $process.Id
@@ -67,13 +100,15 @@ try {
         WarmupSeconds = $WarmupSeconds
         SampleSeconds = [Math]::Round($stopwatch.Elapsed.TotalSeconds, 2)
         CpuPercentSingleCore = [Math]::Round($singleCorePercent, 3)
-        CpuPercentWholeMachine = [Math]::Round($wholeMachinePercent, 3)
+        CpuPercentWholeMachine = $cpuPercentWholeMachine
         WorkingSetAverageMB = [Math]::Round(($workingSetSamples | Measure-Object -Average).Average, 2)
-        WorkingSetPeakMB = [Math]::Round(($workingSetSamples | Measure-Object -Maximum).Maximum, 2)
+        WorkingSetPeakMB = $workingSetPeakMB
         PrivateMemoryAverageMB = [Math]::Round(($privateSamples | Measure-Object -Average).Average, 2)
         PrivateMemoryPeakMB = [Math]::Round(($privateSamples | Measure-Object -Maximum).Maximum, 2)
-        HandlesPeak = ($handleSamples | Measure-Object -Maximum).Maximum
-        ThreadsPeak = ($threadSamples | Measure-Object -Maximum).Maximum
+        HandlesPeak = $handlesPeak
+        ThreadsPeak = $threadsPeak
+        BudgetPassed = $violations.Count -eq 0
+        BudgetViolations = @($violations)
     }
 
     if (-not [string]::IsNullOrWhiteSpace($JsonOutputPath)) {
@@ -86,6 +121,9 @@ try {
     }
 
     Write-Output $result
+    if ($FailOnBudgetExceeded -and $violations.Count -gt 0) {
+        throw "Application impact budget failed: $($violations -join '; ')."
+    }
 }
 finally {
     if (-not $process.HasExited) {

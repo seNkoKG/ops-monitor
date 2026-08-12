@@ -167,6 +167,11 @@ static async Task TestHardwareCatalogAsync()
         [
             new("Ryzen", "/amdcpu/0", "Cpu", "Cores (Average Effective)", "/amdcpu/0/clock/0", "Clock", 5_000),
             new("Ryzen", "/amdcpu/0", "Cpu", "Package", "/amdcpu/0/power/0", "Power", 75),
+            new("Radeon", "/gpu-amd/0", "GpuAmd", "GPU Core", "/gpu-amd/0/load/0", "Load", 67),
+            new("Radeon", "/gpu-amd/0", "GpuAmd", "GPU Core", "/gpu-amd/0/temperature/0", "Temperature", 54),
+            new("Radeon", "/gpu-amd/0", "GpuAmd", "GPU Core", "/gpu-amd/0/clock/0", "Clock", 2_450),
+            new("Radeon", "/gpu-amd/0", "GpuAmd", "GPU Memory Used", "/gpu-amd/0/smalldata/0", "SmallData", 6_144),
+            new("Radeon", "/gpu-amd/0", "GpuAmd", "GPU Memory Total", "/gpu-amd/0/smalldata/1", "SmallData", 12_288),
             new("NVMe", "/nvme/0", "Storage", "Composite Temperature", "/nvme/0/temperature/0", "Temperature", 42),
             new("NVMe", "/nvme/0", "Storage", "Remaining Life", "/nvme/0/level/0", "Level", 97),
             new("NVMe", "/nvme/0", "Storage", "Read Rate", "/nvme/0/throughput/0", "Throughput", 8_000_000)
@@ -208,6 +213,26 @@ static async Task TestHardwareCatalogAsync()
                 item.MetricId == WellKnownMetrics.CpuPackagePower &&
                 item.Value == 75),
             "curated CPU package power was not published");
+        Assert(
+            poll.Samples.Any(item =>
+                item.MetricId == WellKnownMetrics.GpuPrimaryUtilization &&
+                item.Value == 67),
+            "vendor-neutral GPU utilization was not published");
+        Assert(
+            poll.Samples.Any(item =>
+                item.MetricId == WellKnownMetrics.GpuPrimaryTemperature &&
+                item.Value == 54),
+            "vendor-neutral GPU temperature was not published");
+        Assert(
+            poll.Samples.Any(item =>
+                item.MetricId == WellKnownMetrics.GpuPrimaryClock &&
+                item.Value == 2_450_000_000d),
+            "vendor-neutral GPU clock was not converted from MHz to Hz");
+        Assert(
+            poll.Samples.Any(item =>
+                item.MetricId == WellKnownMetrics.GpuPrimaryMemoryUsedBytes &&
+                item.Value == 6_144d * 1024d * 1024d),
+            "vendor-neutral VRAM use was not converted from MiB to bytes");
         Assert(
             poll.Samples.Any(item =>
                 item.MetricId == WellKnownMetrics.StorageTemperature &&

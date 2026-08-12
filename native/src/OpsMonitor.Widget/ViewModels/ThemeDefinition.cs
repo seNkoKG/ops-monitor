@@ -3,7 +3,7 @@ using Color = System.Windows.Media.Color;
 
 namespace OpsMonitor.Widget.ViewModels;
 
-internal sealed record ThemeDefinition(
+public sealed record ThemeDefinition(
     string Name,
     string? CoreThemeId,
     Color Surface,

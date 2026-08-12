@@ -43,6 +43,7 @@ internal sealed class LibreHardwareMonitorCpuProbe : IDisposable
             IsMotherboardEnabled = true,
             IsMemoryEnabled = true,
             IsStorageEnabled = true,
+            IsGpuEnabled = true,
             IsControllerEnabled = true,
             IsPowerMonitorEnabled = true
         };

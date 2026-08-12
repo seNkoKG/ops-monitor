@@ -45,6 +45,8 @@ public sealed class OpsRuntime : IAsyncDisposable
     private readonly IReadOnlyList<IMetricProvider> _providers;
     private readonly bool _ownsSettingsRepository;
     private OpsSettingsDocument _settings = OpsSettingsDocument.CreateDefault();
+    private volatile bool _batterySaverActive;
+    private volatile bool _workstationLocked;
     private bool _started;
     private bool _disposed;
 
@@ -91,6 +93,18 @@ public sealed class OpsRuntime : IAsyncDisposable
     public IReadOnlyList<IMetricProvider> Providers => _providers;
     public OpsSettingsDocument Settings => Volatile.Read(ref _settings);
     public bool IsRunning => _started && Scheduler.IsRunning;
+
+    public void SetWorkstationLocked(bool isLocked)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_workstationLocked == isLocked)
+        {
+            return;
+        }
+
+        _workstationLocked = isLocked;
+        ApplyRuntimeState(Settings);
+    }
 
     public static OpsRuntime CreateDefault(OpsRuntimeOptions? options = null)
     {
@@ -259,36 +273,71 @@ public sealed class OpsRuntime : IAsyncDisposable
             settings.DataRetention.MaximumSamplesPerMetric,
             settings.DataRetention.Retention);
 
-        var profile = ResolveActivePerformanceProfile(settings);
-        if (profile is not null)
-        {
-            Scheduler.CadenceMultiplier = profile.Mode switch
-            {
-                PowerAwarenessMode.Performance => 0.75,
-                PowerAwarenessMode.Efficiency => 2,
-                _ => 1
-            };
-
-            foreach (var provider in _providers)
-            {
-                if (!Scheduler.TryGetRegistration(provider.Id, out var registration) ||
-                    registration is null)
-                {
-                    continue;
-                }
-
-                registration.Enabled =
-                    !profile.DisabledProviderIds.Contains(provider.Id);
-                registration.Cadence = profile.ProviderCadences.TryGetValue(
-                    provider.Id,
-                    out var configured)
-                    ? configured
-                    : provider.DefaultCadence;
-            }
-        }
+        ApplyRuntimeState(settings);
 
         Volatile.Write(ref _settings, settings);
         SettingsChanged?.Invoke(this, new RuntimeSettingsChangedEventArgs(settings));
+    }
+
+    private void ApplyRuntimeState(OpsSettingsDocument settings)
+    {
+        var profile = ResolveActivePerformanceProfile(settings);
+        Scheduler.CadenceMultiplier = CalculateCadenceMultiplier(
+            settings,
+            profile,
+            _batterySaverActive,
+            _workstationLocked);
+
+        foreach (var provider in _providers)
+        {
+            if (!Scheduler.TryGetRegistration(provider.Id, out var registration) ||
+                registration is null)
+            {
+                continue;
+            }
+
+            var disabledByProfile = profile?.DisabledProviderIds.Contains(provider.Id) == true;
+            registration.Enabled =
+                !_workstationLocked ||
+                !settings.General.PauseWhenWorkstationLocked
+                    ? !disabledByProfile
+                    : false;
+            registration.Cadence = profile?.ProviderCadences.TryGetValue(
+                provider.Id,
+                out var configured) == true
+                    ? configured
+                    : provider.DefaultCadence;
+        }
+    }
+
+    internal static double CalculateCadenceMultiplier(
+        OpsSettingsDocument settings,
+        PerformanceProfileSettings? profile,
+        bool batterySaverActive,
+        bool workstationLocked)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        var multiplier = profile?.Mode switch
+        {
+            PowerAwarenessMode.Performance => 0.75,
+            PowerAwarenessMode.Efficiency => 2,
+            _ => 1
+        };
+
+        if (batterySaverActive && settings.General.ReducePollingOnBatterySaver)
+        {
+            multiplier *= profile?.BatterySaverCadenceMultiplier ?? 3;
+        }
+
+        if (workstationLocked && !settings.General.PauseWhenWorkstationLocked)
+        {
+            multiplier *= profile?.WorkstationLockedCadenceMultiplier ?? 8;
+        }
+
+        return Math.Clamp(
+            double.IsFinite(multiplier) ? multiplier : 1,
+            0.25,
+            16);
     }
 
     private void OnProviderBatchPolled(
@@ -296,6 +345,19 @@ public sealed class OpsRuntime : IAsyncDisposable
         ProviderBatchPolledEventArgs eventArgs)
     {
         var settings = Settings;
+        var batterySaverSample = eventArgs.Samples.LastOrDefault(sample =>
+            sample.MetricId == WellKnownMetrics.BatterySaver &&
+            sample.HasUsableValue);
+        if (batterySaverSample?.Value is double batterySaverValue)
+        {
+            var isActive = batterySaverValue >= 0.5;
+            if (_batterySaverActive != isActive)
+            {
+                _batterySaverActive = isActive;
+                ApplyRuntimeState(settings);
+            }
+        }
+
         IEnumerable<MetricSample> historySamples = eventArgs.Samples.Where(sample =>
             ShouldRecordHistory(settings, sample.MetricId));
         if (settings.DataRetention.RecordUnavailableSamples)

@@ -261,6 +261,17 @@ if ($installed) {
                     -Description 'Remove the OPS Monitor CPU sensor task and broker'
             }
 
+            $updateScript = Join-Path $resolvedInstall 'Update.ps1'
+            if (Test-Path -LiteralPath $updateScript) {
+                New-Shortcut `
+                    -Shell $shell `
+                    -Path (Join-Path $startMenuFolder 'Check for OPS Monitor updates.lnk') `
+                    -TargetPath $powerShell `
+                    -Arguments ('-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -Interactive' -f $updateScript) `
+                    -WorkingDirectory $resolvedInstall `
+                    -Description 'Check for and install a verified OPS Monitor update'
+            }
+
             if ($DesktopShortcut) {
                 $desktop = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
                 New-Shortcut `

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "version": "3.2.0",
+  "publishedUtc": "2026-08-12T17:40:57.4946958Z",
+  "releaseUrl": "https://github.com/seNkoKG/ops-monitor/releases/tag/v3.2.0",
+  "packages": {
+    "framework-dependent": {
+      "url": "https://github.com/seNkoKG/ops-monitor/releases/download/v3.2.0/OPS-Monitor-v3.2.0-framework-dependent.zip",
+      "sha256": "fe158cd390dd2aa1e1a293c3e7650b29cc651f44e5958fec81beb6a069c1e648"
+    },
+    "win-x64-self-contained": {
+      "url": "https://github.com/seNkoKG/ops-monitor/releases/download/v3.2.0/OPS-Monitor-v3.2.0-win-x64-self-contained.zip",
+      "sha256": "4931ad887ab0e6029b253c4e10dcdeb2447c887660d2a792e7d2269f9c285e4c"
+    }
+  }
+}

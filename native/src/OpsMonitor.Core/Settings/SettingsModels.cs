@@ -141,9 +141,6 @@ public sealed record GeneralSettings
     public bool ShowTrayIcon { get; init; } = true;
     public bool PauseWhenWorkstationLocked { get; init; } = true;
     public bool ReducePollingOnBatterySaver { get; init; } = true;
-    public bool EnableLocalApi { get; init; }
-    public int LocalApiPort { get; init; } = 43120;
-    public bool AnonymousDiagnostics { get; init; }
     public bool ReducedMotion { get; init; }
 }
 
@@ -489,18 +486,9 @@ public sealed record HotkeySettings
     public string? TargetSceneId { get; init; }
 }
 
-public enum HistoryStorageMode
-{
-    MemoryOnly,
-    LocalDatabase
-}
-
 public sealed record DataRetentionSettings
 {
-    public HistoryStorageMode StorageMode { get; init; } = HistoryStorageMode.MemoryOnly;
     public TimeSpan Retention { get; init; } = TimeSpan.FromDays(7);
     public int MaximumSamplesPerMetric { get; init; } = 10_800;
-    public long MaximumDiskBytes { get; init; } = 256L * 1024L * 1024L;
-    public TimeSpan PersistCadence { get; init; } = TimeSpan.FromSeconds(30);
     public bool RecordUnavailableSamples { get; init; } = true;
 }

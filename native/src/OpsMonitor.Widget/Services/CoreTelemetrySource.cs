@@ -17,6 +17,7 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
     private TimeSpan _uiCadence = TimeSpan.FromSeconds(1);
     private int _isPublishing;
     private bool _reloadRequested;
+    private bool _workstationLocked;
     private volatile bool _disposed;
 
     public CoreTelemetrySource()
@@ -37,7 +38,22 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             _uiCadence = normalized;
-            _publishTimer?.Change(normalized, normalized);
+            ApplyPublishTimerState();
+        }
+    }
+
+    public void SetWorkstationLocked(bool isLocked)
+    {
+        lock (_gate)
+        {
+            if (_disposed || _workstationLocked == isLocked)
+            {
+                return;
+            }
+
+            _workstationLocked = isLocked;
+            _runtime.SetWorkstationLocked(isLocked);
+            ApplyPublishTimerState();
         }
     }
 
@@ -123,8 +139,8 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
                     _publishTimer = new Timer(
                         _ => PublishSnapshot(),
                         null,
-                        cadence,
-                        cadence);
+                        GetPublishCadence(cadence),
+                        GetPublishCadence(cadence));
                 }
             }
         }
@@ -179,7 +195,7 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
                     if (!_disposed)
                     {
                         _uiCadence = cadence;
-                        _publishTimer?.Change(cadence, cadence);
+                        ApplyPublishTimerState();
                     }
                 }
             }
@@ -246,21 +262,25 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
                     WellKnownMetrics.CpuTotalUtilization,
                     WellKnownMetrics.CpuTemperature)),
             new GpuTelemetry(
-                OptionalValue(metrics, WellKnownMetrics.GpuUtilization),
-                OptionalValue(metrics, WellKnownMetrics.GpuTemperature),
-                HertzToGigahertz(OptionalValue(metrics, WellKnownMetrics.GpuClock)),
+                OptionalFirst(metrics, WellKnownMetrics.GpuUtilization, WellKnownMetrics.GpuPrimaryUtilization),
+                OptionalFirst(metrics, WellKnownMetrics.GpuTemperature, WellKnownMetrics.GpuPrimaryTemperature),
+                HertzToGigahertz(OptionalFirst(metrics, WellKnownMetrics.GpuClock, WellKnownMetrics.GpuPrimaryClock)),
                 BytesToGigabytes(OptionalValue(
                     metrics,
-                    WellKnownMetrics.GpuMemoryUsedBytes)),
+                    OptionalMetric(metrics, WellKnownMetrics.GpuMemoryUsedBytes, WellKnownMetrics.GpuPrimaryMemoryUsedBytes))),
                 BytesToGigabytes(OptionalValue(
                     metrics,
-                    WellKnownMetrics.GpuMemoryTotalBytes)),
+                    OptionalMetric(metrics, WellKnownMetrics.GpuMemoryTotalBytes, WellKnownMetrics.GpuPrimaryMemoryTotalBytes))),
                 CombinedState(
                     metrics,
                     WellKnownMetrics.GpuUtilization,
                     WellKnownMetrics.GpuTemperature,
                     WellKnownMetrics.GpuMemoryUsedBytes,
-                    WellKnownMetrics.GpuMemoryTotalBytes)),
+                    WellKnownMetrics.GpuMemoryTotalBytes,
+                    WellKnownMetrics.GpuPrimaryUtilization,
+                    WellKnownMetrics.GpuPrimaryTemperature,
+                    WellKnownMetrics.GpuPrimaryMemoryUsedBytes,
+                    WellKnownMetrics.GpuPrimaryMemoryTotalBytes)),
             new MemoryTelemetry(
                 BytesToGigabytes(OptionalValue(
                     metrics,
@@ -303,6 +323,22 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
             BuildBattery(metrics),
             BuildGenericMetrics(metrics, descriptors, selectedDetails));
     }
+
+    private void ApplyPublishTimerState()
+    {
+        if (_publishTimer is null)
+        {
+            return;
+        }
+
+        var cadence = GetPublishCadence(_uiCadence);
+        _publishTimer.Change(cadence, cadence);
+    }
+
+    private TimeSpan GetPublishCadence(TimeSpan cadence) =>
+        _workstationLocked && _runtime.Settings.General.PauseWhenWorkstationLocked
+            ? Timeout.InfiniteTimeSpan
+            : cadence;
 
     private static Dictionary<string, GenericMetricTelemetry> BuildGenericMetrics(
         IReadOnlyDictionary<MetricId, MetricSample> metrics,
@@ -419,6 +455,18 @@ internal sealed class CoreTelemetrySource : ITelemetrySource
         bytes is { } value
             ? value / (1024d * 1024d * 1024d)
             : null;
+
+    private static double? OptionalFirst(
+        IReadOnlyDictionary<MetricId, MetricSample> metrics,
+        MetricId preferred,
+        MetricId fallback) =>
+        OptionalValue(metrics, preferred) ?? OptionalValue(metrics, fallback);
+
+    private static MetricId OptionalMetric(
+        IReadOnlyDictionary<MetricId, MetricSample> metrics,
+        MetricId preferred,
+        MetricId fallback) =>
+        OptionalValue(metrics, preferred).HasValue ? preferred : fallback;
 
     private static double? HertzToGigahertz(double? hertz) =>
         hertz is { } value ? value / 1_000_000_000d : null;

@@ -1,0 +1,52 @@
+# OPS Monitor roadmap
+
+OPS Monitor follows small, auditable releases. Features move into a release
+only when their UI, persistence, runtime behavior, and regression tests ship
+together.
+
+## 3.2 — Production foundation
+
+- One renderer for the live widget and Studio preview across Pill, Rail, Dock,
+  and Mini layouts.
+- Power-aware polling: pause while Windows is locked and back off on battery
+  saver without blocking independent providers.
+- Vendor-neutral GPU fallback through LibreHardwareMonitor for AMD, Intel, and
+  NVIDIA hardware, while retaining native NVIDIA telemetry where available.
+- Windows CI, CodeQL, release artifacts, SHA-256 checksums, updater metadata,
+  performance budgets, accessibility and layout regression gates.
+- Versioned self-contained and framework-dependent packages, local upgrade
+  path, refreshed documentation, Pages site, and installed desktop build.
+
+## 3.3 — Profiles and automation
+
+- User-editable hotkeys with conflict detection.
+- Scene triggers for process, full-screen app, AC/battery state, schedule, and
+  manual override.
+- Import/export for complete profiles, not only visual design tokens.
+- Per-monitor placement profiles and safer recovery when displays change.
+
+## 3.4 — Telemetry depth
+
+- Multi-GPU selection and per-device cards.
+- Per-core CPU, disk volume, fan curve, motherboard, and process telemetry.
+- Optional bounded on-disk history with explicit retention and export.
+- Sensor provenance, confidence, age, and fallback diagnostics in Studio.
+
+## 4.0 — Extensible instruments
+
+- Sandboxed local provider SDK with versioned contracts.
+- User-created formulas and composite metrics.
+- Signed community theme/profile gallery with offline-first import.
+- Optional local-only HTTP API, disabled by default and protected by an
+  explicit access token.
+
+## Release quality bar
+
+Every stable release must pass:
+
+1. zero-warning Release build and all behavior tests;
+2. production-renderer checks for every layout at 80%, 100%, and 125%;
+3. install, update, startup, sensor-broker, and uninstall smoke tests;
+4. keyboard/focus, readable contrast, reduced-motion, and screen-scaling QA;
+5. measured idle CPU/memory budgets and bounded logs/history;
+6. checksum verification, GitHub release, Pages deployment, and live-link QA.

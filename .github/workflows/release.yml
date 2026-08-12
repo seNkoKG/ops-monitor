@@ -1,0 +1,91 @@
+name: Publish release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify tag and build packages
+        shell: pwsh
+        run: |
+          $props = [xml](Get-Content native/Directory.Build.props -Raw)
+          $version = ([string]$props.Project.PropertyGroup.Version | Select-Object -First 1).Trim()
+          if ("v$version" -ne '${{ github.ref_name }}') {
+            throw "Tag ${{ github.ref_name }} does not match project version $version."
+          }
+          powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File native/Build.ps1 -Configuration Release -Publish
+          if ($LASTEXITCODE -ne 0) { throw 'Framework-dependent package failed.' }
+          powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File native/Build.ps1 -Configuration Release -Publish -SelfContained
+          if ($LASTEXITCODE -ne 0) { throw 'Self-contained package failed.' }
+
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $files = Get-ChildItem native/artifacts/publish -File |
+            Where-Object Name -Match '^OPS-Monitor-v.+\.(zip|sha256)$' |
+            ForEach-Object FullName
+          if (-not (gh release view $tag 2>$null)) {
+            gh release create $tag @files --verify-tag --generate-notes --title "OPS Monitor $tag"
+          }
+          else {
+            gh release upload $tag @files --clobber
+          }
+
+      - name: Publish updater manifest to main
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $version = $tag.TrimStart('v')
+          $repository = '${{ github.repository }}'
+          $publish = Resolve-Path native/artifacts/publish
+          $frameworkName = "OPS-Monitor-$tag-framework-dependent.zip"
+          $selfContainedName = "OPS-Monitor-$tag-win-x64-self-contained.zip"
+          $frameworkHash = (Get-FileHash (Join-Path $publish $frameworkName) -Algorithm SHA256).Hash.ToLowerInvariant()
+          $selfContainedHash = (Get-FileHash (Join-Path $publish $selfContainedName) -Algorithm SHA256).Hash.ToLowerInvariant()
+          git checkout main
+          $baseUrl = "https://github.com/$repository/releases/download/$tag"
+          $manifest = [ordered]@{
+            schemaVersion = 1
+            version = $version
+            publishedUtc = [DateTimeOffset]::UtcNow.ToString('O')
+            releaseUrl = "https://github.com/$repository/releases/tag/$tag"
+            packages = [ordered]@{
+              'framework-dependent' = [ordered]@{ url = "$baseUrl/$frameworkName"; sha256 = $frameworkHash }
+              'win-x64-self-contained' = [ordered]@{ url = "$baseUrl/$selfContainedName"; sha256 = $selfContainedHash }
+            }
+          }
+          $manifest | ConvertTo-Json -Depth 5 | Set-Content docs/release-manifest.json -Encoding utf8
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/release-manifest.json
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "chore(release): publish $tag manifest"
+            git push origin main
+          }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ops-monitor-${{ github.ref_name }}
+          path: |
+            native/artifacts/publish/OPS-Monitor-${{ github.ref_name }}-*.zip
+            native/artifacts/publish/OPS-Monitor-${{ github.ref_name }}-*.sha256
+          if-no-files-found: error

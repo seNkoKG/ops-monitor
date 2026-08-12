@@ -6,7 +6,7 @@
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-38C9FF?style=flat-square">
   <img alt="Framework" src="https://img.shields.io/badge/.NET-10.0-7655D9?style=flat-square">
   <img alt="UI" src="https://img.shields.io/badge/UI-Native%20WPF-63F6D8?style=flat-square&labelColor=111827">
-  <img alt="Version" src="https://img.shields.io/badge/version-3.1.0-F24DE7?style=flat-square&labelColor=17111F">
+  <img alt="Version" src="https://img.shields.io/badge/version-3.2.0-F24DE7?style=flat-square&labelColor=17111F">
 </p>
 
 <p align="center">
@@ -17,7 +17,7 @@
 <p align="center">
   <a href="https://senkokg.github.io/ops-monitor/"><strong>Explore the website</strong></a>
   ·
-  <a href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.1.0"><strong>Download v3.1</strong></a>
+  <a href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.2.0"><strong>Download v3.2</strong></a>
 </p>
 
 ## The desktop, without the dashboard clutter
@@ -28,7 +28,7 @@ battery, and local weather. The separate Studio handles deep customization so
 the desktop overlay remains clean.
 
 <p align="center">
-  <img src="docs/assets/screenshots/studio-overview.png" width="100%" alt="OPS Monitor Studio overview with a live Pill preview">
+  <img src="docs/assets/screenshots/studio-v3.2.png" width="100%" alt="OPS Monitor 3.2 Studio with the production-renderer Mini preview">
 </p>
 
 ### Built to disappear until you need it
@@ -57,7 +57,7 @@ persists its position and scale.
 <table>
   <tr>
     <td width="34%" align="center">
-      <img src="docs/assets/screenshots/widget-mini-weather.png" width="245" alt="OPS Monitor Mini with hardware, network, and weather rows">
+      <img src="docs/assets/screenshots/widget-mini-v3.2.png" width="245" alt="OPS Monitor 3.2 Mini with hardware, network, packet loss, and weather rows">
     </td>
     <td>
       <h3>Mini, but still useful</h3>
@@ -95,7 +95,7 @@ cached, refresh work never overlaps, and the radar only downloads when opened.
 
 ```mermaid
 flowchart LR
-    A["Windows + NVML providers"] --> D["Adaptive metric scheduler"]
+    A["Windows + NVML/LHM providers"] --> D["Adaptive metric scheduler"]
     B["Optional isolated sensor bridge"] --> D
     C["ARSO + Open-Meteo weather"] --> E["Cached weather service"]
     D --> F["Bounded history + alerts"]
@@ -131,6 +131,11 @@ cd .\ops-monitor\native
 `Build.ps1` restores the solution, builds Release, and runs the deterministic
 behavioral test suites.
 
+Version 3.2 uses the same production card renderer in Studio and the live
+Widget, adds vendor-neutral GPU fallback, and pauses telemetry work while the
+Windows session is locked. See the [changelog](CHANGELOG.md) and
+[roadmap](ROADMAP.md) for the complete release contract.
+
 ### Install for the current user
 
 ```powershell
@@ -143,6 +148,11 @@ The installer uses `%LOCALAPPDATA%\Programs\OPS Monitor`, creates verified
 shortcuts, preserves settings during upgrades, and can install without admin
 rights. See the [native build and operations guide](native/README.md) for
 package variants, visual-QA flags, CPU temperature setup, and clean uninstall.
+
+Installed builds also add **Check for OPS Monitor updates** to the Start menu.
+The updater preserves the installed package type, verifies the downloaded ZIP
+against the release manifest's SHA-256 digest, stages the replacement, and
+keeps startup and desktop-shortcut preferences.
 
 ## CPU temperature and advanced sensors
 
@@ -185,12 +195,12 @@ for reference. Active production development lives in `native/`.
 
 ## Project status
 
-OPS Monitor v3 is actively developed and currently passes **43 Core behavior
+OPS Monitor v3 is actively developed and currently passes **45 Core behavior
 checks** plus **11 Sensor Bridge checks** in Release. The native applications
 build with warnings treated as errors.
 
-No open-source license has been selected yet. Until one is added, the source is
-available for viewing but no reuse rights are granted by default.
+OPS Monitor is released under the [MIT License](LICENSE). Security reports use
+the private process in [SECURITY.md](SECURITY.md).
 
 ---
 

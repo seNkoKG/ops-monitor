@@ -60,7 +60,7 @@
                         </Border>
                         <StackPanel Margin="10,0,0,0">
                             <TextBlock Text="OPS MONITOR" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Brush.TextPrimary}"/>
-                            <TextBlock Text="CONTROL STUDIO  /  3.1" FontFamily="{StaticResource Font.Mono}" FontSize="9" Foreground="{StaticResource Brush.Accent}"/>
+                            <TextBlock Text="CONTROL STUDIO  /  3.2" FontFamily="{StaticResource Font.Mono}" FontSize="9" Foreground="{StaticResource Brush.Accent}"/>
                         </StackPanel>
                     </StackPanel>
 

@@ -137,7 +137,7 @@
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Border Grid.Column="0" Style="{StaticResource MiniMetric}">
-                        <StackPanel><TextBlock Text="CPU" Style="{StaticResource EyebrowText}"/><TextBlock Margin="0,8,0,3" Text="{Binding ResourceCpu}" FontFamily="{StaticResource Font.Display}" FontSize="21" FontWeight="SemiBold"/><TextBlock Text="Studio and widget" Style="{StaticResource CaptionText}"/><ProgressBar Margin="0,9,0,0" Style="{StaticResource SmallProgress}" Value="{Binding ResourceCpuPercent}"/></StackPanel>
+                        <StackPanel><TextBlock Text="CPU" Style="{StaticResource EyebrowText}"/><TextBlock Margin="0,8,0,3" Text="{Binding ResourceCpu}" FontFamily="{StaticResource Font.Display}" FontSize="21" FontWeight="SemiBold"/><TextBlock Text="Studio and widget" Style="{StaticResource CaptionText}"/><ProgressBar Margin="0,9,0,0" Style="{StaticResource SmallProgress}" Value="{Binding ResourceCpuPercent, Mode=OneWay}"/></StackPanel>
                     </Border>
                     <Border Grid.Column="1" Style="{StaticResource MiniMetric}">
                         <StackPanel><TextBlock Text="MEMORY" Style="{StaticResource EyebrowText}"/><TextBlock Margin="0,8,0,3" Text="{Binding ResourceMemory}" FontFamily="{StaticResource Font.Display}" FontSize="21" FontWeight="SemiBold"/><TextBlock Text="Combined working set" Style="{StaticResource CaptionText}"/></StackPanel>
@@ -539,7 +539,7 @@
                 <Border Style="{StaticResource CardBorder}">
                     <StackPanel>
                         <controls:StudioSettingToggle Header="Use sample telemetry" Description="Animate the Studio canvas only; live widget telemetry is unchanged." IsChecked="{Binding DemoMetrics}"/>
-                        <StackPanel Margin="0,15,0,0" Orientation="Horizontal"><Button Content="Reload settings" Command="{Binding ReloadCommand}" Style="{StaticResource StudioButton}" Margin="0,0,8,0"/><Button Content="{Binding WidgetActionLabel}" Command="{Binding OpenOrRestartWidgetCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/><Button Content="Restore defaults" Command="{Binding ResetDemoCommand}" Style="{StaticResource DangerButton}"/></StackPanel>
+                        <WrapPanel Margin="0,15,0,0"><Button Content="Reload settings" Command="{Binding ReloadCommand}" Style="{StaticResource StudioButton}" Margin="0,0,8,8"/><Button Content="{Binding WidgetActionLabel}" Command="{Binding OpenOrRestartWidgetCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8"/><Button Content="Check for updates" Command="{Binding CheckForUpdatesCommand}" Style="{StaticResource StudioButton}" Margin="0,0,8,8"/><Button Content="Restore defaults" Command="{Binding ResetDemoCommand}" Style="{StaticResource DangerButton}" Margin="0,0,0,8"/></WrapPanel>
                         <TextBlock Margin="0,12,0,0" Text="Restore defaults resets Studio and widget presentation settings. It does not uninstall sensors or delete telemetry history." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>

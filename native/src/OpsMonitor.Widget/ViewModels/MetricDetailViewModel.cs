@@ -2,7 +2,7 @@ using OpsMonitor.Widget.Infrastructure;
 
 namespace OpsMonitor.Widget.ViewModels;
 
-internal sealed class MetricDetailViewModel : ObservableObject
+public sealed class MetricDetailViewModel : ObservableObject
 {
     private string _label;
     private string _value = "—";

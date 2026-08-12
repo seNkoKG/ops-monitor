@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -13,6 +14,8 @@ using OpsMonitor.Core.Providers;
 using OpsMonitor.Studio.Infrastructure;
 using OpsMonitor.Studio.Models;
 using OpsMonitor.Studio.Services;
+using WidgetDensityModel = OpsMonitor.Widget.Models.WidgetDensity;
+using WidgetLayoutModel = OpsMonitor.Widget.Models.WidgetLayout;
 
 namespace OpsMonitor.Studio.ViewModels;
 
@@ -148,6 +151,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             RefreshModuleAccentBrushes();
             RefreshModulePresentation();
             RefreshPreviewBrushes();
+            RaiseProductionPreviewContext();
             QueueLiveApply();
         };
         SensorCatalog = [];
@@ -218,6 +222,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         SaveCommand = new RelayCommand(_ => SaveSettings());
         ReloadCommand = new RelayCommand(_ => ReloadSettings());
         OpenOrRestartWidgetCommand = new RelayCommand(_ => OpenOrRestartWidget());
+        CheckForUpdatesCommand = new RelayCommand(_ => CheckForUpdates());
 
         SelectedNavigation = Navigation[2];
         SelectedModule = Modules[0];
@@ -308,6 +313,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     public ICommand SaveCommand { get; }
     public ICommand ReloadCommand { get; }
     public ICommand OpenOrRestartWidgetCommand { get; }
+    public ICommand CheckForUpdatesCommand { get; }
 
     public NavigationItem? SelectedNavigation
     {
@@ -370,9 +376,12 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 {
                     _density = "Compact";
                     OnPropertyChanged(nameof(Density));
+                    OnPropertyChanged(nameof(PreviewWidgetDensity));
                 }
 
                 OnPropertyChanged(nameof(CanChangeDensity));
+                OnPropertyChanged(nameof(PreviewWidgetLayout));
+                OnPropertyChanged(nameof(PreviewWidgetDensity));
                 ApplyLayoutMetrics();
                 (SelectLayoutCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 QueueLiveApply();
@@ -474,6 +483,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         {
             if (SetEditorProperty(ref _fontScale, value))
             {
+                RaiseProductionPreviewContext();
                 QueueLiveApply();
             }
         }
@@ -490,6 +500,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 : "Compact";
             if (SetEditorProperty(ref _density, normalized))
             {
+                OnPropertyChanged(nameof(PreviewWidgetDensity));
                 ApplyLayoutMetrics();
                 QueueLiveApply();
             }
@@ -555,6 +566,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                     ref _widgetScalePercent,
                     Math.Clamp(value, 80, 160)))
             {
+                OnPropertyChanged(nameof(IsReducedScale));
                 ApplyLayoutMetrics();
                 QueueLiveApply();
             }
@@ -611,6 +623,29 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     public double PreviewWidth => _previewWidth;
     public double PreviewHeight => _previewHeight;
+    public WidgetLayoutModel PreviewWidgetLayout => SelectedLayout switch
+    {
+        "Rail" => WidgetLayoutModel.Rail,
+        "Dock" => WidgetLayoutModel.Dock,
+        "Mini" => WidgetLayoutModel.Mini,
+        _ => WidgetLayoutModel.Pill
+    };
+    public WidgetDensityModel PreviewWidgetDensity => Density switch
+    {
+        "Airy" => WidgetDensityModel.Detail,
+        "Comfortable" => WidgetDensityModel.Normal,
+        _ => WidgetDensityModel.Compact
+    };
+    public Brush TextPrimaryBrush => Designer.PrimaryTextBrush;
+    public Brush TextSecondaryBrush => Designer.SecondaryTextBrush;
+    public Brush TrackBrush => FrozenBrush(Designer.Track, Colors.DimGray);
+    public FontFamily WidgetFontFamily => new(Designer.FontFamily);
+    public double LabelFontSize => Designer.LabelSize * FontScale;
+    public double ValueFontSize => Designer.ValueSize * FontScale;
+    public FontWeight LabelFontWeight => FontWeight.FromOpenTypeWeight(Designer.LabelWeight);
+    public FontWeight ValueFontWeight => FontWeight.FromOpenTypeWeight(Designer.ValueWeight);
+    public bool UseTabularNumbers => Designer.UseTabularNumbers;
+    public bool IsReducedScale => WidgetScalePercent < 100;
     public double WidgetWidth
     {
         get => _previewWidth;
@@ -679,7 +714,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     public string ResourceWakeups { get; } = "Adaptive";
     public string AppVersion { get; } =
-        $"OPS Monitor Studio · v{typeof(StudioViewModel).Assembly.GetName().Version?.ToString(3) ?? "3.1.0"}";
+        $"OPS Monitor Studio · v{typeof(StudioViewModel).Assembly.GetName().Version?.ToString(3) ?? "3.2.0"}";
     public string WidgetActionLabel
     {
         get => _widgetActionLabel;
@@ -2013,6 +2048,68 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             Math.Max(BackgroundOpacity * 0.54, 0.5 * guardStrength));
         PreviewAccentBrush = new SolidColorBrush(
             ColorText.Parse(Designer.CpuAccent, Colors.Cyan));
+    }
+
+    private void CheckForUpdates()
+    {
+        var updateScript = Path.Combine(AppContext.BaseDirectory, "Update.ps1");
+        if (!File.Exists(updateScript))
+        {
+            StatusMessage = "Updater is available in installed release builds";
+            return;
+        }
+
+        try
+        {
+            var start = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                WorkingDirectory = AppContext.BaseDirectory
+            };
+            start.ArgumentList.Add("-NoLogo");
+            start.ArgumentList.Add("-NoProfile");
+            start.ArgumentList.Add("-WindowStyle");
+            start.ArgumentList.Add("Hidden");
+            start.ArgumentList.Add("-ExecutionPolicy");
+            start.ArgumentList.Add("Bypass");
+            start.ArgumentList.Add("-File");
+            start.ArgumentList.Add(updateScript);
+            start.ArgumentList.Add("-Interactive");
+            using var process = Process.Start(start);
+            StatusMessage = process is null
+                ? "Windows did not start the updater"
+                : "Update check opened";
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or
+            System.ComponentModel.Win32Exception or
+            IOException)
+        {
+            StatusMessage = $"Update check failed: {exception.Message}";
+        }
+    }
+
+    private void RaiseProductionPreviewContext()
+    {
+        OnPropertyChanged(nameof(TextPrimaryBrush));
+        OnPropertyChanged(nameof(TextSecondaryBrush));
+        OnPropertyChanged(nameof(TrackBrush));
+        OnPropertyChanged(nameof(WidgetFontFamily));
+        OnPropertyChanged(nameof(LabelFontSize));
+        OnPropertyChanged(nameof(ValueFontSize));
+        OnPropertyChanged(nameof(LabelFontWeight));
+        OnPropertyChanged(nameof(ValueFontWeight));
+        OnPropertyChanged(nameof(UseTabularNumbers));
+    }
+
+    private static SolidColorBrush FrozenBrush(string colorText, Color fallback)
+    {
+        var brush = new SolidColorBrush(ColorText.Parse(colorText, fallback));
+        brush.Freeze();
+        return brush;
     }
 
     private void RefreshModuleAccentBrushes()

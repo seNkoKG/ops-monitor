@@ -281,6 +281,11 @@ public static class WellKnownMetrics
     public static readonly MetricId GpuFanPercent = new("gpu.nvidia.fan");
     public static readonly MetricId GpuClock = new("gpu.nvidia.clock.graphics");
     public static readonly MetricId GpuMemoryClock = new("gpu.nvidia.clock.memory");
+    public static readonly MetricId GpuPrimaryUtilization = new("gpu.primary.utilization");
+    public static readonly MetricId GpuPrimaryTemperature = new("gpu.primary.temperature");
+    public static readonly MetricId GpuPrimaryMemoryUsedBytes = new("gpu.primary.memory.used");
+    public static readonly MetricId GpuPrimaryMemoryTotalBytes = new("gpu.primary.memory.total");
+    public static readonly MetricId GpuPrimaryClock = new("gpu.primary.clock");
     public static readonly MetricId StorageUsedPercent = new("storage.system.used");
     public static readonly MetricId StorageReadRate = new("storage.system.read");
     public static readonly MetricId StorageWriteRate = new("storage.system.write");

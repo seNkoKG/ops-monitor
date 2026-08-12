@@ -1,0 +1,38 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build and test Release
+        shell: powershell
+        run: >-
+          powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass
+          -File .\native\Build.ps1 -Configuration Release
+
+      - name: Validate repository text and PowerShell syntax
+        shell: pwsh
+        run: |
+          git diff --check
+          $scripts = Get-ChildItem native -Filter '*.ps1' -Recurse
+          foreach ($script in $scripts) {
+            [void][scriptblock]::Create((Get-Content -LiteralPath $script.FullName -Raw))
+          }

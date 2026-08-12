@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Windows.Media;
 using OpsMonitor.Studio.Infrastructure;
+using OpsMonitor.Widget.Models;
+using OpsMonitor.Widget.ViewModels;
 
 namespace OpsMonitor.Studio.Models;
 
@@ -78,9 +80,20 @@ public sealed class ModuleItem : ObservableObject
         _isVisible = isVisible;
         _size = size;
 
+        ProductionCard = new MetricCardViewModel(
+            ProductionKey(id),
+            name,
+            Geometry.Empty,
+            SemanticFor(id));
+
         SparklinePoints = new ObservableCollection<double>(
             Enumerable.Range(0, 20).Select(index =>
                 Math.Clamp(usagePercent + Math.Sin(index * 0.72 + usagePercent) * 8, 4, 98)));
+        foreach (var sample in SparklinePoints)
+        {
+            ProductionCard.PushSample(sample);
+        }
+        SyncProductionValues();
     }
 
     public string Id { get; }
@@ -91,6 +104,7 @@ public sealed class ModuleItem : ObservableObject
     public string Source { get; set; }
     public Brush Accent { get; set; }
     public ObservableCollection<double> SparklinePoints { get; }
+    public MetricCardViewModel ProductionCard { get; }
     public event EventHandler? EditorValueChanging;
 
     public void SetPreviewAccent(Brush accent)
@@ -102,7 +116,13 @@ public sealed class ModuleItem : ObservableObject
     public bool IsVisible
     {
         get => _isVisible;
-        set => SetEditorProperty(ref _isVisible, value);
+        set
+        {
+            if (SetEditorProperty(ref _isVisible, value))
+            {
+                ProductionCard.IsVisible = value;
+            }
+        }
     }
 
     public string Size
@@ -119,6 +139,7 @@ public sealed class ModuleItem : ObservableObject
             if (SetProperty(ref _primaryValue, value))
             {
                 OnPropertyChanged(nameof(PreviewPrimaryValue));
+                SyncProductionValues();
             }
         }
     }
@@ -131,6 +152,7 @@ public sealed class ModuleItem : ObservableObject
             if (SetProperty(ref _secondaryValue, value))
             {
                 OnPropertyChanged(nameof(PreviewSecondaryValue));
+                SyncProductionValues();
             }
         }
     }
@@ -138,7 +160,13 @@ public sealed class ModuleItem : ObservableObject
     public double UsagePercent
     {
         get => _usagePercent;
-        set => SetProperty(ref _usagePercent, value);
+        set
+        {
+            if (SetProperty(ref _usagePercent, value))
+            {
+                SyncProductionValues();
+            }
+        }
     }
 
     public bool ShowLabel
@@ -245,7 +273,140 @@ public sealed class ModuleItem : ObservableObject
         PreviewCompactLabelSize = Math.Clamp(PreviewLabelSize * 0.72, 8, 10);
         PreviewCompactValueSize = Math.Clamp(PreviewValueSize * 0.72, 10, 14);
         PreviewCompactIconSize = Math.Clamp(PreviewIconSize * 0.72, 8, 11);
+        ApplyProductionDesign(designer, maximumCardPadding);
     }
+
+    private void ApplyProductionDesign(WidgetDesignerState designer, double maximumCardPadding)
+    {
+        var theme = new ThemeDefinition(
+            "Studio preview",
+            null,
+            ColorText.Parse(designer.Surface, Colors.Black),
+            ColorText.Parse(designer.Card, Colors.Black),
+            ColorText.Parse(designer.Border, Colors.DimGray),
+            ColorText.Parse(designer.PrimaryText, Colors.White),
+            ColorText.Parse(designer.SecondaryText, Colors.LightGray),
+            ColorText.Parse(designer.CpuAccent, Colors.Cyan),
+            ColorText.Parse(designer.GpuAccent, Colors.Magenta),
+            ColorText.Parse(designer.MemoryAccent, Colors.SpringGreen),
+            ColorText.Parse(designer.NetworkAccent, Colors.DeepSkyBlue),
+            ColorText.Parse(designer.Warning, Colors.Gold),
+            ColorText.Parse(designer.Critical, Colors.OrangeRed),
+            designer.FontFamily,
+            designer.LabelSize,
+            designer.ValueSize,
+            designer.MinimumReadableSize,
+            designer.LabelWeight,
+            designer.ValueWeight,
+            designer.UseTabularNumbers)
+        {
+            LatencyAccent = ColorText.Parse(designer.LatencyAccent, Colors.Gold),
+            WeatherAccent = ColorText.Parse(designer.WeatherAccent, Colors.DeepSkyBlue),
+            Success = ColorText.Parse(designer.Success, Colors.SpringGreen),
+            Track = ColorText.Parse(designer.Track, Colors.DimGray),
+            CornerRadius = designer.CornerRadius,
+            CardCornerRadius = designer.CardCornerRadius,
+            ShadowEnabled = designer.ShadowEnabled,
+            ShadowOpacity = designer.ShadowOpacity,
+            GlowEnabled = designer.GlowEnabled,
+            GlowOpacity = designer.GlowOpacity,
+            BorderWidth = designer.BorderWidth,
+            CardBorderWidth = designer.CardBorderWidth,
+            CardGap = designer.CardGap,
+            ContentPadding = designer.ContentPadding,
+            CardPadding = Math.Min(designer.CardPadding, maximumCardPadding),
+            CardOpacity = designer.CardOpacity,
+            AccentWidth = designer.AccentWidth,
+            ProgressHeight = designer.ProgressHeight,
+            SparklineThickness = designer.SparklineThickness,
+            HeaderVisible = designer.HeaderVisible,
+            StatusIndicatorVisible = designer.StatusIndicatorVisible,
+            SettingsButtonVisible = designer.SettingsButtonVisible,
+            HeaderHeight = designer.HeaderHeight,
+            HeaderSize = designer.HeaderSize,
+            SecondarySize = designer.SecondarySize,
+            HeaderWeight = designer.HeaderWeight,
+            SecondaryWeight = designer.SecondaryWeight,
+            MotionEnabled = designer.MotionEnabled,
+            TransitionMilliseconds = designer.TransitionMilliseconds,
+            AnimateValueChanges = designer.AnimateValueChanges,
+            RespectReducedMotion = designer.RespectReducedMotion,
+            PulseStatusIndicator = designer.PulseStatusIndicator
+        };
+        ProductionCard.ApplyPresentation(new WidgetModulePresentation
+        {
+            Size = Size switch
+            {
+                "Small" => WidgetModuleSize.Small,
+                "Large" => WidgetModuleSize.Large,
+                "Wide" => WidgetModuleSize.Wide,
+                _ => WidgetModuleSize.Medium
+            },
+            Visualization = Visualization switch
+            {
+                "Number only" => WidgetModuleVisualization.Value,
+                "Bar" => WidgetModuleVisualization.Gauge,
+                "Sparkline" => WidgetModuleVisualization.Sparkline,
+                _ => WidgetModuleVisualization.ValueAndSparkline
+            },
+            ShowLabel = ShowLabel,
+            ShowSecondaryValue = ShowTemperature,
+            ShowTrend = ShowSparkline,
+            DecimalPlacesOverride = Precision switch
+            {
+                "Whole numbers" => 0,
+                "1 decimal" => 1,
+                "2 decimals" => 2,
+                _ => null
+            },
+            Title = CustomTitle,
+            Icon = CustomIcon,
+            AccentColor = UseCustomAccent ? AccentHex : string.Empty,
+            ShowIcon = ShowIcon,
+            ShowAccent = ShowAccent,
+            CardOpacity = CardOpacity,
+            BorderOpacity = BorderOpacity,
+            CardCornerRadiusOverride = CardCornerRadius < 0 ? null : CardCornerRadius,
+            CardPaddingOverride = CardPadding < 0
+                ? null
+                : Math.Min(CardPadding, maximumCardPadding),
+            AccentWidthOverride = AccentWidth < 0 ? null : AccentWidth,
+            ProgressHeightOverride = ProgressHeight < 0 ? null : ProgressHeight,
+            LabelSizeOverride = LabelSize < 0 ? null : LabelSize,
+            ValueSizeOverride = ValueSize < 0 ? null : ValueSize,
+            IconSizeOverride = IconSize < 0 ? null : IconSize
+        });
+        ProductionCard.ApplyTheme(theme);
+        SyncProductionValues();
+    }
+
+    private void SyncProductionValues()
+    {
+        ProductionCard.PrimaryValue = PreviewPrimaryValue;
+        ProductionCard.Status = ShowTemperature ? PreviewSecondaryValue : string.Empty;
+        ProductionCard.Progress = Math.Clamp(UsagePercent, 0, 100);
+        ProductionCard.IsProgressAvailable = true;
+        ProductionCard.IsVisible = IsVisible;
+        ProductionCard.State = SensorState.Available;
+    }
+
+    private static string ProductionKey(string id) => id switch
+    {
+        "ram" => WidgetModuleCatalog.Memory,
+        "net" => WidgetModuleCatalog.Network,
+        "disk" => WidgetModuleCatalog.Storage,
+        _ => id
+    };
+
+    private static SemanticAccent SemanticFor(string id) => id switch
+    {
+        "gpu" => SemanticAccent.Gpu,
+        "ram" or "disk" or "battery" => SemanticAccent.Memory,
+        "net" => SemanticAccent.Network,
+        "latency" => SemanticAccent.Latency,
+        "weather" => SemanticAccent.Weather,
+        _ => SemanticAccent.Cpu
+    };
 
     private bool SetEditorProperty<T>(
         ref T field,

@@ -16,8 +16,8 @@ crowding the monitor itself.
   hardware sensor broker
 - deterministic behavioral tests for the Core and sensor contracts
 
-Metrics include CPU load/temperature/effective clock/package power; NVIDIA GPU
-load, temperature, VRAM, graphics and memory clocks, board power, and fan;
+Metrics include CPU load/temperature/effective clock/package power; AMD, Intel,
+and NVIDIA GPU load, temperature, VRAM and clocks, with NVML power/fan detail;
 memory usage; system-drive capacity, activity, temperature and health; network
 download/upload, ping, jitter and rolling packet loss; uptime; and battery when
 the hardware exposes them. Studio's searchable sensor browser can pin up to
@@ -82,9 +82,9 @@ Publish produces a combined companion-app folder and ZIP:
 
 ```text
 artifacts\publish\framework-dependent\
-artifacts\publish\OPS-Monitor-framework-dependent.zip
+artifacts\publish\OPS-Monitor-v3.2.0-framework-dependent.zip
 artifacts\publish\win-x64-self-contained\
-artifacts\publish\OPS-Monitor-win-x64-self-contained.zip
+artifacts\publish\OPS-Monitor-v3.2.0-win-x64-self-contained.zip
 ```
 
 Widget and Studio intentionally live in the same folder. This lets each app open
@@ -136,6 +136,9 @@ Optional switches:
 
 The installer stages and verifies both executables before replacing an existing
 install. It refuses to overwrite an installed copy while that copy is running.
+Every archive has a sibling `.sha256` file. Installed builds add a Start menu
+updater that downloads the matching package type through `release-manifest.json`
+and verifies its SHA-256 digest before replacement.
 
 Uninstall from the Start menu, or run:
 
@@ -150,11 +153,15 @@ PawnIO because another hardware-monitoring app may use it.
 ## Runtime behavior and sensor availability
 
 - Telemetry providers run on adaptive, non-overlapping schedules.
+- Provider polling and UI publication pause when Windows locks. Battery Saver
+  applies the selected performance profile's cadence multiplier.
 - History is bounded and downsampled; rendering is coalesced to the selected UI
   cadence. Dragging and resizing do not restart telemetry providers.
 - Weather refreshes on an independent low-frequency schedule, caches responses,
   and never overlaps an in-flight network request.
-- NVIDIA data uses NVML first and a bounded `nvidia-smi` fallback.
+- NVIDIA data uses NVML first and a bounded `nvidia-smi` fallback. The hardware
+  broker provides a vendor-neutral primary GPU fallback for AMD, Intel, and
+  NVIDIA systems.
 - CPU temperature and optional low-level hardware sensors are read from one
   isolated, batched broker installed under
   `%ProgramFiles%\OPS Monitor Sensor`. Widget and Studio remain non-elevated.
@@ -170,7 +177,9 @@ PawnIO because another hardware-monitoring app may use it.
 - `Ctrl+Alt+O` returns a locked or click-through Widget to Edit mode.
 
 For repeatable screenshots, use `tools\Capture-Window.ps1`. For a quick steady
-state CPU and memory sample, use `tools\Measure-AppImpact.ps1`.
+state CPU and memory sample, use `tools\Measure-AppImpact.ps1`. Pass explicit
+CPU, working-set, handle, and thread budgets with `-FailOnBudgetExceeded` to
+turn that measurement into a release gate.
 
 ### CPU temperature troubleshooting
 

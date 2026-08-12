@@ -9,7 +9,7 @@ using Color = System.Windows.Media.Color;
 
 namespace OpsMonitor.Widget.ViewModels;
 
-internal sealed class MetricCardViewModel : ObservableObject
+public sealed class MetricCardViewModel : ObservableObject
 {
     private const int MaximumHistorySamples = 60;
     private readonly Queue<double> _history = new(MaximumHistorySamples);

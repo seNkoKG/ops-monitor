@@ -718,6 +718,7 @@
                                     <controls:MetricCard Layout="{Binding DataContext.Layout, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                          Density="{Binding DataContext.Density, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                          ContentOpacity="{Binding DataContext.ContentOpacity, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                         ThemeContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                          PreviewMouseLeftButtonDown="MetricCard_OnPreviewMouseLeftButtonDown"
                                                          PreviewMouseLeftButtonUp="MetricCard_OnPreviewMouseLeftButtonUp" />
                                 </DataTemplate>
@@ -822,6 +823,7 @@
                                     <controls:MetricCard Layout="{Binding DataContext.Layout, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                          Density="{x:Static models:WidgetDensity.Compact}"
                                                          ContentOpacity="{Binding DataContext.ContentOpacity, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                         ThemeContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                          PreviewMouseLeftButtonDown="MetricCard_OnPreviewMouseLeftButtonDown"
                                                          PreviewMouseLeftButtonUp="MetricCard_OnPreviewMouseLeftButtonUp" />
                                 </DataTemplate>

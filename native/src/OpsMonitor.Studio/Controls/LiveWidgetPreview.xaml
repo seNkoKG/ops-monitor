@@ -1,6 +1,7 @@
 <UserControl x:Class="OpsMonitor.Studio.Controls.LiveWidgetPreview"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:widgetControls="clr-namespace:OpsMonitor.Widget.Controls;assembly=OpsMonitor.Widget"
              MinWidth="350">
     <Grid Background="#F2070A0F">
         <Grid.RowDefinitions>
@@ -143,101 +144,13 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                            <Border x:Name="DetailCard"
-                                                    Margin="3"
-                                                    Padding="{Binding PreviewCardPadding}"
-                                                    Background="{Binding PreviewCardBrush}"
-                                                    BorderBrush="{Binding PreviewBorderBrush}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="{Binding PreviewCardCornerRadius}"
-                                                    ClipToBounds="True">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Border Width="{Binding PreviewAccentWidth}" Margin="0,0,7,0" Background="{Binding Accent}" CornerRadius="2"
-                                                            Visibility="{Binding ShowAccent, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                    <Grid Grid.Column="1">
-                                                        <Grid.RowDefinitions>
-                                                            <RowDefinition Height="Auto"/>
-                                                            <RowDefinition Height="*"/>
-                                                            <RowDefinition Height="Auto"/>
-                                                        </Grid.RowDefinitions>
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{Binding CustomIcon}" Margin="0,0,5,0" FontSize="{Binding PreviewIconSize}" Foreground="{Binding Accent}"
-                                                                       Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                            <TextBlock Grid.Column="1" Text="{Binding CustomTitle}" FontSize="{Binding PreviewLabelSize}" FontWeight="SemiBold" Foreground="{Binding Accent}"
-                                                                       Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                            <TextBlock Grid.Column="2" Margin="6,0,0,0" Text="{Binding PreviewSecondaryValue}" FontSize="9"
-                                                                       Foreground="{Binding DataContext.Designer.SecondaryTextBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                       Visibility="{Binding ShowTemperature, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                        </Grid>
-                                                        <TextBlock Grid.Row="1" Text="{Binding PreviewPrimaryValue}"
-                                                                   FontFamily="{Binding DataContext.Designer.FontFamily, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                   FontSize="{Binding PreviewValueSize}" FontWeight="SemiBold"
-                                                                   Foreground="{Binding DataContext.Designer.PrimaryTextBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                                        <Grid Grid.Row="2" Height="{Binding PreviewProgressHeight}" Margin="0,3,0,0">
-                                                            <Border Background="#55364258" CornerRadius="2"/>
-                                                            <Border Width="{Binding UsagePercent}" MaxWidth="100" HorizontalAlignment="Left" Background="{Binding Accent}" CornerRadius="2"/>
-                                                        </Grid>
-                                                    </Grid>
-                                                </Grid>
-                                            </Border>
-
-                                            <Border x:Name="CompactCard"
-                                                    Margin="1.5"
-                                                    Padding="{Binding PreviewCardPadding}"
-                                                    Background="{Binding PreviewCardBrush}"
-                                                    BorderBrush="{Binding PreviewBorderBrush}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="{Binding PreviewCardCornerRadius}"
-                                                    Visibility="Collapsed"
-                                                    ClipToBounds="True">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Border Width="{Binding PreviewAccentWidth}" Margin="0,0,5,0" Background="{Binding Accent}" CornerRadius="2"
-                                                            Visibility="{Binding ShowAccent, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                    <Grid Grid.Column="1">
-                                                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{Binding CustomIcon}" Margin="0,0,4,0" FontSize="{Binding PreviewCompactIconSize}" Foreground="{Binding Accent}" VerticalAlignment="Center"
-                                                                       Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                            <TextBlock Grid.Column="1" Text="{Binding CustomTitle}" FontSize="{Binding PreviewCompactLabelSize}" FontWeight="SemiBold" Foreground="{Binding Accent}" VerticalAlignment="Center"
-                                                                       Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                            <TextBlock Grid.Column="2" Margin="5,0,0,0" Text="{Binding PreviewSecondaryValue}" FontSize="8" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                                                       Foreground="{Binding DataContext.Designer.SecondaryTextBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                       Visibility="{Binding ShowTemperature, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                        </Grid>
-                                                        <TextBlock Grid.Row="1" Text="{Binding PreviewPrimaryValue}"
-                                                                   FontFamily="{Binding DataContext.Designer.FontFamily, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                   FontSize="{Binding PreviewCompactValueSize}" FontWeight="SemiBold"
-                                                                   Foreground="{Binding DataContext.Designer.PrimaryTextBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                                    </Grid>
-                                                </Grid>
-                                            </Border>
+                                            <widgetControls:MetricCard DataContext="{Binding ProductionCard}"
+                                                                       Layout="{Binding DataContext.PreviewWidgetLayout, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                       Density="{Binding DataContext.PreviewWidgetDensity, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                       ContentOpacity="{Binding DataContext.ContentOpacity, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                       ThemeContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                       IsHitTestVisible="False"/>
                                         </Grid>
-                                        <DataTemplate.Triggers>
-                                            <DataTrigger Binding="{Binding DataContext.SelectedLayout, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Mini">
-                                                <Setter TargetName="DetailCard" Property="Visibility" Value="Collapsed"/>
-                                                <Setter TargetName="CompactCard" Property="Visibility" Value="Visible"/>
-                                            </DataTrigger>
-                                            <MultiDataTrigger>
-                                                <MultiDataTrigger.Conditions>
-                                                    <Condition Binding="{Binding DataContext.SelectedLayout, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Rail"/>
-                                                    <Condition Binding="{Binding DataContext.Density, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="Compact"/>
-                                                </MultiDataTrigger.Conditions>
-                                                <Setter TargetName="DetailCard" Property="Visibility" Value="Collapsed"/>
-                                                <Setter TargetName="CompactCard" Property="Visibility" Value="Visible"/>
-                                            </MultiDataTrigger>
-                                        </DataTemplate.Triggers>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

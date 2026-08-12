@@ -7,7 +7,9 @@ param(
 
     [switch]$SelfContained,
 
-    [switch]$NoArchive
+    [switch]$NoArchive,
+
+    [string]$CertificateThumbprint
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +17,11 @@ $ProgressPreference = 'SilentlyContinue'
 $root = $PSScriptRoot
 $solution = Join-Path $root 'OpsMonitor.slnx'
 $artifacts = Join-Path $root 'artifacts'
+$props = [xml](Get-Content -LiteralPath (Join-Path $root 'Directory.Build.props') -Raw)
+$version = ([string]$props.Project.PropertyGroup.Version | Select-Object -First 1).Trim()
+if ([string]::IsNullOrWhiteSpace($version)) {
+    throw 'Directory.Build.props does not define a release version.'
+}
 
 $dotnetCommand = Get-Command dotnet -ErrorAction SilentlyContinue
 $dotnet = if ($dotnetCommand) {
@@ -145,11 +152,15 @@ if ($Publish) {
             throw 'The publish package is incomplete: OpsMonitor.SensorBridge.exe is missing.'
         }
 
+        Set-Content -LiteralPath (Join-Path $stagingPackage 'VERSION') -Value $version -Encoding ascii
+        Set-Content -LiteralPath (Join-Path $stagingPackage '.ops-package-kind') -Value $packageKind -Encoding ascii
+
         foreach ($supportFile in @(
                 'Install.ps1',
                 'Uninstall.ps1',
                 'Enable-CpuTemperature.ps1',
                 'Disable-CpuTemperature.ps1',
+                'Update.ps1',
                 'README.md',
                 'THIRD-PARTY-NOTICES.md'
             )) {
@@ -163,6 +174,34 @@ if ($Publish) {
             -Destination $sensorPackage `
             -Force
 
+        foreach ($repositoryFile in @('LICENSE', 'SECURITY.md', 'ROADMAP.md', 'CHANGELOG.md')) {
+            $repositoryPath = Join-Path (Split-Path -Parent $root) $repositoryFile
+            if (Test-Path -LiteralPath $repositoryPath) {
+                Copy-Item -LiteralPath $repositoryPath -Destination $stagingPackage -Force
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($CertificateThumbprint)) {
+            $normalizedThumbprint = $CertificateThumbprint.Replace(' ', '')
+            $certificate = Get-ChildItem Cert:\CurrentUser\My, Cert:\LocalMachine\My |
+                Where-Object Thumbprint -EQ $normalizedThumbprint |
+                Select-Object -First 1
+            if ($null -eq $certificate) {
+                throw "Code-signing certificate $normalizedThumbprint was not found."
+            }
+
+            foreach ($binary in Get-ChildItem -LiteralPath $stagingPackage -Filter '*.exe' -Recurse) {
+                $signature = Set-AuthenticodeSignature `
+                    -FilePath $binary.FullName `
+                    -Certificate $certificate `
+                    -TimestampServer 'http://timestamp.digicert.com' `
+                    -HashAlgorithm SHA256
+                if ($signature.Status -ne 'Valid') {
+                    throw "Signing $($binary.Name) failed: $($signature.StatusMessage)"
+                }
+            }
+        }
+
         New-Item -ItemType Directory -Path $publishRoot -Force | Out-Null
         if (Test-Path -LiteralPath $output) {
             Remove-Item -LiteralPath $output -Recurse -Force
@@ -170,13 +209,29 @@ if ($Publish) {
         Move-Item -LiteralPath $stagingPackage -Destination $output
 
         if (-not $NoArchive) {
-            $archive = Join-Path $publishRoot "OPS-Monitor-$packageKind.zip"
-            $temporaryArchive = Join-Path $stagingRoot "OPS-Monitor-$packageKind.zip"
-            Compress-Archive -Path (Join-Path $output '*') -DestinationPath $temporaryArchive
-            if (Test-Path -LiteralPath $archive) {
-                Remove-Item -LiteralPath $archive -Force
+            $archiveName = "OPS-Monitor-v$version-$packageKind.zip"
+            $archive = Join-Path $publishRoot $archiveName
+            $temporaryArchive = Join-Path $stagingRoot $archiveName
+            foreach ($previous in Get-ChildItem `
+                    -LiteralPath $publishRoot `
+                    -Filter "OPS-Monitor-*$packageKind.zip*" `
+                    -File `
+                    -ErrorAction SilentlyContinue) {
+                $resolvedPrevious = [IO.Path]::GetFullPath($previous.FullName)
+                if (-not $resolvedPrevious.StartsWith(
+                        [IO.Path]::GetFullPath($publishRoot) + [IO.Path]::DirectorySeparatorChar,
+                        [StringComparison]::OrdinalIgnoreCase)) {
+                    throw "Refusing to replace an archive outside $publishRoot."
+                }
+                Remove-Item -LiteralPath $resolvedPrevious -Force
             }
+            Compress-Archive -Path (Join-Path $output '*') -DestinationPath $temporaryArchive
             Move-Item -LiteralPath $temporaryArchive -Destination $archive
+            $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+            Set-Content `
+                -LiteralPath ($archive + '.sha256') `
+                -Value "$hash *$archiveName" `
+                -Encoding ascii
             Write-Host "Release archive: $archive" -ForegroundColor Cyan
         }
 

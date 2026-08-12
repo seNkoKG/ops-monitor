@@ -31,6 +31,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("CPU bridge defaults to protected per-user sensor data", TestCpuBridgeDefaultPathAsync),
     ("history is bounded and downsamples deterministically", TestHistoryAsync),
     ("optional hardware history is retained only when selected", TestSelectedHardwareHistoryAsync),
+    ("power-aware cadence and workstation pause are enforced", TestPowerAwareRuntimeAsync),
     ("alerts honor pending, hysteresis, and cooldown", TestAlertsAsync),
     ("settings save atomically and round-trip", TestSettingsRoundTripAsync),
     ("future settings schemas remain read-only", TestFutureSettingsSchemaAsync),
@@ -61,6 +62,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("unavailable connectivity never renders false zero values", TestUnavailableConnectivityAsync),
     ("partial CPU telemetry never renders a false zero", TestPartialCpuTelemetryAsync),
     ("partial GPU telemetry keeps VRAM availability independent", TestPartialGpuTelemetryAsync),
+    ("vendor-neutral GPU telemetry feeds the primary card", TestVendorNeutralGpuTelemetryAsync),
     ("partial RAM telemetry never fabricates used memory", TestPartialMemoryTelemetryAsync),
     ("missing download telemetry preserves an available upload", TestPartialDownloadTelemetryAsync),
     ("missing upload telemetry preserves an available download", TestPartialUploadTelemetryAsync),
@@ -1890,7 +1892,7 @@ static async Task TestConcurrentSettingsUpdatesAsync()
         using var first = new JsonSettingsRepository(path);
         using var second = new JsonSettingsRepository(path);
         var defaults = OpsSettingsDocument.CreateDefault();
-        var initialPort = defaults.General.LocalApiPort;
+        var initialLimit = defaults.DataRetention.MaximumSamplesPerMetric;
         await first.SaveAsync(defaults);
 
         var updates = Enumerable.Range(0, 24)
@@ -1899,9 +1901,10 @@ static async Task TestConcurrentSettingsUpdatesAsync()
                 var repository = index % 2 == 0 ? first : second;
                 return repository.UpdateAsync(current => current with
                 {
-                    General = current.General with
+                    DataRetention = current.DataRetention with
                     {
-                        LocalApiPort = current.General.LocalApiPort + 1
+                        MaximumSamplesPerMetric =
+                            current.DataRetention.MaximumSamplesPerMetric + 1
                     }
                 });
             });
@@ -1909,8 +1912,8 @@ static async Task TestConcurrentSettingsUpdatesAsync()
 
         var loaded = await first.LoadAsync();
         Assert.Equal(
-            initialPort + 24,
-            loaded.General.LocalApiPort,
+            initialLimit + 24,
+            loaded.DataRetention.MaximumSamplesPerMetric,
             "cross-process update lost a writer");
     }
     finally
@@ -1981,43 +1984,90 @@ static Task TestStudioApplicationResourcesAsync()
                 application.Resources.Contains("BooleanToVisibilityConverter"),
                 "Studio visibility converter resource was not registered");
             using var viewModel = new StudioViewModel(new FakeStudioSettingsSink());
-            viewModel.SelectLayoutCommand.Execute("Mini");
-            viewModel.WidgetScalePercent = 80;
             var preview = new LiveWidgetPreview
             {
                 DataContext = viewModel,
-                Width = 420,
-                Height = 760,
+                Width = 1400,
+                Height = 900,
             };
             var host = new System.Windows.Window
             {
                 Content = preview,
-                Width = 420,
-                Height = 760,
+                Width = 1400,
+                Height = 900,
                 ShowInTaskbar = false,
                 WindowStyle = System.Windows.WindowStyle.None,
             };
             host.Show();
-            preview.UpdateLayout();
-            var moduleList = FindVisualDescendant<System.Windows.Controls.ItemsControl>(preview);
-            Assert.True(moduleList is not null, "Studio live preview did not create its module list");
-            Assert.Equal(
-                viewModel.Modules.Count,
-                moduleList!.Items.Count,
-                "Studio live preview did not bind every module");
-            Assert.True(
-                moduleList.ActualHeight > 0 && moduleList.ActualWidth > 0,
-                $"Studio live preview module list was clipped ({moduleList.ActualWidth:0} x {moduleList.ActualHeight:0})");
-            var firstModule = moduleList.ItemContainerGenerator.ContainerFromIndex(0)
-                as System.Windows.FrameworkElement;
-            Assert.True(
-                firstModule?.ActualHeight > 0,
-                "Studio live preview module containers were not measurable");
-            var cpuLabel = FindVisualDescendants<System.Windows.Controls.TextBlock>(firstModule!)
-                .FirstOrDefault(item => item.Text == "CPU" && item.IsVisible);
-            Assert.True(
-                cpuLabel is { IsVisible: true, ActualHeight: > 0 },
-                "Studio live preview CPU label was not visible");
+            string[] previewLayouts = ["Pill", "Rail", "Dock", "Mini"];
+            int[] previewScales = [80, 100, 125];
+            foreach (var layout in previewLayouts)
+            {
+                foreach (var scale in previewScales)
+                {
+                    viewModel.SelectLayoutCommand.Execute(layout);
+                    viewModel.WidgetScalePercent = scale;
+                    preview.UpdateLayout();
+
+                    var moduleList = FindVisualDescendant<System.Windows.Controls.ItemsControl>(preview);
+                    Assert.True(moduleList is not null, $"{layout} preview did not create its module list");
+                    Assert.Equal(
+                        viewModel.Modules.Count,
+                        moduleList!.Items.Count,
+                        $"{layout} preview did not bind every module");
+                    Assert.True(
+                        moduleList.ActualHeight > 0 && moduleList.ActualWidth > 0,
+                        $"{layout} preview module list was clipped ({moduleList.ActualWidth:0} x {moduleList.ActualHeight:0})");
+
+                    var cards = FindVisualDescendants<OpsMonitor.Widget.Controls.MetricCard>(preview)
+                        .Where(card => card.IsVisible)
+                        .ToArray();
+                    Assert.True(
+                        cards.Length > 0,
+                        $"{layout} preview did not materialize the production MetricCard renderer");
+                    Assert.True(
+                        cards.All(card =>
+                            card.ActualHeight > 0 &&
+                            card.ActualWidth > 0 &&
+                            double.IsFinite(card.ActualHeight) &&
+                            double.IsFinite(card.ActualWidth)),
+                        $"{layout} production cards were not measurable at {scale}% scale");
+
+                    var cpuLabel = cards
+                        .SelectMany(FindVisualDescendants<System.Windows.Controls.TextBlock>)
+                        .FirstOrDefault(item => item.Text == "CPU" && item.IsVisible);
+                    Assert.True(
+                        cpuLabel is { IsVisible: true, ActualHeight: > 0 },
+                        $"{layout} CPU label was not visible at {scale}% scale");
+                }
+            }
+
+            string[] pageTemplateKeys =
+            [
+                "Page.Overview",
+                "Page.Widgets",
+                "Page.Appearance",
+                "Page.Window",
+                "Page.Providers",
+                "Page.Diagnostics"
+            ];
+            foreach (var templateKey in pageTemplateKeys)
+            {
+                var pageTemplate = application.TryFindResource(templateKey)
+                    as System.Windows.DataTemplate;
+                Assert.True(pageTemplate is not null, $"Studio page template {templateKey} was missing");
+                var content = new System.Windows.Controls.ContentControl
+                {
+                    DataContext = viewModel,
+                    Content = viewModel,
+                    ContentTemplate = pageTemplate,
+                };
+                host.Content = content;
+                content.UpdateLayout();
+                Assert.True(
+                    content.ActualHeight > 0 && content.ActualWidth > 0,
+                    $"Studio page template {templateKey} could not be measured");
+            }
             host.Close();
             application.Shutdown();
         }
@@ -2039,6 +2089,59 @@ static Task TestStudioApplicationResourcesAsync()
     }
 
     return Task.CompletedTask;
+}
+
+static async Task TestPowerAwareRuntimeAsync()
+{
+    var settings = OpsSettingsDocument.CreateDefault();
+    var profile = settings.PerformanceProfiles.First();
+    Assert.Equal(
+        1d,
+        OpsRuntime.CalculateCadenceMultiplier(settings, profile, false, false),
+        "balanced runtime did not preserve its base cadence");
+    Assert.Equal(
+        3d,
+        OpsRuntime.CalculateCadenceMultiplier(settings, profile, true, false),
+        "battery saver did not reduce provider polling");
+
+    var unlockedPollingSettings = settings with
+    {
+        General = settings.General with { PauseWhenWorkstationLocked = false }
+    };
+    Assert.Equal(
+        8d,
+        OpsRuntime.CalculateCadenceMultiplier(
+            unlockedPollingSettings,
+            profile,
+            false,
+            true),
+        "locked-workstation polling did not apply the configured backoff");
+    Assert.Equal(
+        16d,
+        OpsRuntime.CalculateCadenceMultiplier(
+            unlockedPollingSettings,
+            profile,
+            true,
+            true),
+        "combined power backoff was not capped safely");
+
+    var provider = new FakeMetricProvider();
+    await using var runtime = new OpsRuntime(
+        [provider],
+        new FakeSettingsRepository(settings));
+    await runtime.ApplySettingsAsync(settings, persist: false);
+    Assert.True(
+        runtime.Scheduler.TryGetRegistration(provider.Id, out var registration) &&
+        registration is { Enabled: true },
+        "runtime provider did not start enabled");
+    runtime.SetWorkstationLocked(true);
+    Assert.False(
+        registration!.Enabled,
+        "workstation lock did not pause providers");
+    runtime.SetWorkstationLocked(false);
+    Assert.True(
+        registration.Enabled,
+        "workstation unlock did not restore providers");
 }
 
 static T? FindVisualDescendant<T>(System.Windows.DependencyObject parent)
@@ -2345,6 +2448,48 @@ static Task TestPartialGpuTelemetryAsync()
     return Task.CompletedTask;
 }
 
+static Task TestVendorNeutralGpuTelemetryAsync()
+{
+    const double gibibyte = 1024d * 1024d * 1024d;
+    var capturedAt = DateTimeOffset.UtcNow;
+    var metrics = new Dictionary<MetricId, MetricSample>
+    {
+        [WellKnownMetrics.GpuPrimaryUtilization] = MetricSample.Available(
+            WellKnownMetrics.GpuPrimaryUtilization,
+            62,
+            capturedAt,
+            TestSource()),
+        [WellKnownMetrics.GpuPrimaryTemperature] = MetricSample.Available(
+            WellKnownMetrics.GpuPrimaryTemperature,
+            55,
+            capturedAt,
+            TestSource()),
+        [WellKnownMetrics.GpuPrimaryMemoryUsedBytes] = MetricSample.Available(
+            WellKnownMetrics.GpuPrimaryMemoryUsedBytes,
+            6 * gibibyte,
+            capturedAt,
+            TestSource()),
+        [WellKnownMetrics.GpuPrimaryMemoryTotalBytes] = MetricSample.Available(
+            WellKnownMetrics.GpuPrimaryMemoryTotalBytes,
+            12 * gibibyte,
+            capturedAt,
+            TestSource())
+    };
+
+    var snapshot = CoreTelemetrySource.CreateSnapshot(metrics, capturedAt);
+    Assert.True(snapshot.Gpu.LoadPercent == 62d, "generic GPU load was not projected");
+    Assert.True(snapshot.Gpu.TemperatureCelsius == 55d, "generic GPU temperature was not projected");
+    Assert.True(snapshot.Gpu.UsedVramGigabytes == 6d, "generic VRAM use was not projected");
+    Assert.True(snapshot.Gpu.TotalVramGigabytes == 12d, "generic VRAM total was not projected");
+    using var viewModel = RenderTelemetry(snapshot);
+    var gpu = viewModel.Metrics.Single(metric => metric.Key == WidgetModuleCatalog.Gpu);
+    Assert.Equal("62%", gpu.PrimaryValue, "generic GPU load did not reach the widget card");
+    Assert.True(
+        gpu.Status.Contains("55", StringComparison.Ordinal),
+        "generic GPU temperature did not reach the widget card");
+    return Task.CompletedTask;
+}
+
 static Task TestPartialMemoryTelemetryAsync()
 {
     const double gibibyte = 1024d * 1024d * 1024d;
@@ -2531,9 +2676,10 @@ static async Task TestFutureSettingsSchemaAsync()
                 updateWasInvoked = true;
                 return current with
                 {
-                    General = current.General with
+                    DataRetention = current.DataRetention with
                     {
-                        LocalApiPort = current.General.LocalApiPort + 1
+                        MaximumSamplesPerMetric =
+                            current.DataRetention.MaximumSamplesPerMetric + 1
                     }
                 };
             });
@@ -2662,6 +2808,52 @@ static MetricSource TestSource() =>
         Kind = MetricSourceKind.Custom
     };
 
+internal sealed class FakeMetricProvider : MetricProviderBase
+{
+    public override string Id => "test.power-aware";
+
+    public override string DisplayName => "Power-aware test provider";
+
+    public override IReadOnlyCollection<MetricDescriptor> Descriptors => [];
+
+    public override TimeSpan DefaultCadence => TimeSpan.FromSeconds(1);
+
+    public override ValueTask<ProviderPollResult> PollAsync(
+        MetricProviderContext context,
+        CancellationToken cancellationToken)
+    {
+        _ = context;
+        _ = cancellationToken;
+        return ValueTask.FromResult(ProviderPollResult.Healthy());
+    }
+}
+
+internal sealed class FakeSettingsRepository(OpsSettingsDocument settings) :
+    ISettingsRepository
+{
+    private OpsSettingsDocument _settings = settings;
+
+    public string SettingsPath => string.Empty;
+
+    public string? LastLoadWarning => null;
+
+    public Task<OpsSettingsDocument> LoadAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(_settings);
+    }
+
+    public Task SaveAsync(
+        OpsSettingsDocument settings,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _settings = settings;
+        return Task.CompletedTask;
+    }
+}
+
 internal sealed class FakeTelemetrySource : ITelemetrySource
 {
     public string Name => "Test telemetry";
@@ -2673,6 +2865,8 @@ internal sealed class FakeTelemetrySource : ITelemetrySource
     public event EventHandler<TelemetrySnapshot>? SnapshotAvailable;
 
     public void SetUpdateCadence(TimeSpan cadence) => LastCadence = cadence;
+
+    public void SetWorkstationLocked(bool isLocked) => _ = isLocked;
 
     public void Start()
     {

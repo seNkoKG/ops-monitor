@@ -10,6 +10,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using OpsMonitor.Core.Platform;
 using OpsMonitor.Widget.Interop;
 using OpsMonitor.Widget.Controls;
@@ -71,6 +72,7 @@ public partial class MainWindow : Window
     private bool _isApplyingExternalSettings;
     private bool _isClosing;
     private bool _hotkeyRegistered;
+    private bool _sessionEventsSubscribed;
     private double _lastRuntimeCadenceSeconds;
 
     public MainWindow()
@@ -123,6 +125,12 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _isClosing = true;
+        if (_sessionEventsSubscribed)
+        {
+            SystemEvents.SessionSwitch -= SystemEvents_OnSessionSwitch;
+            _sessionEventsSubscribed = false;
+        }
+
         if (!_isEphemeralSession)
         {
             SaveNow();
@@ -260,6 +268,8 @@ public partial class MainWindow : Window
         _ = e;
 
         InitializeTrayIcon();
+        SystemEvents.SessionSwitch += SystemEvents_OnSessionSwitch;
+        _sessionEventsSubscribed = true;
         EnsureVisibleOnScreen();
         _isLoaded = true;
         _viewModel.Start();
@@ -269,6 +279,21 @@ public partial class MainWindow : Window
             _ = StartSettingsWatcherAsync();
             ScheduleSave();
         }
+    }
+
+    private void SystemEvents_OnSessionSwitch(
+        object sender,
+        SessionSwitchEventArgs eventArgs)
+    {
+        _ = sender;
+        if (eventArgs.Reason is not (SessionSwitchReason.SessionLock or
+            SessionSwitchReason.SessionUnlock))
+        {
+            return;
+        }
+
+        _viewModel.TelemetrySource.SetWorkstationLocked(
+            eventArgs.Reason == SessionSwitchReason.SessionLock);
     }
 
     private void ViewModel_OnTelemetryUpdated(object? sender, EventArgs e)
