@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using OpsMonitor.Studio.ViewModels;
 
 namespace OpsMonitor.Studio;
@@ -24,6 +25,8 @@ public partial class MainWindow : Window, IDisposable
         DataContext = _viewModel;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _viewModel.RequestCopyDiagnostics += OnRequestCopyDiagnostics;
+        _viewModel.RequestImportDesign += OnRequestImportDesign;
+        _viewModel.RequestExportDesign += OnRequestExportDesign;
 
         _telemetryTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -182,6 +185,38 @@ public partial class MainWindow : Window, IDisposable
         }
     }
 
+    private void OnRequestExportDesign(object? sender, EventArgs e)
+    {
+        CommitFocusedBinding();
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export OPS widget design",
+            Filter = "OPS design package (*.opsdesign)|*.opsdesign|JSON files (*.json)|*.json",
+            DefaultExt = ".opsdesign",
+            AddExtension = true,
+            FileName = "ops-widget-design.opsdesign"
+        };
+        if (dialog.ShowDialog(this) == true)
+        {
+            _ = _viewModel.ExportDesign(dialog.FileName);
+        }
+    }
+
+    private void OnRequestImportDesign(object? sender, EventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Import OPS widget design",
+            Filter = "OPS design package (*.opsdesign)|*.opsdesign|JSON files (*.json)|*.json",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (dialog.ShowDialog(this) == true)
+        {
+            _ = _viewModel.ImportDesign(dialog.FileName);
+        }
+    }
+
     private void OnTitleBarMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount == 2)
@@ -246,6 +281,9 @@ public partial class MainWindow : Window, IDisposable
         }
 
         _disposed = true;
+        _viewModel.RequestCopyDiagnostics -= OnRequestCopyDiagnostics;
+        _viewModel.RequestImportDesign -= OnRequestImportDesign;
+        _viewModel.RequestExportDesign -= OnRequestExportDesign;
         _viewModel.Dispose();
         GC.SuppressFinalize(this);
     }

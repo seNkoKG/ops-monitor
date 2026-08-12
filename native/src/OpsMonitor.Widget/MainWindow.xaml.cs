@@ -276,25 +276,35 @@ public partial class MainWindow : Window
         _ = sender;
         _ = e;
 
+        if (!_viewModel.MotionEnabled || !_viewModel.PulseStatusIndicator ||
+            _viewModel.TransitionMilliseconds == 0 ||
+            (_viewModel.RespectReducedMotion && !SystemParameters.ClientAreaAnimation))
+        {
+            return;
+        }
+
         switch (_viewModel.Layout)
         {
             case WidgetLayout.Mini:
                 PulseUpdateIndicator(
                     MiniUpdatePulseRing,
                     MiniUpdatePulseScale,
-                    MiniUpdatePulseDot);
+                    MiniUpdatePulseDot,
+                    _viewModel.TransitionMilliseconds);
                 break;
             case WidgetLayout.Dock:
                 PulseUpdateIndicator(
                     DockUpdatePulseRing,
                     DockUpdatePulseScale,
-                    DockUpdatePulseDot);
+                    DockUpdatePulseDot,
+                    _viewModel.TransitionMilliseconds);
                 break;
             default:
                 PulseUpdateIndicator(
                     StandardUpdatePulseRing,
                     StandardUpdatePulseScale,
-                    StandardUpdatePulseDot);
+                    StandardUpdatePulseDot,
+                    _viewModel.TransitionMilliseconds);
                 break;
         }
     }
@@ -302,17 +312,14 @@ public partial class MainWindow : Window
     private static void PulseUpdateIndicator(
         Ellipse ring,
         ScaleTransform scale,
-        Ellipse dot)
+        Ellipse dot,
+        int transitionMilliseconds)
     {
-        if (!SystemParameters.ClientAreaAnimation)
-        {
-            return;
-        }
-
         var easing = new QuadraticEase { EasingMode = EasingMode.EaseOut };
         // Keep the update acknowledgement crisp. A long animation on a
         // transparent always-on-top window forces needless desktop repaints.
-        var ringDuration = new Duration(TimeSpan.FromMilliseconds(180));
+        var ringDuration = new Duration(TimeSpan.FromMilliseconds(
+            Math.Clamp(transitionMilliseconds, 60, 600)));
 
         ring.BeginAnimation(
             OpacityProperty,
@@ -340,7 +347,8 @@ public partial class MainWindow : Window
             HandoffBehavior.SnapshotAndReplace);
         dot.BeginAnimation(
             OpacityProperty,
-            new DoubleAnimation(0.6, 1, TimeSpan.FromMilliseconds(80))
+            new DoubleAnimation(0.6, 1, TimeSpan.FromMilliseconds(
+                Math.Clamp(transitionMilliseconds / 2d, 40, 240)))
             {
                 AutoReverse = true,
                 EasingFunction = easing,

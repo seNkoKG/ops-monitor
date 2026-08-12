@@ -20,7 +20,7 @@ public interface IStudioSettingsSink : IDisposable
 
 public sealed class LocalStudioSettingsSink : IStudioSettingsSink
 {
-    internal const int CurrentSchemaVersion = 3;
+    internal const int CurrentSchemaVersion = 4;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -183,6 +183,7 @@ internal static class StudioSettingsMigration
                 .Distinct(StringComparer.Ordinal)
                 .ToArray() ?? [],
             Modules = NormalizeModules(snapshot.Modules),
+            ThemeDetails = NormalizeThemeDetails(snapshot.ThemeDetails, theme),
             Scenes = snapshot.Scenes?
                 .Select(scene => scene with
                 {
@@ -245,6 +246,17 @@ internal static class StudioSettingsMigration
                     "Whole numbers" or "1 decimal" or "2 decimals" or "Adaptive"
                     ? module.Precision
                     : "Adaptive",
+                Icon = (module.Icon ?? string.Empty).Trim()[..Math.Min((module.Icon ?? string.Empty).Trim().Length, 8)],
+                Accent = ColorText.Normalize(module.Accent, "#FF48DCF9"),
+                CardOpacity = ClampFinite(module.CardOpacity, 0.2, 1, 1),
+                BorderOpacity = ClampFinite(module.BorderOpacity, 0, 1, 1),
+                CardCornerRadiusOverride = NormalizeOverride(module.CardCornerRadiusOverride, 0, 40),
+                CardPaddingOverride = NormalizeOverride(module.CardPaddingOverride, 0, 28),
+                AccentWidthOverride = NormalizeOverride(module.AccentWidthOverride, 0, 10),
+                ProgressHeightOverride = NormalizeOverride(module.ProgressHeightOverride, 1, 12),
+                LabelSizeOverride = NormalizeOverride(module.LabelSizeOverride, 8, 26),
+                ValueSizeOverride = NormalizeOverride(module.ValueSizeOverride, 10, 42),
+                IconSizeOverride = NormalizeOverride(module.IconSizeOverride, 8, 32),
             });
         }
 
@@ -252,15 +264,91 @@ internal static class StudioSettingsMigration
     }
 
     private static string NormalizeTheme(string theme)
-        => (theme ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        var candidate = (theme ?? string.Empty).Trim().ToLowerInvariant();
+        var builtIn = candidate switch
         {
             "abyss" or "void" => "void",
             "violet" or "ultraviolet" or "aurora" => "aurora",
             "graphite" or "frost" or "slate" or "slate / high contrast" => "slate",
             "ember" => "ember",
             "contrast" => "contrast",
-            _ => "void",
+            _ => string.Empty,
         };
+        if (!string.IsNullOrEmpty(builtIn))
+        {
+            return builtIn;
+        }
+
+        var safe = new string(candidate
+            .Where(character => char.IsLetterOrDigit(character) || character is '-' or '_')
+            .Take(48)
+            .ToArray());
+        return string.IsNullOrWhiteSpace(safe) ? "void" : safe;
+    }
+
+    private static StudioThemeSnapshot? NormalizeThemeDetails(
+        StudioThemeSnapshot? theme,
+        string fallbackId)
+    {
+        if (theme is null)
+        {
+            return null;
+        }
+
+        return theme with
+        {
+            Id = string.IsNullOrWhiteSpace(theme.Id) ? fallbackId : NormalizeTheme(theme.Id),
+            Name = string.IsNullOrWhiteSpace(theme.Name) ? "Custom design" : theme.Name.Trim(),
+            Surface = ColorText.Normalize(theme.Surface, "#FF080B12"),
+            Card = ColorText.Normalize(theme.Card, "#FF0F1521"),
+            Border = ColorText.Normalize(theme.Border, "#FF364258"),
+            Accent = ColorText.Normalize(theme.Accent, "#FF48DCF9"),
+            PrimaryText = ColorText.Normalize(theme.PrimaryText, "#FFF6F9FF"),
+            SecondaryText = ColorText.Normalize(theme.SecondaryText, "#FFB8C4D6"),
+            CpuAccent = ColorText.Normalize(theme.CpuAccent, "#FF48DCF9"),
+            GpuAccent = ColorText.Normalize(theme.GpuAccent, "#FFFF4FD8"),
+            MemoryAccent = ColorText.Normalize(theme.MemoryAccent, "#FF58E6B2"),
+            NetworkAccent = ColorText.Normalize(theme.NetworkAccent, "#FF62A7FF"),
+            LatencyAccent = ColorText.Normalize(theme.LatencyAccent, "#FFFFC35A"),
+            WeatherAccent = ColorText.Normalize(theme.WeatherAccent, "#FF62A7FF"),
+            Track = ColorText.Normalize(theme.Track, "#55364258"),
+            Warning = ColorText.Normalize(theme.Warning, "#FFFFC35A"),
+            Critical = ColorText.Normalize(theme.Critical, "#FFFF566E"),
+            Success = ColorText.Normalize(theme.Success, "#FF58E6B2"),
+            CornerRadius = ClampFinite(theme.CornerRadius, 0, 48, 24),
+            CardCornerRadius = ClampFinite(theme.CardCornerRadius, 0, 40, 12),
+            BlurStrength = ClampFinite(theme.BlurStrength, 0, 1, 0.7),
+            ShadowOpacity = ClampFinite(theme.ShadowOpacity, 0, 0.8, 0.3),
+            GlowOpacity = ClampFinite(theme.GlowOpacity, 0, 0.5, 0.12),
+            BorderWidth = ClampFinite(theme.BorderWidth, 0, 4, 1),
+            CardBorderWidth = ClampFinite(theme.CardBorderWidth, 0, 4, 1),
+            CardGap = ClampFinite(theme.CardGap, 0, 20, 6),
+            ContentPadding = ClampFinite(theme.ContentPadding, 0, 28, 10),
+            CardPadding = ClampFinite(theme.CardPadding, 0, 28, 10),
+            CardOpacity = ClampFinite(theme.CardOpacity, 0, 1, 0.72),
+            AccentWidth = ClampFinite(theme.AccentWidth, 0, 10, 3),
+            ProgressHeight = ClampFinite(theme.ProgressHeight, 1, 12, 4),
+            SparklineThickness = ClampFinite(theme.SparklineThickness, 0.5, 5, 1.5),
+            HeaderHeight = ClampFinite(theme.HeaderHeight, 18, 64, 36),
+            FontFamily = string.IsNullOrWhiteSpace(theme.FontFamily) ? "Segoe UI Variable" : theme.FontFamily.Trim(),
+            HeaderSize = ClampFinite(theme.HeaderSize, 8, 24, 11),
+            LabelSize = ClampFinite(theme.LabelSize, 8, 26, 11),
+            SecondarySize = ClampFinite(theme.SecondarySize, 8, 24, 10),
+            ValueSize = ClampFinite(theme.ValueSize, 10, 42, 18),
+            MinimumReadableSize = ClampFinite(theme.MinimumReadableSize, 8, 18, 10),
+            HeaderWeight = Math.Clamp(theme.HeaderWeight, 100, 900),
+            LabelWeight = Math.Clamp(theme.LabelWeight, 100, 900),
+            SecondaryWeight = Math.Clamp(theme.SecondaryWeight, 100, 900),
+            ValueWeight = Math.Clamp(theme.ValueWeight, 100, 900),
+            TransitionMilliseconds = Math.Clamp(theme.TransitionMilliseconds, 0, 600),
+        };
+    }
+
+    private static double? NormalizeOverride(double? value, double minimum, double maximum) =>
+        value is { } candidate && double.IsFinite(candidate)
+            ? Math.Clamp(candidate, minimum, maximum)
+            : null;
 
     private static double ClampFinite(
         double value,

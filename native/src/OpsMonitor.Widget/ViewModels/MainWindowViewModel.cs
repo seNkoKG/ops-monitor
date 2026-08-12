@@ -116,6 +116,8 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     private Brush _textSecondaryBrush = Brushes.LightGray;
     private Brush _flyoutBrush = Brushes.Black;
     private Brush _trackBrush = Brushes.DimGray;
+    private Brush _successBrush = Brushes.SpringGreen;
+    private Brush _shellGlowBrush = Brushes.Transparent;
     private FontFamily _widgetFontFamily = new("Segoe UI Variable");
     private double _labelFontSize = 12;
     private double _valueFontSize = 18;
@@ -123,6 +125,24 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     private FontWeight _labelFontWeight = FontWeights.SemiBold;
     private FontWeight _valueFontWeight = FontWeights.SemiBold;
     private bool _useTabularNumbers = true;
+    private CornerRadius _shellCornerRadius = new(24);
+    private Thickness _shellBorderThickness = new(1);
+    private Thickness _shellContentPadding = new(10);
+    private double _shellShadowThemeOpacity = 0.3;
+    private double _shellGlowThemeOpacity = 0.12;
+    private bool _headerVisible = true;
+    private bool _statusIndicatorVisible = true;
+    private bool _settingsButtonVisible = true;
+    private readonly bool _reducedMotion;
+    private double _headerHeight = 36;
+    private double _headerFontSize = 11;
+    private double _secondaryFontSize = 10;
+    private FontWeight _headerFontWeight = FontWeights.SemiBold;
+    private FontWeight _secondaryFontWeight = FontWeights.Normal;
+    private bool _motionEnabled = true;
+    private bool _pulseStatusIndicator = true;
+    private bool _respectReducedMotion = true;
+    private int _transitionMilliseconds = 160;
     private bool _disposed;
 
     public MainWindowViewModel(ITelemetrySource telemetrySource, WidgetSettings settings)
@@ -153,6 +173,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         _showBattery = settings.ShowBattery;
         _showWeather = settings.ShowWeather;
         _startAtSignIn = settings.StartAtSignIn;
+        _reducedMotion = settings.ReducedMotion;
         _scalePercent = Math.Clamp(settings.ScalePercent, 80, 160);
         _updateCadenceSeconds = NormalizeUpdateCadence(settings.UpdateCadenceSeconds);
         _surfaceOpacity = Math.Clamp(settings.SurfaceOpacity, 0.08, 1);
@@ -419,10 +440,10 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     public double ShellShadowOpacity =>
-        Math.Clamp(SurfaceOpacity * 0.42, 0, 0.42);
+        Math.Clamp(SurfaceOpacity * _shellShadowThemeOpacity, 0, 0.8);
 
     public double ShellGlowOpacity =>
-        Math.Clamp(SurfaceOpacity * 0.12, 0, 0.12);
+        Math.Clamp(SurfaceOpacity * _shellGlowThemeOpacity, 0, 0.5);
 
     public double ContentOpacity
     {
@@ -590,6 +611,25 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         _weatherService.Start();
     }
 
+    public Brush SuccessBrush { get => _successBrush; private set => SetProperty(ref _successBrush, value); }
+    public Brush ShellGlowBrush { get => _shellGlowBrush; private set => SetProperty(ref _shellGlowBrush, value); }
+
+    public CornerRadius ShellCornerRadius { get => _shellCornerRadius; private set => SetProperty(ref _shellCornerRadius, value); }
+    public Thickness ShellBorderThickness { get => _shellBorderThickness; private set => SetProperty(ref _shellBorderThickness, value); }
+    public Thickness ShellContentPadding { get => _shellContentPadding; private set => SetProperty(ref _shellContentPadding, value); }
+    public bool HeaderVisible { get => _headerVisible; private set => SetProperty(ref _headerVisible, value); }
+    public bool StatusIndicatorVisible { get => _statusIndicatorVisible; private set => SetProperty(ref _statusIndicatorVisible, value); }
+    public bool SettingsButtonVisible { get => _settingsButtonVisible; private set => SetProperty(ref _settingsButtonVisible, value); }
+    public double HeaderHeight { get => _headerHeight; private set => SetProperty(ref _headerHeight, value); }
+    public double HeaderFontSize { get => _headerFontSize; private set => SetProperty(ref _headerFontSize, value); }
+    public double SecondaryFontSize { get => _secondaryFontSize; private set => SetProperty(ref _secondaryFontSize, value); }
+    public FontWeight HeaderFontWeight { get => _headerFontWeight; private set => SetProperty(ref _headerFontWeight, value); }
+    public FontWeight SecondaryFontWeight { get => _secondaryFontWeight; private set => SetProperty(ref _secondaryFontWeight, value); }
+    public bool MotionEnabled { get => _motionEnabled; private set => SetProperty(ref _motionEnabled, value); }
+    public bool PulseStatusIndicator { get => _pulseStatusIndicator; private set => SetProperty(ref _pulseStatusIndicator, value); }
+    public bool RespectReducedMotion { get => _respectReducedMotion; private set => SetProperty(ref _respectReducedMotion, value); }
+    public int TransitionMilliseconds { get => _transitionMilliseconds; private set => SetProperty(ref _transitionMilliseconds, value); }
+
     public async Task SetWeatherLocationAsync(WeatherLocation location)
     {
         ArgumentNullException.ThrowIfNull(location);
@@ -689,6 +729,20 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
                 ShowLabel = metric.ShowLabel,
                 ShowSecondaryValue = metric.ShowSecondaryValue,
                 ShowTrend = metric.ShowTrend,
+                Title = metric.Title,
+                Icon = metric.Icon,
+                AccentColor = metric.CustomAccentColor,
+                ShowIcon = metric.ShowIcon,
+                ShowAccent = metric.ShowAccent,
+                CardOpacity = metric.CardOpacity,
+                BorderOpacity = metric.BorderOpacity,
+                CardCornerRadiusOverride = metric.CardCornerRadiusOverride,
+                CardPaddingOverride = metric.CardPaddingOverride,
+                AccentWidthOverride = metric.AccentWidthOverride,
+                ProgressHeightOverride = metric.ProgressHeightOverride,
+                LabelSizeOverride = metric.LabelSizeOverride,
+                ValueSizeOverride = metric.ValueSizeOverride,
+                IconSizeOverride = metric.IconSizeOverride,
                 DecimalPlacesOverride = metric.DecimalPlacesOverride
             },
             StringComparer.Ordinal);
@@ -1264,9 +1318,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
             (guardActivationOpacity - fullGuardOpacity),
             0,
             1);
-        var requestedCardOpacity = SurfaceOpacity * 0.68;
-        var cardOpacity = requestedCardOpacity +
-                          ((guardedCardOpacity - requestedCardOpacity) * guardStrength);
+        var cardOpacity = Math.Clamp(theme.CardOpacity, 0, 1);
 
         SurfaceBrush = CreateBrush(WithOpacity(theme.Surface, SurfaceOpacity));
         CardBrush = CreateBrush(WithOpacity(theme.Card, cardOpacity));
@@ -1278,12 +1330,25 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
                 Math.Max(SurfaceOpacity * 0.54, 0.5 * guardStrength)));
         FlyoutBrush = CreateBrush(
             WithOpacity(theme.Card, Math.Max(SurfaceOpacity, 0.94)));
-        TrackBrush = CreateBrush(
-            WithOpacity(
-                theme.Border,
-                Math.Max(SurfaceOpacity * 0.34, 0.52 * guardStrength)));
+        TrackBrush = CreateBrush(WithOpacity(
+            theme.Track,
+            Math.Max(SurfaceOpacity * 0.5, 0.52 * guardStrength)));
         TextPrimaryBrush = CreateBrush(WithOpacity(theme.TextPrimary, 1));
         TextSecondaryBrush = CreateBrush(WithOpacity(theme.TextSecondary, 1));
+        SuccessBrush = CreateBrush(WithOpacity(theme.Success, 1));
+        var glowBrush = new LinearGradientBrush
+        {
+            StartPoint = new System.Windows.Point(0, 0),
+            EndPoint = new System.Windows.Point(1, 0),
+            GradientStops =
+            {
+                new GradientStop(theme.CpuAccent, 0),
+                new GradientStop(Color.FromArgb(0, theme.MemoryAccent.R, theme.MemoryAccent.G, theme.MemoryAccent.B), 0.55),
+                new GradientStop(theme.GpuAccent, 1)
+            }
+        };
+        glowBrush.Freeze();
+        ShellGlowBrush = glowBrush;
         WidgetFontFamily = new FontFamily(
             string.IsNullOrWhiteSpace(theme.FontFamily)
                 ? "Segoe UI Variable"
@@ -1303,12 +1368,37 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         ValueFontWeight = FontWeight.FromOpenTypeWeight(
             Math.Clamp(theme.ValueWeight, 100, 999));
         UseTabularNumbers = theme.UseTabularNumbers;
+        ShellCornerRadius = new CornerRadius(Math.Clamp(theme.CornerRadius, 0, 48));
+        ShellBorderThickness = new Thickness(Math.Clamp(theme.BorderWidth, 0, 4));
+        ShellContentPadding = new Thickness(Math.Clamp(theme.ContentPadding, 0, 28));
+        _shellShadowThemeOpacity = theme.ShadowEnabled
+            ? Math.Clamp(theme.ShadowOpacity, 0, 0.8)
+            : 0;
+        _shellGlowThemeOpacity = theme.GlowEnabled
+            ? Math.Clamp(theme.GlowOpacity, 0, 0.5)
+            : 0;
+        OnPropertyChanged(nameof(ShellShadowOpacity));
+        OnPropertyChanged(nameof(ShellGlowOpacity));
+        HeaderVisible = theme.HeaderVisible;
+        StatusIndicatorVisible = theme.StatusIndicatorVisible;
+        SettingsButtonVisible = theme.SettingsButtonVisible;
+        HeaderHeight = Math.Clamp(theme.HeaderHeight, 18, 64);
+        HeaderFontSize = Math.Max(MinimumReadableFontSize, Math.Clamp(theme.HeaderSize, 8, 24));
+        SecondaryFontSize = Math.Max(MinimumReadableFontSize, Math.Clamp(theme.SecondarySize, 8, 24));
+        HeaderFontWeight = FontWeight.FromOpenTypeWeight(Math.Clamp(theme.HeaderWeight, 100, 900));
+        SecondaryFontWeight = FontWeight.FromOpenTypeWeight(Math.Clamp(theme.SecondaryWeight, 100, 900));
+        MotionEnabled = theme.MotionEnabled && !_reducedMotion;
+        PulseStatusIndicator = theme.PulseStatusIndicator && !_reducedMotion;
+        RespectReducedMotion = theme.RespectReducedMotion;
+        TransitionMilliseconds = _reducedMotion
+            ? 0
+            : Math.Clamp(theme.TransitionMilliseconds, 0, 600);
 
         if (Metrics is not null)
         {
             foreach (var metric in Metrics)
             {
-                metric.SetAccent(theme);
+                metric.ApplyTheme(theme);
             }
         }
     }
@@ -1385,7 +1475,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
             ParseColor(source.SecondaryText, fallback.TextSecondary),
             ParseColor(source.CpuAccent, fallback.CpuAccent),
             ParseColor(source.GpuAccent, fallback.GpuAccent),
-            ParseColor(source.Success, fallback.MemoryAccent),
+            ParseColor(source.MemoryAccent, fallback.MemoryAccent),
             ParseColor(source.NetworkAccent, fallback.NetworkAccent),
             ParseColor(source.Warning, fallback.Warning),
             ParseColor(source.Critical, fallback.Critical),
@@ -1395,7 +1485,43 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
             source.MinimumReadableSize,
             source.LabelWeight,
             source.ValueWeight,
-            source.UseTabularNumbers);
+            source.UseTabularNumbers)
+        {
+            LatencyAccent = ParseColor(source.LatencyAccent, fallback.LatencyAccent),
+            WeatherAccent = ParseColor(source.WeatherAccent, fallback.WeatherAccent),
+            Success = ParseColor(source.Success, fallback.Success),
+            Track = ParseColor(source.Track, fallback.Track),
+            CornerRadius = source.CornerRadius,
+            CardCornerRadius = source.CardCornerRadius,
+            BlurEnabled = source.BlurEnabled,
+            BlurStrength = source.BlurStrength,
+            ShadowEnabled = source.ShadowEnabled,
+            ShadowOpacity = source.ShadowOpacity,
+            GlowEnabled = source.GlowEnabled,
+            GlowOpacity = source.GlowOpacity,
+            BorderWidth = source.BorderWidth,
+            CardBorderWidth = source.CardBorderWidth,
+            CardGap = source.CardGap,
+            ContentPadding = source.ContentPadding,
+            CardPadding = source.CardPadding,
+            CardOpacity = source.CardOpacity,
+            AccentWidth = source.AccentWidth,
+            ProgressHeight = source.ProgressHeight,
+            SparklineThickness = source.SparklineThickness,
+            HeaderVisible = source.HeaderVisible,
+            StatusIndicatorVisible = source.StatusIndicatorVisible,
+            SettingsButtonVisible = source.SettingsButtonVisible,
+            HeaderHeight = source.HeaderHeight,
+            HeaderSize = source.HeaderSize,
+            SecondarySize = source.SecondarySize,
+            HeaderWeight = source.HeaderWeight,
+            SecondaryWeight = source.SecondaryWeight,
+            MotionEnabled = source.MotionEnabled,
+            TransitionMilliseconds = source.TransitionMilliseconds,
+            AnimateValueChanges = source.AnimateValueChanges,
+            RespectReducedMotion = source.RespectReducedMotion,
+            PulseStatusIndicator = source.PulseStatusIndicator
+        };
 
     private static ThemeDefinition CreateBuiltInTheme(
         string name,

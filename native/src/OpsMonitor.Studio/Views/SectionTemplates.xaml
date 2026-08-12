@@ -318,6 +318,20 @@
                                       ItemsSource="{Binding DataContext.PrecisionOptions, RelativeSource={RelativeSource AncestorType=Window}}"
                                       SelectedItem="{Binding Precision}"/>
 
+                            <UniformGrid Columns="2" Margin="0,0,0,8">
+                                <StackPanel Margin="0,0,8,0">
+                                    <TextBlock Text="Custom title" Style="{StaticResource EyebrowText}"/>
+                                    <TextBox Margin="0,6,0,0" MaxLength="24" Text="{Binding CustomTitle, UpdateSourceTrigger=LostFocus}"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Icon / emoji" Style="{StaticResource EyebrowText}"/>
+                                    <TextBox Margin="0,6,0,0" MaxLength="8" Text="{Binding CustomIcon, UpdateSourceTrigger=LostFocus}"/>
+                                </StackPanel>
+                            </UniformGrid>
+                            <TextBlock Text="Accent color" Style="{StaticResource EyebrowText}"/>
+                            <TextBox Margin="0,6,0,12" Text="{Binding AccentHex, UpdateSourceTrigger=LostFocus}"/>
+                            <CheckBox Margin="0,0,0,8" Content="Override the global module accent" IsChecked="{Binding UseCustomAccent}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
+
                             <Border Style="{StaticResource SettingRow}">
                                 <Grid>
                                     <StackPanel>
@@ -328,6 +342,18 @@
                                               VerticalAlignment="Center"
                                               IsChecked="{Binding ShowLabel}"
                                               Style="{StaticResource ToggleSwitch}"/>
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingRow}">
+                                <Grid>
+                                    <StackPanel><TextBlock Text="Show icon" FontWeight="SemiBold"/><TextBlock Margin="0,3,58,0" Text="Use the module icon or emoji" Style="{StaticResource CaptionText}"/></StackPanel>
+                                    <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding ShowIcon}" Style="{StaticResource ToggleSwitch}"/>
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingRow}">
+                                <Grid>
+                                    <StackPanel><TextBlock Text="Accent rail" FontWeight="SemiBold"/><TextBlock Margin="0,3,58,0" Text="Colored module edge" Style="{StaticResource CaptionText}"/></StackPanel>
+                                    <CheckBox HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding ShowAccent}" Style="{StaticResource ToggleSwitch}"/>
                                 </Grid>
                             </Border>
                             <Border Style="{StaticResource SettingRow}">
@@ -354,6 +380,17 @@
                                               Style="{StaticResource ToggleSwitch}"/>
                                 </Grid>
                             </Border>
+                            <TextBlock Margin="0,16,0,4" Text="Per-module overrides" Style="{StaticResource EyebrowText}"/>
+                            <TextBlock Text="Set a slider to the far left (-1) to inherit the global design token." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
+                            <TextBlock Margin="0,12,0,0" Text="Card opacity"/><Slider Minimum="0.2" Maximum="1" Value="{Binding CardOpacity}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Border opacity"/><Slider Minimum="0" Maximum="1" Value="{Binding BorderOpacity}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Card radius"/><Slider Minimum="-1" Maximum="40" Value="{Binding CardCornerRadius}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Card padding"/><Slider Minimum="-1" Maximum="28" Value="{Binding CardPadding}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Accent width"/><Slider Minimum="-1" Maximum="10" Value="{Binding AccentWidth}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Progress height"/><Slider Minimum="-1" Maximum="12" Value="{Binding ProgressHeight}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Label size"/><Slider Minimum="-1" Maximum="26" Value="{Binding LabelSize}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Value size"/><Slider Minimum="-1" Maximum="42" Value="{Binding ValueSize}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Icon size"/><Slider Minimum="-1" Maximum="32" Value="{Binding IconSize}"/>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -375,10 +412,22 @@
             <StackPanel Margin="0,0,8,28">
                 <Border Style="{StaticResource CardBorder}">
                     <StackPanel>
-                        <TextBlock Text="Color system" Style="{StaticResource SectionTitleText}"/>
-                        <TextBlock Margin="0,5,0,14"
-                                   Text="Four complete palettes; Slate is optimized for maximum contrast."
-                                   Style="{StaticResource BodyText}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Widget Designer" Style="{StaticResource SectionTitleText}"/>
+                                <TextBlock Margin="0,5,18,14"
+                                           Text="Start from a preset, then tune every token. Changes apply live and remain portable."
+                                           Style="{StaticResource BodyText}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                                <Button Content="Import design" Command="{Binding ImportDesignCommand}" Style="{StaticResource StudioButton}" Margin="0,0,8,0"/>
+                                <Button Content="Export design" Command="{Binding ExportDesignCommand}" Style="{StaticResource PrimaryButton}"/>
+                            </StackPanel>
+                        </Grid>
                         <ItemsControl ItemsSource="{Binding Themes}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -402,12 +451,12 @@
                                             <StackPanel>
                                                 <StackPanel Orientation="Horizontal">
                                                     <Ellipse Width="12" Height="12" Fill="{Binding AccentBrush}" Margin="0,2,8,0"/>
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#FFF4F7FC"/>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{Binding PreviewTextBrush}"/>
                                                 </StackPanel>
                                                 <TextBlock Margin="0,8,0,0"
                                                            Text="{Binding Description}"
                                                            FontSize="11"
-                                                           Foreground="#FFB3BECE"
+                                                           Foreground="{Binding PreviewSecondaryTextBrush}"
                                                            TextWrapping="Wrap"
                                                            TextTrimming="None"/>
                                                 <TextBlock Margin="0,9,0,0"
@@ -451,7 +500,7 @@
                                 <StackPanel>
                                     <TextBlock Text="Shell opacity" FontWeight="SemiBold"/>
                                     <TextBlock Margin="0,3,0,0"
-                                               Text="Outer glass; metric cards keep a readability floor"
+                                               Text="Outer glass only; card opacity is controlled independently below"
                                                Style="{StaticResource CaptionText}"/>
                                 </StackPanel>
                                 <TextBlock Grid.Column="1"
@@ -511,6 +560,121 @@
                                               VerticalAlignment="Center"
                                               IsChecked="{Binding ReducedMotion}"
                                               Style="{StaticResource ToggleSwitch}"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Margin="0,14,0,0" Style="{StaticResource CardBorder}" DataContext="{Binding Designer}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Palette lab" Style="{StaticResource SectionTitleText}"/>
+                                <TextBlock Margin="0,4,0,0" Text="ARGB hex colors; invalid input safely keeps the last valid value." Style="{StaticResource CaptionText}"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Padding="10,6" Background="{Binding CardBrush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" CornerRadius="9">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="8" Height="8" Margin="0,0,7,0" Fill="{Binding CpuAccentBrush}"/>
+                                    <TextBlock Text="LIVE TOKENS" Style="{StaticResource EyebrowText}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                        <UniformGrid Columns="3" Margin="0,16,0,0">
+                            <StackPanel Margin="0,0,12,12"><TextBlock Text="Shell" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Surface, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,12"><TextBlock Text="Cards" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Card, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,0,12"><TextBlock Text="Borders" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Border, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,12"><TextBlock Text="Primary text" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding PrimaryText, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,12"><TextBlock Text="Secondary text" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding SecondaryText, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,0,12"><TextBlock Text="Tracks" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Track, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,12"><TextBlock Text="CPU" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding CpuAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,12"><TextBlock Text="GPU" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding GpuAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,0,12"><TextBlock Text="Memory" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding MemoryAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,0"><TextBlock Text="Network" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding NetworkAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,0"><TextBlock Text="Latency" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding LatencyAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel><TextBlock Text="Weather" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding WeatherAccent, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,12,12,0"><TextBlock Text="Warning" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Warning, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,12,12,0"><TextBlock Text="Critical" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Critical, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,12,0,0"><TextBlock Text="Success" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding Success, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <Grid Margin="0,14,0,0" DataContext="{Binding Designer}">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,12,0">
+                        <StackPanel>
+                            <TextBlock Text="Shell &amp; cards" Style="{StaticResource SectionTitleText}"/>
+                            <TextBlock Margin="0,4,0,14" Text="Shape, spacing and visualization geometry" Style="{StaticResource CaptionText}"/>
+                            <TextBlock Text="Shell radius"/><Slider Minimum="0" Maximum="48" Value="{Binding CornerRadius}"/><TextBlock Text="{Binding CornerRadius, StringFormat={}{0:0} px}" HorizontalAlignment="Right" Style="{StaticResource CaptionText}"/>
+                            <TextBlock Margin="0,10,0,0" Text="Card radius"/><Slider Minimum="0" Maximum="40" Value="{Binding CardCornerRadius}"/><TextBlock Text="{Binding CardCornerRadius, StringFormat={}{0:0} px}" HorizontalAlignment="Right" Style="{StaticResource CaptionText}"/>
+                            <TextBlock Margin="0,10,0,0" Text="Card gap"/><Slider Minimum="0" Maximum="20" Value="{Binding CardGap}"/>
+                            <TextBlock Margin="0,10,0,0" Text="Shell content padding"/><Slider Minimum="0" Maximum="28" Value="{Binding ContentPadding}"/>
+                            <TextBlock Margin="0,10,0,0" Text="Card padding"/><Slider Minimum="0" Maximum="28" Value="{Binding CardPadding}"/>
+                            <TextBlock Margin="0,10,0,0" Text="Card opacity"/><Slider Minimum="0" Maximum="1" Value="{Binding CardOpacity}"/>
+                            <UniformGrid Columns="2" Margin="0,14,0,0">
+                                <StackPanel Margin="0,0,12,0"><TextBlock Text="Shell border" Style="{StaticResource EyebrowText}"/><Slider Minimum="0" Maximum="4" Value="{Binding BorderWidth}"/></StackPanel>
+                                <StackPanel><TextBlock Text="Card border" Style="{StaticResource EyebrowText}"/><Slider Minimum="0" Maximum="4" Value="{Binding CardBorderWidth}"/></StackPanel>
+                            </UniformGrid>
+                            <UniformGrid Columns="3" Margin="0,14,0,0">
+                                <StackPanel Margin="0,0,8,0"><TextBlock Text="Accent" Style="{StaticResource EyebrowText}"/><Slider Minimum="0" Maximum="10" Value="{Binding AccentWidth}"/></StackPanel>
+                                <StackPanel Margin="0,0,8,0"><TextBlock Text="Progress" Style="{StaticResource EyebrowText}"/><Slider Minimum="1" Maximum="12" Value="{Binding ProgressHeight}"/></StackPanel>
+                                <StackPanel><TextBlock Text="Sparkline" Style="{StaticResource EyebrowText}"/><Slider Minimum="0.5" Maximum="5" Value="{Binding SparklineThickness}"/></StackPanel>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <TextBlock Text="Typography" Style="{StaticResource SectionTitleText}"/>
+                            <TextBlock Margin="0,4,0,14" Text="Readable limits are clamped automatically" Style="{StaticResource CaptionText}"/>
+                            <TextBlock Text="Font family" Style="{StaticResource EyebrowText}"/><TextBox Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"/>
+                            <TextBlock Margin="0,12,0,0" Text="Header size"/><Slider Minimum="8" Maximum="24" Value="{Binding HeaderSize}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Label size"/><Slider Minimum="8" Maximum="26" Value="{Binding LabelSize}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Secondary size"/><Slider Minimum="8" Maximum="24" Value="{Binding SecondarySize}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Value size"/><Slider Minimum="10" Maximum="42" Value="{Binding ValueSize}"/>
+                            <TextBlock Margin="0,8,0,0" Text="Minimum readable size"/><Slider Minimum="8" Maximum="18" Value="{Binding MinimumReadableSize}"/>
+                            <UniformGrid Columns="2" Margin="0,12,0,0">
+                                <StackPanel Margin="0,0,12,8"><TextBlock Text="Header weight" Style="{StaticResource EyebrowText}"/><Slider Minimum="100" Maximum="900" TickFrequency="50" Value="{Binding HeaderWeight}"/></StackPanel>
+                                <StackPanel Margin="0,0,0,8"><TextBlock Text="Secondary weight" Style="{StaticResource EyebrowText}"/><Slider Minimum="100" Maximum="900" TickFrequency="50" Value="{Binding SecondaryWeight}"/></StackPanel>
+                                <StackPanel Margin="0,0,12,0"><TextBlock Text="Label weight" Style="{StaticResource EyebrowText}"/><Slider Minimum="100" Maximum="900" TickFrequency="50" Value="{Binding LabelWeight}"/></StackPanel>
+                                <StackPanel><TextBlock Text="Value weight" Style="{StaticResource EyebrowText}"/><Slider Minimum="100" Maximum="900" TickFrequency="50" Value="{Binding ValueWeight}"/></StackPanel>
+                            </UniformGrid>
+                            <CheckBox Margin="0,14,0,0" Content="Tabular numbers" IsChecked="{Binding UseTabularNumbers}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid Margin="0,14,0,0" DataContext="{Binding Designer}">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,12,0">
+                        <StackPanel>
+                            <TextBlock Text="Chrome &amp; effects" Style="{StaticResource SectionTitleText}"/>
+                            <CheckBox Margin="0,14,0,0" Content="Show header" IsChecked="{Binding HeaderVisible}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
+                            <CheckBox Margin="0,10,0,0" Content="Show update indicator" IsChecked="{Binding StatusIndicatorVisible}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
+                            <CheckBox Margin="0,10,0,0" Content="Show settings cog" IsChecked="{Binding SettingsButtonVisible}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
+                            <TextBlock Margin="0,12,0,0" Text="Header height"/><Slider Minimum="18" Maximum="64" Value="{Binding HeaderHeight}"/>
+                            <CheckBox Margin="0,10,0,0" Content="Drop shadow" IsChecked="{Binding ShadowEnabled}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
+                            <Slider Minimum="0" Maximum="0.8" Value="{Binding ShadowOpacity}"/>
+                            <CheckBox Margin="0,10,0,0" Content="Top glow" IsChecked="{Binding GlowEnabled}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
+                            <Slider Minimum="0" Maximum="0.5" Value="{Binding GlowOpacity}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <TextBlock Text="Motion &amp; accessibility" Style="{StaticResource SectionTitleText}"/>
+                            <CheckBox Margin="0,14,0,0" Content="Enable widget motion" IsChecked="{Binding MotionEnabled}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
+                            <CheckBox Margin="0,10,0,0" Content="Pulse on data updates" IsChecked="{Binding PulseStatusIndicator}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
+                            <CheckBox Margin="0,10,0,0" Content="Respect Windows reduced motion" IsChecked="{Binding RespectReducedMotion}" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Left"/>
+                            <TextBlock Margin="0,14,0,0" Text="Transition time"/><Slider Minimum="0" Maximum="600" Value="{Binding TransitionMilliseconds}"/>
+                            <Border Margin="0,16,0,0" Padding="12" Background="{Binding CardBrush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" CornerRadius="10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="CONTRAST CHECK" Style="{StaticResource EyebrowText}"/><TextBlock Margin="0,5,12,0" Text="{Binding ContrastSummary}" Style="{StaticResource CaptionText}"/></StackPanel>
+                                    <Button Grid.Column="1" Content="Auto-fix" Command="{Binding DataContext.FixContrastCommand, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource StudioButton}"/>
                                 </Grid>
                             </Border>
                         </StackPanel>

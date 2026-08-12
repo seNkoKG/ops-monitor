@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#03060a">
+  <meta name="color-scheme" content="dark">
+  <title>OPS Monitor v3 — Windows telemetry, designed by you</title>
+  <meta name="description" content="A native, local-first Windows 11 monitor with deep widget design controls, live hardware telemetry, network quality, and Slovenian weather intelligence.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="OPS Monitor v3 — Your desktop. Your signal.">
+  <meta property="og:description" content="Native Windows telemetry and a widget you can redesign down to the pixel.">
+  <meta property="og:image" content="https://senkokg.github.io/ops-monitor/assets/ops-monitor-v3-social.png">
+  <meta property="og:url" content="https://senkokg.github.io/ops-monitor/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="assets/ops-monitor-mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"OPS Monitor","operatingSystem":"Windows 11","applicationCategory":"UtilitiesApplication","softwareVersion":"3.0.0","isAccessibleForFree":true,"codeRepository":"https://github.com/seNkoKG/ops-monitor"}
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="signal-progress" aria-hidden="true"><span id="signal-progress"></span></div>
+
+  <header class="site-header" id="top">
+    <a class="brand" href="#top" aria-label="OPS Monitor home">
+      <img src="assets/ops-monitor-mark.svg" width="32" height="32" alt="">
+      <span>OPS MONITOR</span><small>v3.0</small>
+    </a>
+    <nav aria-label="Primary navigation">
+      <a href="#system">System</a>
+      <a href="#designer">Designer</a>
+      <a href="#weather">Weather</a>
+      <a href="#architecture">Architecture</a>
+    </nav>
+    <a class="button button-small" href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.0.0">Get v3 <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main id="main">
+    <section class="hero section-grid" aria-labelledby="hero-title">
+      <div class="hero-copy reveal">
+        <p class="eyebrow"><span class="live-dot"></span> OPS MONITOR // WINDOWS 11</p>
+        <h1 id="hero-title">Your desktop.<br><span>Your signal.</span></h1>
+        <p class="hero-lede">Native hardware telemetry, local weather intelligence, and a desktop widget you can redesign down to the pixel. No account. No cloud collector. No visual dead weight.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.0.0">Download v3 <span aria-hidden="true">↓</span></a>
+          <a class="button" href="#designer">Open the designer <span aria-hidden="true">↘</span></a>
+        </div>
+        <div class="hero-facts" aria-label="Product facts">
+          <span><b>Native</b> .NET + WPF</span>
+          <span><b>Local</b> telemetry</span>
+          <span><b>Adaptive</b> polling</span>
+        </div>
+      </div>
+
+      <div class="hero-instrument reveal" aria-label="Interactive OPS Monitor preview">
+        <div class="scope-label"><span>LIVE INSTRUMENT</span><span>CELJE · SI</span></div>
+        <div class="signal-orbit signal-orbit-one" aria-hidden="true"></div>
+        <div class="signal-orbit signal-orbit-two" aria-hidden="true"></div>
+        <article class="widget-demo layout-mini" id="hero-widget">
+          <header class="widget-head">
+            <span class="freshness" aria-label="Telemetry updating"></span>
+            <b>OPS MINI</b>
+            <button class="cog" type="button" aria-label="Preview settings">⚙</button>
+          </header>
+          <div class="metric metric-cpu">
+            <div class="metric-top"><span class="metric-icon">▦</span><b>CPU</b><span class="metric-meta">TEMP 63°</span></div>
+            <strong>47%</strong><i style="--value:.47"></i>
+          </div>
+          <div class="metric metric-gpu">
+            <div class="metric-top"><span class="metric-icon">▣</span><b>GPU</b><span class="metric-meta">TEMP 42°</span></div>
+            <strong>18%</strong><i style="--value:.18"></i>
+          </div>
+          <div class="metric metric-ram">
+            <div class="metric-top"><span class="metric-icon">▤</span><b>RAM</b><span class="metric-meta">76% USED</span></div>
+            <strong>23.5 / 30.9 GB</strong><i style="--value:.76"></i>
+          </div>
+          <div class="metric metric-net">
+            <div class="metric-top"><span class="metric-icon">↕</span><b>NET</b><span class="metric-meta">BYTES / SEC</span></div>
+            <strong>1.6M <small>↓</small>&nbsp; 118K <small>↑</small></strong><i style="--value:.62"></i>
+          </div>
+          <div class="metric metric-ping">
+            <div class="metric-top"><span class="metric-icon">⌁</span><b>PING</b><span class="metric-meta">LOSS 0.2%</span></div>
+            <strong>12 ms</strong><i style="--value:.12"></i>
+          </div>
+          <div class="metric metric-weather">
+            <div class="metric-top"><span class="metric-icon">☼</span><b>WX</b><span class="metric-meta">CELJE · CLEAR</span></div>
+            <strong>23°</strong><i style="--value:.68"></i>
+          </div>
+        </article>
+        <p class="scope-note">Everything shown is a design token. <span>Try the controls below.</span></p>
+      </div>
+    </section>
+
+    <section class="signal-strip" aria-label="Core capabilities">
+      <div><span>01</span> CPU + thermal</div>
+      <div><span>02</span> GPU + VRAM</div>
+      <div><span>03</span> Network quality</div>
+      <div><span>04</span> Local weather</div>
+      <div><span>05</span> Custom sensors</div>
+    </section>
+
+    <section class="section layouts" id="system" aria-labelledby="layouts-title">
+      <div class="section-heading reveal">
+        <p class="eyebrow">01 // FORMS</p>
+        <h2 id="layouts-title">Four forms.<br>One signal.</h2>
+        <p>Go nearly invisible, stack detail vertically, or stretch across an ultrawide display. Layout safety rules keep every form aligned and readable.</p>
+      </div>
+      <div class="layout-stage reveal">
+        <div class="segmented" role="group" aria-label="Preview widget layout">
+          <button type="button" data-layout="pill">Pill</button>
+          <button type="button" data-layout="rail">Rail</button>
+          <button type="button" data-layout="dock">Dock</button>
+          <button type="button" data-layout="mini" class="active" aria-pressed="true">Mini</button>
+        </div>
+        <div class="layout-canvas">
+          <div class="layout-preview layout-mini" id="layout-preview" aria-live="polite">
+            <span class="layout-brand"><i></i> OPS</span>
+            <span class="layout-cell cpu">CPU <b>47%</b><small>63°</small></span>
+            <span class="layout-cell gpu">GPU <b>18%</b><small>42°</small></span>
+            <span class="layout-cell ram">RAM <b>76%</b><small>23.5G</small></span>
+            <span class="layout-cell net">NET <b>1.6M</b><small>0.2%</small></span>
+          </div>
+        </div>
+        <div class="layout-specs"><span id="layout-name">MINI // 176 × 214</span><span>READABILITY CLAMPS ACTIVE</span></div>
+      </div>
+    </section>
+
+    <section class="section designer" id="designer" aria-labelledby="designer-title">
+      <div class="section-heading reveal">
+        <p class="eyebrow">02 // WIDGET DESIGNER</p>
+        <h2 id="designer-title">Every pixel<br>has a control.</h2>
+        <p>Start with a visual system, then tune palette, glass, geometry, typography, motion, visibility, and individual modules. Save the result as a portable <code>.opsdesign</code> file.</p>
+      </div>
+
+      <div class="designer-console reveal">
+        <div class="console-bar"><span><i></i> LIVE DESIGN SESSION</span><span>CONTRAST GUARD // ON</span></div>
+        <div class="preset-row" role="group" aria-label="Visual preset">
+          <button type="button" class="active" data-preset="void" aria-pressed="true">Void</button>
+          <button type="button" data-preset="aurora">Aurora</button>
+          <button type="button" data-preset="slate">Slate</button>
+          <button type="button" data-preset="ember">Ember</button>
+          <button type="button" data-preset="contrast">Contrast</button>
+          <button type="button" data-preset="ghost">Ghost</button>
+          <button type="button" data-preset="terminal">Terminal</button>
+          <button type="button" data-preset="frameless">Frameless</button>
+        </div>
+        <div class="console-body">
+          <div class="token-panel">
+            <div class="panel-title"><span>DESIGN TOKENS</span><span id="preset-label">VOID</span></div>
+            <label>Surface opacity <output id="opacity-output">88%</output><input id="opacity-control" type="range" min="8" max="100" value="88"></label>
+            <label>Corner radius <output id="radius-output">24 px</output><input id="radius-control" type="range" min="0" max="48" value="24"></label>
+            <label>Card gap <output id="gap-output">4 px</output><input id="gap-control" type="range" min="0" max="18" value="4"></label>
+            <div class="color-grid">
+              <label>CPU <input id="cpu-color" type="color" value="#48dcf9"></label>
+              <label>GPU <input id="gpu-color" type="color" value="#ff4fd8"></label>
+              <label>RAM <input id="ram-color" type="color" value="#58e6b2"></label>
+            </div>
+            <div class="switch-row"><span>Header</span><button type="button" class="switch active" data-toggle="header" aria-pressed="true"><i></i></button></div>
+            <div class="switch-row"><span>Module accents</span><button type="button" class="switch active" data-toggle="accents" aria-pressed="true"><i></i></button></div>
+            <div class="package-actions"><span>IMPORT</span><span>EXPORT</span><b>.OPSDESIGN</b></div>
+          </div>
+          <div class="design-preview-shell">
+            <article class="designer-widget" id="designer-widget">
+              <header><span class="freshness"></span><b>OPS MINI</b><span>⚙</span></header>
+              <div class="designer-module cpu"><em></em><span>▦ CPU</span><b>47%</b><small>63°</small></div>
+              <div class="designer-module gpu"><em></em><span>▣ GPU</span><b>18%</b><small>42°</small></div>
+              <div class="designer-module ram"><em></em><span>▤ RAM</span><b>23.5 / 30.9 GB</b><small>76%</small></div>
+              <div class="designer-module net"><em></em><span>↕ NET</span><b>1.6M / 118K</b><small>0.2%</small></div>
+            </article>
+            <div class="token-callouts" aria-hidden="true"><span>PALETTE</span><span>TYPE</span><span>GEOMETRY</span><span>MODULE OVERRIDES</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature-grid reveal">
+        <article><span>01</span><h3>Global tokens</h3><p>ARGB palette, opacity, glass, borders, radii, gaps, padding, progress and sparklines.</p></article>
+        <article><span>02</span><h3>Typography</h3><p>Font family, five size controls, four weights, minimum readability and tabular numerals.</p></article>
+        <article><span>03</span><h3>Per-module override</h3><p>Title, icon, accent, visualization, precision, opacity, sizing and visibility for each card.</p></article>
+        <article><span>04</span><h3>Safe by design</h3><p>Undo/redo, contrast analysis, clamped values, atomic persistence and portable design packages.</p></article>
+      </div>
+    </section>
+
+    <section class="section telemetry" aria-labelledby="telemetry-title">
+      <div class="section-heading reveal">
+        <p class="eyebrow">03 // TELEMETRY</p>
+        <h2 id="telemetry-title">More signal.<br>Less noise.</h2>
+        <p>Native providers poll independently and never overlap themselves. The UI renders only meaningful changes, keeping the widget responsive without becoming the workload.</p>
+      </div>
+      <div class="telemetry-matrix reveal">
+        <article><span class="matrix-icon cyan">▦</span><h3>Processor</h3><p>Load · clocks · package temperature · per-core sensors</p><b>WINDOWS + SENSOR BRIDGE</b></article>
+        <article><span class="matrix-icon magenta">▣</span><h3>Graphics</h3><p>Load · temperature · VRAM · power · fan · clocks</p><b>NVIDIA NVML</b></article>
+        <article><span class="matrix-icon mint">▤</span><h3>Memory & storage</h3><p>RAM used/total · capacity · activity · SMART telemetry</p><b>NATIVE + HARDWARE CATALOG</b></article>
+        <article><span class="matrix-icon blue">↕</span><h3>Network quality</h3><p>Download · upload · ping · jitter · rolling packet loss</p><b>ACTIVE ADAPTER + ICMP</b></article>
+        <article><span class="matrix-icon amber">⚡</span><h3>Power</h3><p>Battery · draw · remaining time · battery-saver adaptation</p><b>WINDOWS POWER API</b></article>
+        <article><span class="matrix-icon cyan">#</span><h3>Sensor catalog</h3><p>Pin up to three curated or dynamic hardware metrics per module</p><b>PROTECTED LOCAL BROKER</b></article>
+      </div>
+    </section>
+
+    <section class="weather-section" id="weather" aria-labelledby="weather-title">
+      <div class="weather-copy reveal">
+        <p class="eyebrow">04 // WEATHER INTELLIGENCE</p>
+        <h2 id="weather-title">Celje,<br>understood.</h2>
+        <p>Local conditions prioritize Slovenia’s ARSO observation network, then combine forecast intelligence, radar, air quality, warnings, and map layers into one focused weather suite.</p>
+        <ul>
+          <li><span>LIVE</span> Nearest ARSO station observations</li>
+          <li><span>FORECAST</span> Hourly and multi-day outlook</li>
+          <li><span>RADAR</span> Slovenia-focused precipitation animation</li>
+          <li><span>HEALTH</span> Air quality, UV and pollen context</li>
+        </ul>
+      </div>
+      <div class="weather-gallery reveal">
+        <button class="weather-card weather-main" type="button" data-dialog-image="assets/screenshots/weather-overview.png" aria-label="Open weather overview screenshot">
+          <img src="assets/screenshots/weather-overview.png" alt="OPS Weather overview for Celje" loading="lazy">
+          <span>LOCAL OVERVIEW <b>↗</b></span>
+        </button>
+        <button class="weather-card" type="button" data-dialog-image="assets/screenshots/weather-radar.png" aria-label="Open precipitation radar screenshot">
+          <img src="assets/screenshots/weather-radar.png" alt="Animated Slovenia precipitation radar" loading="lazy">
+          <span>RADAR <b>↗</b></span>
+        </button>
+        <button class="weather-card" type="button" data-dialog-image="assets/screenshots/weather-air-quality.png" aria-label="Open air quality screenshot">
+          <img src="assets/screenshots/weather-air-quality.png" alt="Local air quality analysis" loading="lazy">
+          <span>AIR QUALITY <b>↗</b></span>
+        </button>
+      </div>
+    </section>
+
+    <section class="section architecture" id="architecture" aria-labelledby="architecture-title">
+      <div class="section-heading reveal">
+        <p class="eyebrow">05 // ARCHITECTURE</p>
+        <h2 id="architecture-title">Local first.<br>Impact last.</h2>
+        <p>OPS Monitor is designed like instrumentation: bounded, observable, recoverable, and quiet when nothing changes.</p>
+      </div>
+      <div class="pipeline reveal" role="img" aria-label="Adaptive providers feed bounded history, coalesced rendering, and the widget">
+        <div><span>01</span><b>ADAPTIVE PROVIDERS</b><small>Independent cadence</small></div><i>→</i>
+        <div><span>02</span><b>BOUNDED HISTORY</b><small>Deterministic retention</small></div><i>→</i>
+        <div><span>03</span><b>CHANGE COALESCER</b><small>Meaningful updates only</small></div><i>→</i>
+        <div><span>04</span><b>WPF INSTRUMENT</b><small>One lightweight surface</small></div>
+      </div>
+      <div class="principles reveal">
+        <article><b>NO ACCOUNT</b><p>Your hardware data stays on your PC.</p></article>
+        <article><b>NO WEB RUNTIME</b><p>The desktop widget is native .NET/WPF.</p></article>
+        <article><b>NO POLLING PILEUP</b><p>Providers never overlap their own work.</p></article>
+        <article><b>NO SILENT FAILURE</b><p>Watchdogs, bounded logs, recovery backoff.</p></article>
+      </div>
+    </section>
+
+    <section class="release-cta reveal">
+      <img src="assets/ops-monitor-mark.svg" width="64" height="64" alt="">
+      <p class="eyebrow">OPS MONITOR // v3.0</p>
+      <h2>Build your instrument.</h2>
+      <p>Free, open source, and built for Windows 11.</p>
+      <div class="hero-actions">
+        <a class="button button-primary" href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.0.0">Download release <span aria-hidden="true">↓</span></a>
+        <a class="button" href="https://github.com/seNkoKG/ops-monitor">View source <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="build-command"><code>dotnet build native/OpsMonitor.slnx -c Release</code><button type="button" id="copy-build">COPY</button></div>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand" href="#top"><img src="assets/ops-monitor-mark.svg" width="28" height="28" alt=""><span>OPS MONITOR</span></a>
+    <p>Native telemetry. Local data. Designed by you.</p>
+    <div><a href="https://github.com/seNkoKG/ops-monitor">GitHub</a><a href="https://github.com/seNkoKG/ops-monitor/releases">Releases</a><a href="https://github.com/seNkoKG/ops-monitor/issues">Issues</a></div>
+  </footer>
+
+  <dialog id="image-dialog" aria-label="Screenshot preview">
+    <button type="button" id="dialog-close" aria-label="Close screenshot">×</button>
+    <img src="" alt="Expanded OPS Monitor screenshot">
+  </dialog>
+
+  <script src="script.js"></script>
+</body>
+</html>

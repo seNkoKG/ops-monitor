@@ -1,17 +1,23 @@
 <p align="center">
-  <img src="docs/assets/ops-monitor-hero.svg" width="100%" alt="OPS Monitor — Windows telemetry, refined">
+  <img src="docs/assets/ops-monitor-v3-social.png" width="100%" alt="OPS Monitor v3 — native Windows telemetry and pixel-level widget design">
 </p>
 
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-38C9FF?style=flat-square">
   <img alt="Framework" src="https://img.shields.io/badge/.NET-10.0-7655D9?style=flat-square">
   <img alt="UI" src="https://img.shields.io/badge/UI-Native%20WPF-63F6D8?style=flat-square&labelColor=111827">
-  <img alt="Version" src="https://img.shields.io/badge/version-2.0.0-F24DE7?style=flat-square&labelColor=17111F">
+  <img alt="Version" src="https://img.shields.io/badge/version-3.0.0-F24DE7?style=flat-square&labelColor=17111F">
 </p>
 
 <p align="center">
   A slim, local-first Windows 11 performance widget with serious telemetry,<br>
   a full visual Studio, and a weather suite built for Slovenia.
+</p>
+
+<p align="center">
+  <a href="https://senkokg.github.io/ops-monitor/"><strong>Explore the website</strong></a>
+  ·
+  <a href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.0.0"><strong>Download v3</strong></a>
 </p>
 
 ## The desktop, without the dashboard clutter
@@ -32,8 +38,11 @@ the desktop overlay remains clean.
   power, temperatures, battery, uptime, ping, jitter, and packet loss.
 - **Local weather intelligence** — current conditions, hourly and eight-day
   forecasts, official ARSO alerts, air quality, UV, pollen, and animated radar.
-- **A real customization surface** — themes, opacity, scale, density, modules,
-  sensor pinning, refresh rate, startup, lock, click-through, and window rules.
+- **A real customization surface** — eight presets plus independent palette,
+  surface, geometry, typography, motion, module, opacity, scale, density,
+  sensor, refresh, startup, lock, click-through, and window controls.
+- **Portable designs** — export or import a versioned `.opsdesign` package;
+  live apply, contrast checking, and atomic undo keep experiments recoverable.
 - **Desktop-native behavior** — draggable, resizable, per-monitor DPI aware,
   always-on-top, sign-in startup, and keyboard recovery for locked overlays.
 - **Honest sensor states** — unavailable or stale readings show as unavailable;
@@ -176,7 +185,7 @@ for reference. Active production development lives in `native/`.
 
 ## Project status
 
-OPS Monitor v2 is actively developed and currently passes **41 Core behavior
+OPS Monitor v3 is actively developed and currently passes **43 Core behavior
 checks** plus **11 Sensor Bridge checks** in Release. The native applications
 build with warnings treated as errors.
 

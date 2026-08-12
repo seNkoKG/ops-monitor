@@ -358,12 +358,12 @@
                                             Height="{Binding PreviewHeight}"
                                             Background="{Binding PreviewSurfaceBrush}"
                                             BorderBrush="{Binding PreviewBorderBrush}"
-                                            CornerRadius="{Binding PreviewCornerRadius}"
+                                            BorderThickness="{Binding Designer.BorderWidth}"
+                                            CornerRadius="{Binding Designer.CornerRadius}"
                                             SnapsToDevicePixels="True"
                                             ClipToBounds="True">
                                         <Border.Style>
                                             <Style TargetType="Border">
-                                                <Setter Property="BorderThickness" Value="1"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding SelectedLayout}" Value="Mini">
                                                         <Setter Property="BorderThickness" Value="0"/>
@@ -391,7 +391,8 @@
                                                  <RowDefinition Height="*"/>
                                              </Grid.RowDefinitions>
 
-                                            <Grid Opacity="{Binding ContentOpacity}">
+                                            <Grid Opacity="{Binding ContentOpacity}"
+                                                  Visibility="{Binding Designer.HeaderVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                 <Grid.Style>
                                                     <Style TargetType="Grid">
                                                         <Setter Property="Visibility" Value="Visible"/>
@@ -408,7 +409,8 @@
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel VerticalAlignment="Center">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <Grid Width="12" Height="12" Margin="0,0,6,0">
+                                                        <Grid Width="12" Height="12" Margin="0,0,6,0"
+                                                              Visibility="{Binding Designer.StatusIndicatorVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                             <Ellipse Width="11"
                                                                      Height="11"
                                                                      Stroke="#9958E6B2"
@@ -420,13 +422,13 @@
                                                         <TextBlock Text="{Binding PreviewTitle}"
                                                                    FontSize="12"
                                                                    FontWeight="Bold"
-                                                                   Foreground="#FFF4F7FC"
+                                                                   Foreground="{Binding Designer.PrimaryTextBrush}"
                                                                    VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                     <TextBlock Margin="18,4,0,0"
                                                                Text="Updated now"
                                                                FontSize="10"
-                                                               Foreground="#FF8793A6">
+                                                               Foreground="{Binding Designer.SecondaryTextBrush}">
                                                         <TextBlock.Style>
                                                             <Style TargetType="TextBlock">
                                                                 <Style.Triggers>
@@ -442,7 +444,8 @@
                                                         Background="Transparent"
                                                         BorderBrush="Transparent"
                                                         BorderThickness="1"
-                                                        CornerRadius="10">
+                                                        CornerRadius="10"
+                                                        Visibility="{Binding Designer.SettingsButtonVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                     <Border.Style>
                                                         <Style TargetType="Border">
                                                             <Setter Property="Width" Value="28"/>
@@ -477,11 +480,11 @@
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
                                                         <Border Margin="3"
-                                                                Padding="6,3"
+                                                                Padding="{Binding DataContext.Designer.CardPadding, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                 Background="{Binding DataContext.PreviewCardBrush, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                 BorderBrush="{Binding DataContext.PreviewBorderBrush, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                BorderThickness="1"
-                                                                CornerRadius="11">
+                                                                BorderThickness="{Binding DataContext.Designer.CardBorderWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CornerRadius="{Binding DataContext.Designer.CardCornerRadius, RelativeSource={RelativeSource AncestorType=Window}}">
                                                             <Grid>
                                                             <Grid>
                                                                 <Grid.Style>
@@ -515,14 +518,14 @@
                                                                         <ColumnDefinition Width="*"/>
                                                                         <ColumnDefinition Width="Auto"/>
                                                                     </Grid.ColumnDefinitions>
-                                                                    <TextBlock Text="{Binding Icon}"
+                                                                    <TextBlock Text="{Binding CustomIcon}"
                                                                                FontSize="11"
                                                                                Foreground="{Binding Accent}"
                                                                                VerticalAlignment="Center"
-                                                                               Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                               Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                                                     <TextBlock Grid.Column="1"
                                                                                Margin="6,0,4,0"
-                                                                               Text="{Binding Name}"
+                                                                               Text="{Binding CustomTitle}"
                                                                                FontSize="10"
                                                                                FontWeight="Bold"
                                                                                Foreground="{Binding Accent}"
@@ -542,7 +545,7 @@
                                                                            FontFamily="{StaticResource Font.Display}"
                                                                            FontSize="18"
                                                                            FontWeight="SemiBold"
-                                                                           Foreground="#FFF6F8FC"
+                                                                           Foreground="{Binding DataContext.Designer.PrimaryTextBrush, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                            LineHeight="20"
                                                                            LineStackingStrategy="BlockLineHeight"
                                                                            VerticalAlignment="Center">
@@ -602,7 +605,7 @@
                                                                               Points="0,3 12,1 24,2.6 36,0.8 48,2 60,1.2 72,2.7 84,0.6 100,1.6"
                                                                               Stretch="Fill"
                                                                               Stroke="{Binding Accent}"
-                                                                              StrokeThickness="1.15">
+                                                                              StrokeThickness="{Binding DataContext.Designer.SparklineThickness, RelativeSource={RelativeSource AncestorType=Window}}">
                                                                         <Polyline.Style>
                                                                             <Style TargetType="Polyline">
                                                                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -649,15 +652,15 @@
                                                                     <ColumnDefinition Width="*"/>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
-                                                                <TextBlock Text="{Binding Icon}"
+                                                                <TextBlock Text="{Binding CustomIcon}"
                                                                            FontSize="9"
                                                                            Foreground="{Binding Accent}"
                                                                            VerticalAlignment="Center"
-                                                                           Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                           Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                                                 <TextBlock Grid.Column="1"
                                                                            Margin="4,0"
                                                                            MaxWidth="48"
-                                                                           Text="{Binding Name}"
+                                                                           Text="{Binding CustomTitle}"
                                                                            FontSize="9"
                                                                            FontWeight="Bold"
                                                                            Foreground="{Binding Accent}"
@@ -669,7 +672,7 @@
                                                                            FontFamily="{StaticResource Font.Display}"
                                                                            FontSize="12"
                                                                            FontWeight="SemiBold"
-                                                                           Foreground="#FFF6F8FC"
+                                                                           Foreground="{Binding DataContext.Designer.PrimaryTextBrush, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            VerticalAlignment="Center"/>
                                                                 <Border Grid.ColumnSpan="3"

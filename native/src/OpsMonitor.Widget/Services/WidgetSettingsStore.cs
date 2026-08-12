@@ -223,6 +223,7 @@ public static class WidgetSettingsStore
         settings.Resizable = widget.Window.Resizable;
 
         settings.StartAtSignIn = document.General.LaunchAtSignIn;
+        settings.ReducedMotion = document.General.ReducedMotion;
         settings.SurfaceOpacity = widget.Window.SurfaceOpacity;
         settings.ContentOpacity = widget.Window.ContentOpacity;
         settings.ScalePercent = widget.Window.ScalePercent;
@@ -404,7 +405,8 @@ public static class WidgetSettingsStore
         {
             General = document.General with
             {
-                LaunchAtSignIn = settings.StartAtSignIn
+                LaunchAtSignIn = settings.StartAtSignIn,
+                ReducedMotion = settings.ReducedMotion
             },
             Widgets = widgets,
             Themes = themes,
@@ -549,16 +551,50 @@ public static class WidgetSettingsStore
             SecondaryText = theme.Palette.SecondaryText,
             CpuAccent = theme.Palette.CpuAccent,
             GpuAccent = theme.Palette.GpuAccent,
+            MemoryAccent = theme.Palette.MemoryAccent,
             NetworkAccent = theme.Palette.NetworkAccent,
+            LatencyAccent = theme.Palette.LatencyAccent,
+            WeatherAccent = theme.Palette.WeatherAccent,
+            Track = theme.Palette.Track,
             Warning = theme.Palette.Warning,
             Critical = theme.Palette.Critical,
             Success = theme.Palette.Success,
             FontFamily = theme.Typography.FontFamily,
+            HeaderSize = theme.Typography.HeaderSize,
             LabelSize = theme.Typography.LabelSize,
+            SecondarySize = theme.Typography.SecondarySize,
             ValueSize = theme.Typography.ValueSize,
             MinimumReadableSize = theme.Typography.MinimumReadableSize,
             LabelWeight = theme.Typography.LabelWeight,
+            HeaderWeight = theme.Typography.HeaderWeight,
+            SecondaryWeight = theme.Typography.SecondaryWeight,
             ValueWeight = theme.Typography.ValueWeight,
-            UseTabularNumbers = theme.Typography.UseTabularNumbers
+            UseTabularNumbers = theme.Typography.UseTabularNumbers,
+            CornerRadius = theme.Surface.CornerRadius,
+            CardCornerRadius = theme.Surface.CardCornerRadius,
+            BlurEnabled = theme.Surface.BlurEnabled,
+            BlurStrength = theme.Surface.BlurStrength,
+            ShadowEnabled = theme.Surface.ShadowEnabled,
+            ShadowOpacity = theme.Surface.ShadowOpacity,
+            GlowEnabled = theme.Surface.GlowEnabled,
+            GlowOpacity = theme.Surface.GlowOpacity,
+            BorderWidth = theme.Surface.BorderWidth,
+            CardBorderWidth = theme.Surface.CardBorderWidth,
+            CardGap = theme.Surface.CardGap,
+            ContentPadding = theme.Surface.ContentPadding,
+            CardPadding = theme.Surface.CardPadding,
+            CardOpacity = theme.Surface.CardOpacity,
+            AccentWidth = theme.Surface.AccentWidth,
+            ProgressHeight = theme.Surface.ProgressHeight,
+            SparklineThickness = theme.Surface.SparklineThickness,
+            HeaderVisible = theme.Surface.HeaderVisible,
+            StatusIndicatorVisible = theme.Surface.StatusIndicatorVisible,
+            SettingsButtonVisible = theme.Surface.SettingsButtonVisible,
+            HeaderHeight = theme.Surface.HeaderHeight,
+            MotionEnabled = theme.Motion.Enabled,
+            TransitionMilliseconds = theme.Motion.TransitionMilliseconds,
+            AnimateValueChanges = theme.Motion.AnimateValueChanges,
+            RespectReducedMotion = theme.Motion.RespectReducedMotion,
+            PulseStatusIndicator = theme.Motion.PulseStatusIndicator
         };
 }
