@@ -20,6 +20,21 @@ public sealed class ModuleItem : ObservableObject
     private bool _showTemperature = true;
     private string _visualization = "Bar + sparkline";
     private string _precision = "Whole numbers";
+    private string _customTitle;
+    private string _customIcon;
+    private string _accentHex;
+    private bool _useCustomAccent;
+    private bool _showIcon = true;
+    private bool _showAccent = true;
+    private double _cardOpacity = 1;
+    private double _borderOpacity = 1;
+    private double _cardCornerRadius = -1;
+    private double _cardPadding = -1;
+    private double _accentWidth = -1;
+    private double _progressHeight = -1;
+    private double _labelSize = -1;
+    private double _valueSize = -1;
+    private double _iconSize = -1;
 
     public ModuleItem(
         string id,
@@ -42,6 +57,9 @@ public sealed class ModuleItem : ObservableObject
         Description = description;
         Source = source;
         Accent = accent;
+        _customTitle = name;
+        _customIcon = icon;
+        _accentHex = ColorText.ToHex((accent as SolidColorBrush)?.Color ?? Colors.DeepSkyBlue);
         _primaryValue = primaryValue;
         _secondaryValue = secondaryValue;
         _usagePercent = usagePercent;
@@ -62,6 +80,12 @@ public sealed class ModuleItem : ObservableObject
     public Brush Accent { get; set; }
     public ObservableCollection<double> SparklinePoints { get; }
     public event EventHandler? EditorValueChanging;
+
+    public void SetPreviewAccent(Brush accent)
+    {
+        Accent = accent;
+        OnPropertyChanged(nameof(Accent));
+    }
 
     public bool IsVisible
     {
@@ -135,18 +159,58 @@ public sealed class ModuleItem : ObservableObject
         set => SetEditorProperty(ref _precision, value);
     }
 
+    public string CustomTitle
+    {
+        get => _customTitle;
+        set => SetEditorProperty(ref _customTitle, (value ?? string.Empty).Trim());
+    }
+
+    public string CustomIcon
+    {
+        get => _customIcon;
+        set => SetEditorProperty(ref _customIcon, value ?? string.Empty);
+    }
+
+    public string AccentHex
+    {
+        get => _accentHex;
+        set
+        {
+            var normalized = ColorText.Normalize(value, _accentHex);
+            if (SetEditorProperty(ref _accentHex, normalized))
+            {
+                Accent = new SolidColorBrush(ColorText.Parse(normalized, Colors.DeepSkyBlue));
+                OnPropertyChanged(nameof(Accent));
+            }
+        }
+    }
+
+    public bool UseCustomAccent { get => _useCustomAccent; set => SetEditorProperty(ref _useCustomAccent, value); }
+
+    public bool ShowIcon { get => _showIcon; set => SetEditorProperty(ref _showIcon, value); }
+    public bool ShowAccent { get => _showAccent; set => SetEditorProperty(ref _showAccent, value); }
+    public double CardOpacity { get => _cardOpacity; set => SetEditorProperty(ref _cardOpacity, Math.Clamp(value, 0.2, 1)); }
+    public double BorderOpacity { get => _borderOpacity; set => SetEditorProperty(ref _borderOpacity, Math.Clamp(value, 0, 1)); }
+    public double CardCornerRadius { get => _cardCornerRadius; set => SetOverride(ref _cardCornerRadius, value, 0, 40); }
+    public double CardPadding { get => _cardPadding; set => SetOverride(ref _cardPadding, value, 0, 28); }
+    public double AccentWidth { get => _accentWidth; set => SetOverride(ref _accentWidth, value, 0, 10); }
+    public double ProgressHeight { get => _progressHeight; set => SetOverride(ref _progressHeight, value, 1, 12); }
+    public double LabelSize { get => _labelSize; set => SetOverride(ref _labelSize, value, 8, 26); }
+    public double ValueSize { get => _valueSize; set => SetOverride(ref _valueSize, value, 10, 42); }
+    public double IconSize { get => _iconSize; set => SetOverride(ref _iconSize, value, 8, 32); }
+
     public string PreviewPrimaryValue => ApplyPrecision(PrimaryValue, Precision);
 
     public string PreviewSecondaryValue => ApplyPrecision(SecondaryValue, Precision);
 
-    private void SetEditorProperty<T>(
+    private bool SetEditorProperty<T>(
         ref T field,
         T value,
         [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
         {
-            return;
+            return false;
         }
 
         EditorValueChanging?.Invoke(this, EventArgs.Empty);
@@ -156,6 +220,13 @@ public sealed class ModuleItem : ObservableObject
             OnPropertyChanged(nameof(PreviewPrimaryValue));
             OnPropertyChanged(nameof(PreviewSecondaryValue));
         }
+        return true;
+    }
+
+    private void SetOverride(ref double field, double value, double minimum, double maximum)
+    {
+        var normalized = value < 0 ? -1 : Math.Clamp(value, minimum, maximum);
+        _ = SetEditorProperty(ref field, normalized);
     }
 
     private static string ApplyPrecision(string value, string precision)
@@ -206,6 +277,21 @@ public sealed class ModuleItem : ObservableObject
             ShowTemperature = ShowTemperature,
             Visualization = Visualization,
             Precision = Precision,
+            CustomTitle = CustomTitle,
+            CustomIcon = CustomIcon,
+            AccentHex = AccentHex,
+            UseCustomAccent = UseCustomAccent,
+            ShowIcon = ShowIcon,
+            ShowAccent = ShowAccent,
+            CardOpacity = CardOpacity,
+            BorderOpacity = BorderOpacity,
+            CardCornerRadius = CardCornerRadius,
+            CardPadding = CardPadding,
+            AccentWidth = AccentWidth,
+            ProgressHeight = ProgressHeight,
+            LabelSize = LabelSize,
+            ValueSize = ValueSize,
+            IconSize = IconSize,
         };
 }
 
@@ -242,12 +328,21 @@ public sealed class ThemePreset : ObservableObject
     public Brush CardBrush => new SolidColorBrush(Card);
     public Brush BorderBrush => new SolidColorBrush(Border);
     public Brush AccentBrush => new SolidColorBrush(Accent);
+    public Brush PreviewTextBrush => new SolidColorBrush(IsLight(Surface)
+        ? Color.FromRgb(12, 23, 34)
+        : Color.FromRgb(244, 247, 252));
+    public Brush PreviewSecondaryTextBrush => new SolidColorBrush(IsLight(Surface)
+        ? Color.FromRgb(66, 84, 102)
+        : Color.FromRgb(179, 190, 206));
 
     public bool IsSelected
     {
         get => _isSelected;
         set => SetProperty(ref _isSelected, value);
     }
+
+    private static bool IsLight(Color color) =>
+        (0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B) / 255d > 0.6;
 }
 
 public sealed class SceneItem : ObservableObject
@@ -418,6 +513,7 @@ public sealed class SensorCatalogItem : ObservableObject
             }
         }
     }
+
 }
 
 public sealed record ActivityItem(string Time, string Title, string Detail, string Icon, Brush Accent);
@@ -458,7 +554,21 @@ public sealed record StudioModuleSnapshot(
     bool ShowTemperature,
     string Precision,
     string Icon,
-    string Accent);
+    string Accent)
+{
+    public bool UseCustomAccent { get; init; }
+    public bool ShowIcon { get; init; } = true;
+    public bool ShowAccent { get; init; } = true;
+    public double CardOpacity { get; init; } = 1;
+    public double BorderOpacity { get; init; } = 1;
+    public double? CardCornerRadiusOverride { get; init; }
+    public double? CardPaddingOverride { get; init; }
+    public double? AccentWidthOverride { get; init; }
+    public double? ProgressHeightOverride { get; init; }
+    public double? LabelSizeOverride { get; init; }
+    public double? ValueSizeOverride { get; init; }
+    public double? IconSizeOverride { get; init; }
+}
 
 public sealed record StudioThemeSnapshot(
     string Id,
@@ -466,7 +576,58 @@ public sealed record StudioThemeSnapshot(
     string Surface,
     string Card,
     string Border,
-    string Accent);
+    string Accent)
+{
+    public string PrimaryText { get; init; } = "#FFF6F9FF";
+    public string SecondaryText { get; init; } = "#FFB8C4D6";
+    public string CpuAccent { get; init; } = "#FF48DCF9";
+    public string GpuAccent { get; init; } = "#FFFF4FD8";
+    public string MemoryAccent { get; init; } = "#FF58E6B2";
+    public string NetworkAccent { get; init; } = "#FF62A7FF";
+    public string LatencyAccent { get; init; } = "#FFFFC35A";
+    public string WeatherAccent { get; init; } = "#FF62A7FF";
+    public string Track { get; init; } = "#55364258";
+    public string Warning { get; init; } = "#FFFFC35A";
+    public string Critical { get; init; } = "#FFFF566E";
+    public string Success { get; init; } = "#FF58E6B2";
+    public double CornerRadius { get; init; } = 24;
+    public double CardCornerRadius { get; init; } = 12;
+    public bool BlurEnabled { get; init; } = true;
+    public double BlurStrength { get; init; } = 0.7;
+    public bool ShadowEnabled { get; init; } = true;
+    public double ShadowOpacity { get; init; } = 0.3;
+    public bool GlowEnabled { get; init; } = true;
+    public double GlowOpacity { get; init; } = 0.12;
+    public double BorderWidth { get; init; } = 1;
+    public double CardBorderWidth { get; init; } = 1;
+    public double CardGap { get; init; } = 6;
+    public double ContentPadding { get; init; } = 10;
+    public double CardPadding { get; init; } = 10;
+    public double CardOpacity { get; init; } = 0.72;
+    public double AccentWidth { get; init; } = 3;
+    public double ProgressHeight { get; init; } = 4;
+    public double SparklineThickness { get; init; } = 1.5;
+    public bool HeaderVisible { get; init; } = true;
+    public bool StatusIndicatorVisible { get; init; } = true;
+    public bool SettingsButtonVisible { get; init; } = true;
+    public double HeaderHeight { get; init; } = 36;
+    public string FontFamily { get; init; } = "Segoe UI Variable";
+    public double HeaderSize { get; init; } = 11;
+    public double LabelSize { get; init; } = 11;
+    public double SecondarySize { get; init; } = 10;
+    public double ValueSize { get; init; } = 18;
+    public double MinimumReadableSize { get; init; } = 10;
+    public int HeaderWeight { get; init; } = 650;
+    public int LabelWeight { get; init; } = 600;
+    public int SecondaryWeight { get; init; } = 450;
+    public int ValueWeight { get; init; } = 600;
+    public bool UseTabularNumbers { get; init; } = true;
+    public bool MotionEnabled { get; init; } = true;
+    public int TransitionMilliseconds { get; init; } = 160;
+    public bool AnimateValueChanges { get; init; } = true;
+    public bool RespectReducedMotion { get; init; } = true;
+    public bool PulseStatusIndicator { get; init; } = true;
+}
 
 public sealed record StudioSceneSnapshot(
     string Id,
@@ -517,5 +678,41 @@ public sealed record StudioSettingsSnapshot(
     IReadOnlyList<StudioSceneSnapshot>? Scenes = null,
     IReadOnlyList<StudioAlertSnapshot>? Alerts = null,
     bool DemoMetrics = true,
-    int SchemaVersion = 3,
+    int SchemaVersion = 4,
     IReadOnlyList<StudioSensorPinSnapshot>? SensorPins = null);
+
+public sealed record StudioDesignPackage(
+    int SchemaVersion,
+    string Name,
+    string Layout,
+    string Density,
+    StudioThemeSnapshot Theme,
+    IReadOnlyList<StudioModuleSnapshot>? Modules);
+
+internal static class ColorText
+{
+    public static string Normalize(string? value, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        try
+        {
+            return ColorConverter.ConvertFromString(value.Trim()) is Color color
+                ? ToHex(color)
+                : fallback;
+        }
+        catch (Exception exception) when (exception is FormatException or NotSupportedException)
+        {
+            return fallback;
+        }
+    }
+
+    public static Color Parse(string? value, Color fallback) =>
+        (Color)ColorConverter.ConvertFromString(Normalize(value, ToHex(fallback)))!;
+
+    public static string ToHex(Color color) =>
+        $"#{color.A:X2}{color.R:X2}{color.G:X2}{color.B:X2}";
+}

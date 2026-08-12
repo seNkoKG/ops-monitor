@@ -121,6 +121,20 @@ public static class WidgetModuleCatalog
                 ShowLabel = module.ShowLabel,
                 ShowSecondaryValue = module.ShowSecondaryValue,
                 ShowTrend = module.ShowTrend,
+                Title = module.Title,
+                Icon = module.Icon,
+                AccentColor = module.AccentColor,
+                ShowIcon = module.ShowIcon,
+                ShowAccent = module.ShowAccent,
+                CardOpacity = Math.Clamp(module.CardOpacity, 0.2, 1),
+                BorderOpacity = Math.Clamp(module.BorderOpacity, 0, 1),
+                CardCornerRadiusOverride = NormalizeOverride(module.CardCornerRadiusOverride, 0, 40),
+                CardPaddingOverride = NormalizeOverride(module.CardPaddingOverride, 0, 28),
+                AccentWidthOverride = NormalizeOverride(module.AccentWidthOverride, 0, 10),
+                ProgressHeightOverride = NormalizeOverride(module.ProgressHeightOverride, 1, 12),
+                LabelSizeOverride = NormalizeOverride(module.LabelSizeOverride, 8, 26),
+                ValueSizeOverride = NormalizeOverride(module.ValueSizeOverride, 10, 42),
+                IconSizeOverride = NormalizeOverride(module.IconSizeOverride, 8, 32),
                 DecimalPlacesOverride = module.DecimalPlacesOverride is { } decimals
                     ? Math.Clamp(decimals, 0, 3)
                     : null
@@ -260,6 +274,20 @@ public static class WidgetModuleCatalog
                     ShowLabel = options.ShowLabel,
                     ShowSecondaryValue = options.ShowSecondaryValue,
                     ShowTrend = options.ShowTrend,
+                    Title = string.IsNullOrWhiteSpace(options.Title) ? module.Title : options.Title.Trim(),
+                    Icon = options.Icon ?? string.Empty,
+                    AccentColor = options.AccentColor ?? string.Empty,
+                    ShowIcon = options.ShowIcon,
+                    ShowAccent = options.ShowAccent,
+                    CardOpacity = Math.Clamp(options.CardOpacity, 0.2, 1),
+                    BorderOpacity = Math.Clamp(options.BorderOpacity, 0, 1),
+                    CardCornerRadiusOverride = NormalizeOverride(options.CardCornerRadiusOverride, 0, 40),
+                    CardPaddingOverride = NormalizeOverride(options.CardPaddingOverride, 0, 28),
+                    AccentWidthOverride = NormalizeOverride(options.AccentWidthOverride, 0, 10),
+                    ProgressHeightOverride = NormalizeOverride(options.ProgressHeightOverride, 1, 12),
+                    LabelSizeOverride = NormalizeOverride(options.LabelSizeOverride, 8, 26),
+                    ValueSizeOverride = NormalizeOverride(options.ValueSizeOverride, 10, 42),
+                    IconSizeOverride = NormalizeOverride(options.IconSizeOverride, 8, 32),
                     DecimalPlacesOverride = options.DecimalPlacesOverride
                 };
             }
@@ -347,6 +375,11 @@ public static class WidgetModuleCatalog
             return Battery;
         }
 
+        if (id is "module-weather")
+        {
+            return Weather;
+        }
+
         foreach (var metric in EnumerateMetrics(module))
         {
             var value = metric.Value;
@@ -410,4 +443,9 @@ public static class WidgetModuleCatalog
 
     private static int NextOrder(List<ModuleSettings> modules) =>
         modules.Count == 0 ? 0 : modules.Max(module => module.Order) + 1;
+
+    private static double? NormalizeOverride(double? value, double minimum, double maximum) =>
+        value is { } candidate && double.IsFinite(candidate)
+            ? Math.Clamp(candidate, minimum, maximum)
+            : null;
 }

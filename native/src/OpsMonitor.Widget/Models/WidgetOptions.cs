@@ -93,6 +93,8 @@ public sealed class WidgetSettings
 
     public bool StartAtSignIn { get; set; } = true;
 
+    public bool ReducedMotion { get; set; }
+
     public double UpdateCadenceSeconds { get; set; } = 1;
 
     public double SurfaceOpacity { get; set; } = 0.88;
@@ -138,6 +140,34 @@ public sealed record WidgetModulePresentation
     public bool ShowTrend { get; init; } = true;
 
     public int? DecimalPlacesOverride { get; init; }
+
+    public string Title { get; init; } = string.Empty;
+
+    public string Icon { get; init; } = string.Empty;
+
+    public string AccentColor { get; init; } = string.Empty;
+
+    public bool ShowIcon { get; init; } = true;
+
+    public bool ShowAccent { get; init; } = true;
+
+    public double CardOpacity { get; init; } = 1;
+
+    public double BorderOpacity { get; init; } = 1;
+
+    public double? CardCornerRadiusOverride { get; init; }
+
+    public double? CardPaddingOverride { get; init; }
+
+    public double? AccentWidthOverride { get; init; }
+
+    public double? ProgressHeightOverride { get; init; }
+
+    public double? LabelSizeOverride { get; init; }
+
+    public double? ValueSizeOverride { get; init; }
+
+    public double? IconSizeOverride { get; init; }
 }
 
 public sealed record WidgetRuntimeTheme
@@ -160,7 +190,15 @@ public sealed record WidgetRuntimeTheme
 
     public required string GpuAccent { get; init; }
 
+    public string MemoryAccent { get; init; } = "#FF58E6B2";
+
     public required string NetworkAccent { get; init; }
+
+    public string LatencyAccent { get; init; } = "#FFFFC35A";
+
+    public string WeatherAccent { get; init; } = "#FF62A7FF";
+
+    public string Track { get; init; } = "#55364258";
 
     public required string Warning { get; init; }
 
@@ -170,7 +208,11 @@ public sealed record WidgetRuntimeTheme
 
     public string FontFamily { get; init; } = "Segoe UI Variable";
 
+    public double HeaderSize { get; init; } = 11;
+
     public double LabelSize { get; init; } = 12;
+
+    public double SecondarySize { get; init; } = 10;
 
     public double ValueSize { get; init; } = 18;
 
@@ -178,7 +220,38 @@ public sealed record WidgetRuntimeTheme
 
     public int LabelWeight { get; init; } = 600;
 
+    public int HeaderWeight { get; init; } = 650;
+
+    public int SecondaryWeight { get; init; } = 450;
+
     public int ValueWeight { get; init; } = 600;
 
     public bool UseTabularNumbers { get; init; } = true;
+
+    public double CornerRadius { get; init; } = 24;
+    public double CardCornerRadius { get; init; } = 12;
+    public bool BlurEnabled { get; init; } = true;
+    public double BlurStrength { get; init; } = 0.7;
+    public bool ShadowEnabled { get; init; } = true;
+    public double ShadowOpacity { get; init; } = 0.3;
+    public bool GlowEnabled { get; init; } = true;
+    public double GlowOpacity { get; init; } = 0.12;
+    public double BorderWidth { get; init; } = 1;
+    public double CardBorderWidth { get; init; } = 1;
+    public double CardGap { get; init; } = 6;
+    public double ContentPadding { get; init; } = 10;
+    public double CardPadding { get; init; } = 10;
+    public double CardOpacity { get; init; } = 0.72;
+    public double AccentWidth { get; init; } = 3;
+    public double ProgressHeight { get; init; } = 4;
+    public double SparklineThickness { get; init; } = 1.5;
+    public bool HeaderVisible { get; init; } = true;
+    public bool StatusIndicatorVisible { get; init; } = true;
+    public bool SettingsButtonVisible { get; init; } = true;
+    public double HeaderHeight { get; init; } = 36;
+    public bool MotionEnabled { get; init; } = true;
+    public int TransitionMilliseconds { get; init; } = 160;
+    public bool AnimateValueChanges { get; init; } = true;
+    public bool RespectReducedMotion { get; init; } = true;
+    public bool PulseStatusIndicator { get; init; } = true;
 }

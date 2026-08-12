@@ -237,7 +237,7 @@
         <Border Margin="0,0,0,1"
                 Padding="5,1"
                 Background="Transparent"
-                BorderBrush="{Binding DataContext.BorderBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                BorderBrush="{Binding CardBorderBrush}"
                 BorderThickness="0,0,0,1"
                 CornerRadius="0">
             <Border.Style>
@@ -259,13 +259,14 @@
 
             <Grid Opacity="{Binding ContentOpacity, ElementName=Root}">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2" />
+                    <ColumnDefinition Width="{Binding EffectiveAccentWidth}" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
                 <Border Grid.Column="0"
                         Background="{Binding AccentBrush}"
-                        CornerRadius="2" />
+                        CornerRadius="2"
+                        Visibility="{Binding ShowAccent, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                 <Grid Grid.Column="1" Margin="7,0,0,0">
                     <Grid.RowDefinitions>
@@ -276,7 +277,7 @@
 
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="{Binding CompactIconColumnWidth}" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
@@ -286,7 +287,8 @@
                                 HorizontalAlignment="Left"
                                 Background="{Binding DataContext.TrackBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                 CornerRadius="5"
-                                Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Grid>
                             <Path Width="9"
                                   Height="9"
                                   Data="{Binding IconData}"
@@ -295,7 +297,13 @@
                                   StrokeEndLineCap="Round"
                                   StrokeLineJoin="Round"
                                   StrokeStartLineCap="Round"
-                                  StrokeThickness="1.6" />
+                                  StrokeThickness="1.6"
+                                  Visibility="{Binding ShowDefaultIcon, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       FontFamily="Segoe UI Emoji" FontSize="9"
+                                       Foreground="{Binding AccentBrush}" Text="{Binding Icon}"
+                                       Visibility="{Binding ShowCustomIcon, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </Grid>
                         </Border>
 
                         <TextBlock Grid.Column="1"
@@ -303,7 +311,7 @@
                                    FontSize="11"
                                    Foreground="{Binding AccentBrush}"
                                    Style="{StaticResource MetricLabelTextStyle}"
-                                   Text="{Binding Title}"
+                                   Text="{Binding CompactTitle}"
                                    Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                         <StackPanel Grid.Column="2"
@@ -356,10 +364,8 @@
                 <Style TargetType="{x:Type Border}">
                     <Setter Property="Margin" Value="0,0,0,1" />
                     <Setter Property="Padding" Value="4,0" />
-                    <Setter Property="Background"
-                            Value="{Binding DataContext.CardBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
-                    <Setter Property="BorderBrush"
-                            Value="{Binding DataContext.BorderBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                    <Setter Property="Background" Value="{Binding CardSurfaceBrush}" />
+                    <Setter Property="BorderBrush" Value="{Binding CardBorderBrush}" />
                     <Setter Property="BorderThickness" Value="1" />
                     <Setter Property="CornerRadius" Value="6" />
                     <Setter Property="Visibility" Value="Collapsed" />
@@ -389,14 +395,15 @@
             <Grid VerticalAlignment="Center"
                   Opacity="{Binding ContentOpacity, ElementName=Root}">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2" />
+                    <ColumnDefinition Width="{Binding EffectiveAccentWidth}" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
                 <Border Grid.Column="0"
                         Margin="0,2"
                         Background="{Binding AccentBrush}"
-                        CornerRadius="1" />
+                        CornerRadius="1"
+                        Visibility="{Binding ShowAccent, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                 <Grid Grid.Column="1" Margin="6,0,0,0">
                     <Grid.RowDefinitions>
@@ -406,7 +413,7 @@
 
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="{Binding CompactIconColumnWidth}" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
@@ -416,7 +423,8 @@
                                 HorizontalAlignment="Left"
                                 Background="{Binding DataContext.TrackBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                 CornerRadius="4"
-                                Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Grid>
                             <Path Width="8"
                                   Height="8"
                                   Data="{Binding IconData}"
@@ -424,7 +432,13 @@
                                   Stroke="{Binding AccentBrush}"
                                   StrokeEndLineCap="Round"
                                   StrokeLineJoin="Round"
-                                  StrokeThickness="1.4" />
+                                  StrokeThickness="1.4"
+                                  Visibility="{Binding ShowDefaultIcon, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       FontFamily="Segoe UI Emoji" FontSize="8"
+                                       Foreground="{Binding AccentBrush}" Text="{Binding Icon}"
+                                       Visibility="{Binding ShowCustomIcon, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </Grid>
                         </Border>
 
                         <TextBlock Grid.Column="1"
@@ -432,7 +446,7 @@
                                    FontSize="11"
                                    Foreground="{Binding AccentBrush}"
                                    Style="{StaticResource MetricLabelTextStyle}"
-                                   Text="{Binding Title}"
+                                   Text="{Binding CompactTitle}"
                                    TextTrimming="CharacterEllipsis"
                                    Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
@@ -486,18 +500,16 @@
             </Grid>
         </Border>
 
-    <Border x:Name="CardSurface">
+    <Border x:Name="CardSurface"
+            BorderBrush="{Binding CardBorderBrush}">
         <Border.Style>
                 <Style TargetType="{x:Type Border}">
-                    <Setter Property="Background"
-                            Value="{Binding DataContext.CardBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
-                    <Setter Property="BorderBrush"
-                            Value="{Binding DataContext.BorderBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
-                    <Setter Property="BorderThickness" Value="1" />
                     <Setter Property="Visibility" Value="Visible" />
-                    <Setter Property="Margin" Value="0,0,0,6" />
-                    <Setter Property="Padding" Value="10,8" />
-                    <Setter Property="CornerRadius" Value="14" />
+                    <Setter Property="Background" Value="{Binding CardSurfaceBrush}" />
+                    <Setter Property="BorderThickness" Value="{Binding CardBorderThickness}" />
+                    <Setter Property="CornerRadius" Value="{Binding CardCornerRadius}" />
+                    <Setter Property="Margin" Value="{Binding CardMargin}" />
+                    <Setter Property="Padding" Value="{Binding CardPadding}" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding Layout, ElementName=Root}"
                                      Value="{x:Static models:WidgetLayout.Mini}">
@@ -567,14 +579,15 @@
 
         <Grid Opacity="{Binding ContentOpacity, ElementName=Root}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3" />
+                <ColumnDefinition Width="{Binding EffectiveAccentWidth}" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
                     Margin="0,1,0,1"
                     Background="{Binding AccentBrush}"
-                    CornerRadius="2" />
+                    CornerRadius="2"
+                    Visibility="{Binding ShowAccent, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
             <StackPanel Grid.Column="1">
                 <StackPanel.Style>
@@ -612,7 +625,7 @@
                     </Grid.ColumnDefinitions>
 
                     <Border Background="{Binding DataContext.TrackBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                            Visibility="{Binding ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Border.Style>
                             <Style TargetType="{x:Type Border}">
                                 <Setter Property="Width" Value="24" />
@@ -656,8 +669,8 @@
                                 </Style.Triggers>
                             </Style>
                         </Border.Style>
-                        <Path
-                              HorizontalAlignment="Center"
+                        <Grid>
+                        <Path HorizontalAlignment="Center"
                               VerticalAlignment="Center"
                               Data="{Binding IconData}"
                               Stretch="Uniform"
@@ -665,7 +678,8 @@
                               StrokeEndLineCap="Round"
                               StrokeLineJoin="Round"
                               StrokeStartLineCap="Round"
-                              StrokeThickness="1.6">
+                              StrokeThickness="1.6"
+                              Visibility="{Binding ShowDefaultIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Path.Style>
                                 <Style TargetType="{x:Type Path}">
                                     <Setter Property="Width" Value="15" />
@@ -702,6 +716,14 @@
                                 </Style>
                             </Path.Style>
                         </Path>
+                        <TextBlock HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontFamily="Segoe UI Emoji"
+                                   FontSize="{Binding IconSize}"
+                                   Foreground="{Binding AccentBrush}"
+                                   Text="{Binding Icon}"
+                                   Visibility="{Binding ShowCustomIcon, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        </Grid>
                     </Border>
 
                     <TextBlock Grid.Column="1"
@@ -713,6 +735,7 @@
                         <TextBlock.Style>
                             <Style BasedOn="{StaticResource MetricLabelTextStyle}"
                                    TargetType="{x:Type TextBlock}">
+                                <Setter Property="FontSize" Value="{Binding LabelFontSize}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Density, ElementName=Root}"
                                                  Value="{x:Static models:WidgetDensity.Compact}">
@@ -790,6 +813,7 @@
                         <Style BasedOn="{StaticResource MetricValueTextStyle}"
                                TargetType="{x:Type TextBlock}">
                             <Setter Property="Text" Value="{Binding PrimaryValue}" />
+                            <Setter Property="FontSize" Value="{Binding ValueFontSize}" />
                             <Setter Property="Margin" Value="0,6,0,5" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding Density, ElementName=Root}" Value="{x:Static models:WidgetDensity.Compact}">
@@ -853,7 +877,7 @@
                 <Grid ClipToBounds="True">
                     <Grid.Style>
                         <Style TargetType="{x:Type Grid}">
-                            <Setter Property="Height" Value="4" />
+                            <Setter Property="Height" Value="{Binding ProgressHeight}" />
                             <Style.Triggers>
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
@@ -874,7 +898,7 @@
                           Stretch="Fill"
                           Stroke="{Binding AccentBrush}"
                           StrokeLineJoin="Round"
-                          StrokeThickness="0.8"
+                          StrokeThickness="{Binding SparklineThickness}"
                           Visibility="{Binding ShowSparkline, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <ProgressBar VerticalAlignment="Bottom"
                                  Value="{Binding Progress}"
@@ -968,7 +992,7 @@
                           Stretch="Fill"
                           Stroke="{Binding AccentBrush}"
                           StrokeLineJoin="Round"
-                          StrokeThickness="1.5" />
+                          StrokeThickness="{Binding SparklineThickness}" />
                 </Grid>
             </StackPanel>
         </Grid>

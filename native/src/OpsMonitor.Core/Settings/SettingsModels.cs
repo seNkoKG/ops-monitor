@@ -144,6 +144,7 @@ public sealed record GeneralSettings
     public bool EnableLocalApi { get; init; }
     public int LocalApiPort { get; init; } = 43120;
     public bool AnonymousDiagnostics { get; init; }
+    public bool ReducedMotion { get; init; }
 }
 
 public enum WidgetDesign
@@ -243,6 +244,17 @@ public sealed record ModuleSettings
     public List<MetricId> AdditionalMetrics { get; init; } = [];
     public string Icon { get; init; } = string.Empty;
     public string AccentColor { get; init; } = string.Empty;
+    public bool ShowIcon { get; init; } = true;
+    public bool ShowAccent { get; init; } = true;
+    public double CardOpacity { get; init; } = 1;
+    public double BorderOpacity { get; init; } = 1;
+    public double? CardCornerRadiusOverride { get; init; }
+    public double? CardPaddingOverride { get; init; }
+    public double? AccentWidthOverride { get; init; }
+    public double? ProgressHeightOverride { get; init; }
+    public double? LabelSizeOverride { get; init; }
+    public double? ValueSizeOverride { get; init; }
+    public double? IconSizeOverride { get; init; }
     public bool ShowLabel { get; init; } = true;
     public bool ShowSecondaryValue { get; init; } = true;
     public bool ShowTrend { get; init; } = true;
@@ -290,7 +302,11 @@ public sealed record ThemeSettings
                 SecondaryText = "#FF8D9AAF",
                 CpuAccent = "#FF46E8E0",
                 GpuAccent = "#FFF04DDE",
+                MemoryAccent = "#FF49E6AD",
                 NetworkAccent = "#FF46E8E0",
+                LatencyAccent = "#FFFFC857",
+                WeatherAccent = "#FF62A7FF",
+                Track = "#553D5366",
                 Warning = "#FFFFC857",
                 Critical = "#FFFF5C71",
                 Success = "#FF49E6AD"
@@ -303,6 +319,13 @@ public sealed record ThemeSettings
                 BlurStrength = 0.7,
                 ShadowEnabled = true,
                 ShadowOpacity = 0.32,
+                GlowEnabled = true,
+                GlowOpacity = 0.12,
+                CardBorderWidth = 1,
+                CardPadding = 10,
+                AccentWidth = 3,
+                ProgressHeight = 4,
+                SparklineThickness = 1.5,
                 CardGap = 6,
                 ContentPadding = 10
             }
@@ -318,7 +341,11 @@ public sealed record ThemePalette
     public string SecondaryText { get; init; } = "#FF8D9AAF";
     public string CpuAccent { get; init; } = "#FF46E8E0";
     public string GpuAccent { get; init; } = "#FFF04DDE";
+    public string MemoryAccent { get; init; } = "#FF49E6AD";
     public string NetworkAccent { get; init; } = "#FF46E8E0";
+    public string LatencyAccent { get; init; } = "#FFFFC857";
+    public string WeatherAccent { get; init; } = "#FF62A7FF";
+    public string Track { get; init; } = "#553D5366";
     public string Warning { get; init; } = "#FFFFC857";
     public string Critical { get; init; } = "#FFFF5C71";
     public string Success { get; init; } = "#FF49E6AD";
@@ -332,18 +359,34 @@ public sealed record ThemeSurface
     public double BlurStrength { get; init; } = 0.7;
     public bool ShadowEnabled { get; init; } = true;
     public double ShadowOpacity { get; init; } = 0.3;
+    public bool GlowEnabled { get; init; } = true;
+    public double GlowOpacity { get; init; } = 0.12;
     public double BorderWidth { get; init; } = 1;
+    public double CardBorderWidth { get; init; } = 1;
     public double CardGap { get; init; } = 6;
     public double ContentPadding { get; init; } = 10;
+    public double CardPadding { get; init; } = 10;
+    public double CardOpacity { get; init; } = 0.72;
+    public double AccentWidth { get; init; } = 3;
+    public double ProgressHeight { get; init; } = 4;
+    public double SparklineThickness { get; init; } = 1.5;
+    public bool HeaderVisible { get; init; } = true;
+    public bool StatusIndicatorVisible { get; init; } = true;
+    public bool SettingsButtonVisible { get; init; } = true;
+    public double HeaderHeight { get; init; } = 36;
 }
 
 public sealed record ThemeTypography
 {
     public string FontFamily { get; init; } = "Segoe UI Variable";
+    public double HeaderSize { get; init; } = 11;
     public double LabelSize { get; init; } = 11;
+    public double SecondarySize { get; init; } = 10;
     public double ValueSize { get; init; } = 18;
     public double MinimumReadableSize { get; init; } = 10;
     public int LabelWeight { get; init; } = 600;
+    public int HeaderWeight { get; init; } = 650;
+    public int SecondaryWeight { get; init; } = 450;
     public int ValueWeight { get; init; } = 600;
     public bool UseTabularNumbers { get; init; } = true;
 }
@@ -354,6 +397,7 @@ public sealed record ThemeMotion
     public int TransitionMilliseconds { get; init; } = 160;
     public bool AnimateValueChanges { get; init; } = true;
     public bool RespectReducedMotion { get; init; } = true;
+    public bool PulseStatusIndicator { get; init; } = true;
 }
 
 public sealed record SceneSettings

@@ -31,6 +31,8 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     private NavigationItem? _selectedNavigation;
     private ModuleItem? _selectedModule;
     private ThemePreset? _selectedTheme;
+    private string _designId = "void";
+    private string _designName = "Void";
     private string _selectedLayout = "Pill";
     private string _activeScene = "Daily driver";
     private string _searchText = string.Empty;
@@ -84,7 +86,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         {
             new("overview", "Overview", "Health and quick actions", "⌂"),
             new("widgets", "Layout & Modules", "Form, order and visibility", "▦"),
-            new("appearance", "Appearance", "Theme, opacity and density", "✦"),
+            new("appearance", "Widget Designer", "Palette, geometry, type and motion", "✦"),
             new("window", "Window & Startup", "Size, interaction and sign-in", "⌗"),
             new("providers", "Sensors", "Providers and polling", "◇"),
             new("diagnostics", "Diagnostics & About", "Impact, logs and version", "ⓘ"),
@@ -117,6 +119,9 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             new("slate", "Slate / High Contrast", "Brighter borders and text for difficult desktops", Color.FromRgb(18, 24, 31), Color.FromRgb(27, 36, 47), Color.FromRgb(67, 83, 101), Color.FromRgb(72, 207, 234)),
             new("ember", "Ember", "Warm graphite with amber highlights", Color.FromRgb(22, 14, 15), Color.FromRgb(38, 23, 25), Color.FromRgb(93, 56, 60), Color.FromRgb(255, 172, 72)),
             new("contrast", "Contrast", "Maximum contrast with crisp cyan and magenta signals", Color.FromRgb(2, 3, 5), Color.FromRgb(7, 9, 13), Color.FromRgb(148, 170, 198), Color.FromRgb(71, 229, 255)),
+            new("ghost", "Ghost", "Bright frost glass with ink-dark typography", Color.FromRgb(232, 240, 246), Color.FromRgb(250, 253, 255), Color.FromRgb(78, 100, 122), Color.FromRgb(0, 126, 154)),
+            new("terminal", "Terminal", "Tight phosphor-green instrumentation", Color.FromRgb(5, 10, 7), Color.FromRgb(9, 19, 13), Color.FromRgb(29, 94, 55), Color.FromRgb(92, 255, 157)),
+            new("frameless", "Frameless", "Near-invisible chrome with floating readings", Color.FromRgb(5, 7, 11), Color.FromRgb(8, 12, 18), Color.FromArgb(0, 0, 0, 0), Color.FromRgb(98, 215, 255)),
         };
 
         Modules = new ObservableCollection<ModuleItem>
@@ -128,11 +133,21 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             NewModule("latency", "Latency", "⌁", "Network", "Ping, jitter and packet loss", "ICMP health probe", "#FFC95C", "26 ms", "0% loss · 3 ms jitter", 22),
             NewModule("disk", "Storage", "◫", "Storage", "System capacity, activity, temperature and health", "Windows + protected hardware broker", "#63E6A6", "68%", "42° · SMART", 68, false),
             NewModule("battery", "Power", "▥", "Power", "Battery, draw and remaining time", "Windows power API", "#8EEA78", "86%", "2h 48m · 17 W", 86, false),
+            NewModule("weather", "Weather", "☀", "Environment", "Local conditions, forecast and radar launcher", "Open-Meteo + ARSO", "#62A7FF", "23°", "Celje · partly cloudy", 46, true),
         };
 
         VisibleModulesView = new ListCollectionView(Modules)
         {
             Filter = item => item is ModuleItem module && module.IsVisible,
+        };
+
+        Designer = new WidgetDesignerState();
+        Designer.EditorValueChanging += (_, _) => PushUndo();
+        Designer.DesignChanged += (_, _) =>
+        {
+            RefreshModuleAccentBrushes();
+            RefreshPreviewBrushes();
+            QueueLiveApply();
         };
         SensorCatalog = [];
         SensorCatalogView = new ListCollectionView(SensorCatalog)
@@ -177,7 +192,10 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         NavigateCommand = new RelayCommand(Navigate);
         ApplyThemeCommand = new RelayCommand(
             ApplyTheme,
-            parameter => parameter is ThemePreset theme && theme != SelectedTheme);
+            parameter => parameter is ThemePreset);
+        FixContrastCommand = new RelayCommand(_ => RunDesignerTransaction(Designer.FixContrast));
+        ImportDesignCommand = new RelayCommand(_ => RequestImportDesign?.Invoke(this, EventArgs.Empty));
+        ExportDesignCommand = new RelayCommand(_ => RequestExportDesign?.Invoke(this, EventArgs.Empty));
         ActivateSceneCommand = new RelayCommand(
             ActivateScene,
             parameter => parameter is SceneItem scene &&
@@ -203,6 +221,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         SelectedNavigation = Navigation[0];
         SelectedModule = Modules[0];
         SelectedTheme = Themes[0];
+        Designer.ApplyPreset(Themes[0]);
         SelectedTheme.IsSelected = true;
         Layouts[0].IsSelected = true;
         ApplyLayoutMetrics();
@@ -237,11 +256,14 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     public event EventHandler<StudioSettingsSnapshot>? SettingsChanged;
     public event EventHandler? RequestCopyDiagnostics;
+    public event EventHandler? RequestImportDesign;
+    public event EventHandler? RequestExportDesign;
 
     public ObservableCollection<NavigationItem> Navigation { get; }
     public ICollectionView NavigationView { get; }
     public ObservableCollection<LayoutPreset> Layouts { get; }
     public ObservableCollection<ThemePreset> Themes { get; }
+    public WidgetDesignerState Designer { get; }
     public ObservableCollection<ModuleItem> Modules { get; }
     public ListCollectionView VisibleModulesView { get; }
     public ObservableCollection<SceneItem> Scenes { get; }
@@ -268,6 +290,9 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     public ICommand SetScaleCommand { get; }
     public ICommand NavigateCommand { get; }
     public ICommand ApplyThemeCommand { get; }
+    public ICommand FixContrastCommand { get; }
+    public ICommand ImportDesignCommand { get; }
+    public ICommand ExportDesignCommand { get; }
     public ICommand ActivateSceneCommand { get; }
     public ICommand MoveModuleUpCommand { get; }
     public ICommand MoveModuleDownCommand { get; }
@@ -651,7 +676,8 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     }
 
     public string ResourceWakeups { get; } = "Adaptive";
-    public string AppVersion { get; } = "OPS Monitor Studio · v2.0.0";
+    public string AppVersion { get; } =
+        $"OPS Monitor Studio · v{typeof(StudioViewModel).Assembly.GetName().Version?.ToString(3) ?? "3.0.0"}";
     public string WidgetActionLabel
     {
         get => _widgetActionLabel;
@@ -896,6 +922,13 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 item.IsSelected = item == theme;
             }
             SelectedTheme = theme;
+            _designId = snapshot.ThemeDetails?.Id ?? theme.Id;
+            _designName = snapshot.ThemeDetails?.Name ?? theme.Name;
+            Designer.ApplyPreset(theme);
+            if (snapshot.ThemeDetails is not null)
+            {
+                Designer.Apply(snapshot.ThemeDetails);
+            }
 
             foreach (var module in Modules)
             {
@@ -928,6 +961,71 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             ? "Editor and shared runtime settings reloaded"
             : _settingsSink.LastWarning;
         LastAppliedText = "Loaded from disk";
+    }
+
+    public bool ExportDesign(string path)
+    {
+        try
+        {
+            var snapshot = CaptureSettings();
+            DesignPackageService.Save(path, new StudioDesignPackage(
+                LocalStudioSettingsSink.CurrentSchemaVersion,
+                $"{_designName} · {SelectedLayout}",
+                SelectedLayout,
+                Density,
+                snapshot.ThemeDetails ?? Designer.Capture("custom", "Custom design"),
+                snapshot.Modules ?? []));
+            StatusMessage = $"Design exported to {Path.GetFileName(path)}";
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusMessage = $"Design export failed: {exception.Message}";
+            return false;
+        }
+    }
+
+    public bool ImportDesign(string path)
+    {
+        try
+        {
+            var package = DesignPackageService.Load(path);
+            PushUndo();
+            _isRestoring = true;
+            try
+            {
+                SelectedLayout = package.Layout;
+                Density = package.Density;
+                var theme = Themes.FirstOrDefault(item => item.Id == package.Theme.Id) ??
+                            SelectedTheme ?? Themes[0];
+                foreach (var item in Themes)
+                {
+                    item.IsSelected = item == theme;
+                }
+
+                SelectedTheme = theme;
+                _designId = package.Theme.Id;
+                _designName = package.Theme.Name;
+                Designer.Apply(package.Theme);
+                ApplyModuleSnapshots(package.Modules ?? []);
+            }
+            finally
+            {
+                _isRestoring = false;
+            }
+
+            ApplyLayoutMetrics();
+            RefreshPreviewBrushes();
+            QueueLiveApply();
+            StatusMessage = $"{package.Name} imported and applied";
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
+        {
+            StatusMessage = $"Design import failed: {exception.Message}";
+            return false;
+        }
     }
 
     public void SaveSettings()
@@ -1067,7 +1165,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     private void ApplyTheme(object? parameter)
     {
-        if (parameter is not ThemePreset theme || theme == SelectedTheme)
+        if (parameter is not ThemePreset theme)
         {
             return;
         }
@@ -1079,6 +1177,9 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         }
 
         SelectedTheme = theme;
+        _designId = theme.Id;
+        _designName = theme.Name;
+        Designer.ApplyPreset(theme);
         StatusMessage = $"{theme.Name} theme applied";
     }
 
@@ -1578,7 +1679,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         ReducedMotion = false;
         DemoMetrics = true;
 
-        var defaultOrder = new[] { "cpu", "gpu", "ram", "net", "latency", "disk", "battery" };
+        var defaultOrder = new[] { "cpu", "gpu", "ram", "net", "latency", "disk", "battery", "weather" };
         for (var targetIndex = 0; targetIndex < defaultOrder.Length; targetIndex++)
         {
             var module = Modules.First(item => item.Id == defaultOrder[targetIndex]);
@@ -1591,13 +1692,27 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
         foreach (var module in Modules)
         {
-            module.IsVisible = module.Id is "cpu" or "gpu" or "ram" or "net" or "latency";
+            module.IsVisible = module.Id is "cpu" or "gpu" or "ram" or "net" or "latency" or "weather";
             module.Size = module.Id is "cpu" or "gpu" ? "Large" : "Medium";
             module.Visualization = "Bar + sparkline";
             module.ShowLabel = true;
             module.ShowSparkline = true;
             module.ShowTemperature = true;
             module.Precision = "Whole numbers";
+            module.CustomTitle = module.Name;
+            module.CustomIcon = module.Icon;
+            module.UseCustomAccent = false;
+            module.ShowIcon = true;
+            module.ShowAccent = true;
+            module.CardOpacity = 1;
+            module.BorderOpacity = 1;
+            module.CardCornerRadius = -1;
+            module.CardPadding = -1;
+            module.AccentWidth = -1;
+            module.ProgressHeight = -1;
+            module.LabelSize = -1;
+            module.ValueSize = -1;
+            module.IconSize = -1;
         }
 
         foreach (var scene in Scenes)
@@ -1641,7 +1756,13 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
             module.Name = snapshot.Name;
             module.Icon = snapshot.Icon;
-            module.Accent = Brush(snapshot.Accent);
+            module.CustomTitle = snapshot.Name;
+            module.CustomIcon = snapshot.Icon;
+            if (!string.IsNullOrWhiteSpace(snapshot.Accent))
+            {
+                module.AccentHex = snapshot.Accent;
+            }
+            module.UseCustomAccent = snapshot.UseCustomAccent && !string.IsNullOrWhiteSpace(snapshot.Accent);
             module.IsVisible = snapshot.Enabled;
             module.Size = snapshot.Size;
             module.Visualization = snapshot.Visualization;
@@ -1649,6 +1770,17 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             module.ShowSparkline = snapshot.ShowSparkline;
             module.ShowTemperature = snapshot.ShowTemperature;
             module.Precision = snapshot.Precision;
+            module.ShowIcon = snapshot.ShowIcon;
+            module.ShowAccent = snapshot.ShowAccent;
+            module.CardOpacity = snapshot.CardOpacity;
+            module.BorderOpacity = snapshot.BorderOpacity;
+            module.CardCornerRadius = snapshot.CardCornerRadiusOverride ?? -1;
+            module.CardPadding = snapshot.CardPaddingOverride ?? -1;
+            module.AccentWidth = snapshot.AccentWidthOverride ?? -1;
+            module.ProgressHeight = snapshot.ProgressHeightOverride ?? -1;
+            module.LabelSize = snapshot.LabelSizeOverride ?? -1;
+            module.ValueSize = snapshot.ValueSizeOverride ?? -1;
+            module.IconSize = snapshot.IconSizeOverride ?? -1;
         }
 
         var ordered = applicable
@@ -1667,11 +1799,6 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
         VisibleModulesView.Refresh();
     }
-
-    private static string BrushHex(Brush brush)
-        => brush is SolidColorBrush solidColor
-            ? solidColor.Color.ToString(CultureInfo.InvariantCulture)
-            : "#FF43E7D2";
 
     private static double RateSeconds(string rate)
         => rate switch
@@ -1717,6 +1844,11 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             {
                 ApplyLayoutMetrics();
             }
+        }
+
+        if (e.PropertyName is nameof(ModuleItem.UseCustomAccent) or nameof(ModuleItem.AccentHex))
+        {
+            RefreshModuleAccentBrushes();
         }
 
         if (e.PropertyName is nameof(ModuleItem.UsagePercent)
@@ -1775,11 +1907,10 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     private StudioSettingsSnapshot CaptureSettings()
     {
-        var selectedTheme = SelectedTheme ?? Themes[0];
         return new StudioSettingsSnapshot(
             ActiveScene,
             SelectedLayout,
-            selectedTheme.Id,
+            _designId,
             BackgroundOpacity,
             ContentOpacity,
             BlurStrength,
@@ -1802,7 +1933,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             ReducedMotion,
             Modules.Select((item, order) => new StudioModuleSnapshot(
                 item.Id,
-                item.Name,
+                string.IsNullOrWhiteSpace(item.CustomTitle) ? item.Name : item.CustomTitle,
                 order,
                 item.IsVisible,
                 item.Size,
@@ -1811,15 +1942,23 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 item.ShowSparkline,
                 item.ShowTemperature,
                 item.Precision,
-                item.Icon,
-                BrushHex(item.Accent))).ToArray(),
-            new StudioThemeSnapshot(
-                selectedTheme.Id,
-                selectedTheme.Name,
-                selectedTheme.Surface.ToString(CultureInfo.InvariantCulture),
-                selectedTheme.Card.ToString(CultureInfo.InvariantCulture),
-                selectedTheme.Border.ToString(CultureInfo.InvariantCulture),
-                selectedTheme.Accent.ToString(CultureInfo.InvariantCulture)),
+                item.CustomIcon,
+                item.UseCustomAccent ? item.AccentHex : string.Empty)
+            {
+                UseCustomAccent = item.UseCustomAccent,
+                ShowIcon = item.ShowIcon,
+                ShowAccent = item.ShowAccent,
+                CardOpacity = item.CardOpacity,
+                BorderOpacity = item.BorderOpacity,
+                CardCornerRadiusOverride = OverrideValue(item.CardCornerRadius),
+                CardPaddingOverride = OverrideValue(item.CardPadding),
+                AccentWidthOverride = OverrideValue(item.AccentWidth),
+                ProgressHeightOverride = OverrideValue(item.ProgressHeight),
+                LabelSizeOverride = OverrideValue(item.LabelSize),
+                ValueSizeOverride = OverrideValue(item.ValueSize),
+                IconSizeOverride = OverrideValue(item.IconSize)
+            }).ToArray(),
+            Designer.Capture(_designId, _designName),
             Scenes.Select(item => new StudioSceneSnapshot(
                 item.Id,
                 item.Name,
@@ -1837,32 +1976,48 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 .ToArray());
     }
 
+    private static double? OverrideValue(double value) => value < 0 ? null : value;
+
     private void RefreshPreviewBrushes()
     {
-        var theme = SelectedTheme ?? Themes.FirstOrDefault();
-        if (theme is null)
-        {
-            return;
-        }
-
         const double guardActivationOpacity = 0.82;
         const double fullGuardOpacity = 0.55;
-        const double guardedCardOpacity = 0.78;
         var guardStrength = Math.Clamp(
             (guardActivationOpacity - BackgroundOpacity) /
             (guardActivationOpacity - fullGuardOpacity),
             0,
             1);
-        var requestedCardOpacity = BackgroundOpacity * 0.68;
-        var cardOpacity = requestedCardOpacity +
-                          ((guardedCardOpacity - requestedCardOpacity) * guardStrength);
+        var cardOpacity = Designer.CardOpacity;
 
-        PreviewSurfaceBrush = OpacityBrush(theme.Surface, BackgroundOpacity);
-        PreviewCardBrush = OpacityBrush(theme.Card, cardOpacity);
+        PreviewSurfaceBrush = OpacityBrush(
+            ColorText.Parse(Designer.Surface, Colors.Black), BackgroundOpacity);
+        PreviewCardBrush = OpacityBrush(
+            ColorText.Parse(Designer.Card, Colors.Black), cardOpacity);
         PreviewBorderBrush = OpacityBrush(
-            theme.Border,
+            ColorText.Parse(Designer.Border, Colors.DimGray),
             Math.Max(BackgroundOpacity * 0.54, 0.5 * guardStrength));
-        PreviewAccentBrush = new SolidColorBrush(theme.Accent);
+        PreviewAccentBrush = new SolidColorBrush(
+            ColorText.Parse(Designer.CpuAccent, Colors.Cyan));
+    }
+
+    private void RefreshModuleAccentBrushes()
+    {
+        foreach (var module in Modules)
+        {
+            var color = module.UseCustomAccent
+                ? module.AccentHex
+                : module.Id switch
+                {
+                    "gpu" => Designer.GpuAccent,
+                    "ram" or "disk" or "battery" => Designer.MemoryAccent,
+                    "net" => Designer.NetworkAccent,
+                    "latency" => Designer.LatencyAccent,
+                    "weather" => Designer.WeatherAccent,
+                    _ => Designer.CpuAccent
+                };
+            module.SetPreviewAccent(new SolidColorBrush(ColorText.Parse(color, Colors.Cyan)));
+        }
+
     }
 
     private static SolidColorBrush OpacityBrush(Color color, double opacity)
@@ -1966,6 +2121,25 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         RaiseEditorCommandState();
     }
 
+    private void RunDesignerTransaction(Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        PushUndo();
+        _isRestoring = true;
+        try
+        {
+            action();
+        }
+        finally
+        {
+            _isRestoring = false;
+        }
+
+        RefreshModuleAccentBrushes();
+        RefreshPreviewBrushes();
+        QueueLiveApply();
+    }
+
     private EditorState CaptureEditorState()
         => new(
             SelectedLayout,
@@ -1989,6 +2163,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             PerformanceMode,
             WidgetWidth,
             WidgetHeight,
+            Designer.Capture(_designId, _designName),
             Modules.Select(item => new ModuleState(
                 item.Id,
                 item.IsVisible,
@@ -1997,7 +2172,22 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 item.Precision,
                 item.ShowLabel,
                 item.ShowSparkline,
-                item.ShowTemperature)).ToArray());
+                item.ShowTemperature,
+                item.CustomTitle,
+                item.CustomIcon,
+                item.AccentHex,
+                item.UseCustomAccent,
+                item.ShowIcon,
+                item.ShowAccent,
+                item.CardOpacity,
+                item.BorderOpacity,
+                item.CardCornerRadius,
+                item.CardPadding,
+                item.AccentWidth,
+                item.ProgressHeight,
+                item.LabelSize,
+                item.ValueSize,
+                item.IconSize)).ToArray());
 
     private void RestoreEditorState(EditorState state)
     {
@@ -2028,6 +2218,9 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             }
 
             SelectedTheme = theme;
+            _designId = state.DesignerTheme.Id;
+            _designName = state.DesignerTheme.Name;
+            Designer.Apply(state.DesignerTheme);
             ActiveScene = state.ActiveScene;
             foreach (var scene in Scenes)
             {
@@ -2048,6 +2241,21 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                     module.ShowLabel = moduleState.ShowLabel;
                     module.ShowSparkline = moduleState.ShowSparkline;
                     module.ShowTemperature = moduleState.ShowTemperature;
+                    module.CustomTitle = moduleState.CustomTitle;
+                    module.CustomIcon = moduleState.CustomIcon;
+                    module.AccentHex = moduleState.AccentHex;
+                    module.UseCustomAccent = moduleState.UseCustomAccent;
+                    module.ShowIcon = moduleState.ShowIcon;
+                    module.ShowAccent = moduleState.ShowAccent;
+                    module.CardOpacity = moduleState.CardOpacity;
+                    module.BorderOpacity = moduleState.BorderOpacity;
+                    module.CardCornerRadius = moduleState.CardCornerRadius;
+                    module.CardPadding = moduleState.CardPadding;
+                    module.AccentWidth = moduleState.AccentWidth;
+                    module.ProgressHeight = moduleState.ProgressHeight;
+                    module.LabelSize = moduleState.LabelSize;
+                    module.ValueSize = moduleState.ValueSize;
+                    module.IconSize = moduleState.IconSize;
                 }
             }
 
@@ -2125,7 +2333,22 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         string Precision,
         bool ShowLabel,
         bool ShowSparkline,
-        bool ShowTemperature);
+        bool ShowTemperature,
+        string CustomTitle,
+        string CustomIcon,
+        string AccentHex,
+        bool UseCustomAccent,
+        bool ShowIcon,
+        bool ShowAccent,
+        double CardOpacity,
+        double BorderOpacity,
+        double CardCornerRadius,
+        double CardPadding,
+        double AccentWidth,
+        double ProgressHeight,
+        double LabelSize,
+        double ValueSize,
+        double IconSize);
 
     private sealed record EditorState(
         string Layout,
@@ -2149,5 +2372,6 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         string PerformanceMode,
         double WidgetWidth,
         double WidgetHeight,
+        StudioThemeSnapshot DesignerTheme,
         IReadOnlyList<ModuleState> Modules);
 }

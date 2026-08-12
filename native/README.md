@@ -1,9 +1,10 @@
-# OPS Monitor v2
+# OPS Monitor v3
 
 OPS Monitor is a native Windows 11 performance widget with a separate visual
 configuration app. The Widget is optimized for an always-on desktop footprint;
-Studio exposes layouts, themes, module visibility and presentation, opacity,
-scale, update cadence, window behavior, startup, and diagnostics without
+Studio exposes layouts, presets, per-token palette and surface design, module
+visibility and presentation, typography, spacing, opacity, scale, update
+cadence, window behavior, startup, import/export, and diagnostics without
 crowding the monitor itself.
 
 ## What is included
@@ -38,6 +39,9 @@ Settings are written atomically under `%LOCALAPPDATA%\OPS Monitor`:
 - `settings.json` — shared runtime configuration
 - `widget-state.json` — last widget geometry and local window state
 - `Studio\studio-settings.json` — Studio editor state
+
+Versioned `.opsdesign` files can move a complete visual design between PCs.
+Imports are size- and schema-checked, applied atomically, and remain undoable.
 
 ## Requirements
 

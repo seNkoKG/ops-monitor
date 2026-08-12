@@ -26,7 +26,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
     private const string WidgetBuiltInThemePrefix = "widget-theme-";
     private static readonly HashSet<string> SupportedStudioModuleIds =
         new(
-            ["cpu", "gpu", "ram", "net", "latency", "disk", "battery"],
+            ["cpu", "gpu", "ram", "net", "latency", "disk", "battery", "weather"],
             StringComparer.Ordinal);
     private readonly LocalStudioSettingsSink _editorStore;
     private readonly JsonSettingsRepository _runtimeRepository;
@@ -365,6 +365,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             General = current.General with
             {
                 LaunchAtSignIn = snapshot.StartAtSignIn,
+                ReducedMotion = snapshot.ReducedMotion,
             },
             Widgets = widgets,
             Themes = themes,
@@ -443,7 +444,18 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                     PrimaryMetric = metrics.Primary,
                     SecondaryMetric = metrics.Secondary,
                     Icon = item.Icon,
-                    AccentColor = item.Accent,
+                    AccentColor = item.UseCustomAccent ? item.Accent : string.Empty,
+                    ShowIcon = item.ShowIcon,
+                    ShowAccent = item.ShowAccent,
+                    CardOpacity = item.CardOpacity,
+                    BorderOpacity = item.BorderOpacity,
+                    CardCornerRadiusOverride = item.CardCornerRadiusOverride,
+                    CardPaddingOverride = item.CardPaddingOverride,
+                    AccentWidthOverride = item.AccentWidthOverride,
+                    ProgressHeightOverride = item.ProgressHeightOverride,
+                    LabelSizeOverride = item.LabelSizeOverride,
+                    ValueSizeOverride = item.ValueSizeOverride,
+                    IconSizeOverride = item.IconSizeOverride,
                     ShowLabel = item.ShowLabel,
                     ShowSecondaryValue = metrics.Secondary.HasValue &&
                                          item.ShowTemperature,
@@ -469,11 +481,6 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             "#FF0D131C",
             "#FF2A3849",
             "#FF43E7D2");
-        var modules = snapshot.Modules ?? [];
-        var cpuAccent = modules.FirstOrDefault(item => item.Id == "cpu")?.Accent ?? details.Accent;
-        var gpuAccent = modules.FirstOrDefault(item => item.Id == "gpu")?.Accent ?? "#FFF05AD6";
-        var networkAccent = modules.FirstOrDefault(item => item.Id == "net")?.Accent ?? details.Accent;
-
         return new ThemeSettings
         {
             Id = themeId,
@@ -484,45 +491,121 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                 Background = details.Surface,
                 Card = details.Card,
                 Border = details.Border,
-                PrimaryText = "#FFF4F7FC",
-                SecondaryText = "#FFB3BECE",
-                CpuAccent = cpuAccent,
-                GpuAccent = gpuAccent,
-                NetworkAccent = networkAccent,
-                Warning = "#FFFFC95C",
-                Critical = "#FFFF6B81",
-                Success = "#FF63E6A6",
+                PrimaryText = details.PrimaryText,
+                SecondaryText = details.SecondaryText,
+                CpuAccent = details.CpuAccent,
+                GpuAccent = details.GpuAccent,
+                MemoryAccent = details.MemoryAccent,
+                NetworkAccent = details.NetworkAccent,
+                LatencyAccent = details.LatencyAccent,
+                WeatherAccent = details.WeatherAccent,
+                Track = details.Track,
+                Warning = details.Warning,
+                Critical = details.Critical,
+                Success = details.Success,
             },
             Surface = new ThemeSurface
             {
-                CornerRadius = ParseDesign(snapshot.Layout) == WidgetDesign.Dock ? 30 : 24,
-                CardCornerRadius = 11,
-                BlurEnabled = snapshot.BlurStrength > 0,
-                BlurStrength = Math.Clamp(snapshot.BlurStrength / 40, 0, 1),
-                ShadowEnabled = true,
-                ShadowOpacity = 0.28,
-                CardGap = snapshot.Density == "Compact" ? 4 : 6,
-                ContentPadding = snapshot.Density == "Compact" ? 8 : 10,
+                CornerRadius = details.CornerRadius,
+                CardCornerRadius = details.CardCornerRadius,
+                BlurEnabled = details.BlurEnabled,
+                BlurStrength = details.BlurStrength,
+                ShadowEnabled = details.ShadowEnabled,
+                ShadowOpacity = details.ShadowOpacity,
+                GlowEnabled = details.GlowEnabled,
+                GlowOpacity = details.GlowOpacity,
+                BorderWidth = details.BorderWidth,
+                CardBorderWidth = details.CardBorderWidth,
+                CardGap = details.CardGap,
+                ContentPadding = details.ContentPadding,
+                CardPadding = details.CardPadding,
+                CardOpacity = details.CardOpacity,
+                AccentWidth = details.AccentWidth,
+                ProgressHeight = details.ProgressHeight,
+                SparklineThickness = details.SparklineThickness,
+                HeaderVisible = details.HeaderVisible,
+                StatusIndicatorVisible = details.StatusIndicatorVisible,
+                SettingsButtonVisible = details.SettingsButtonVisible,
+                HeaderHeight = details.HeaderHeight,
             },
             Typography = new ThemeTypography
             {
-                FontFamily = "Segoe UI Variable",
-                LabelSize = Math.Max(12, 12 * snapshot.FontScale),
-                ValueSize = Math.Max(16, 18 * snapshot.FontScale),
-                MinimumReadableSize = 12,
-                LabelWeight = 600,
-                ValueWeight = 600,
-                UseTabularNumbers = true,
+                FontFamily = details.FontFamily,
+                HeaderSize = details.HeaderSize,
+                LabelSize = details.LabelSize,
+                SecondarySize = details.SecondarySize,
+                ValueSize = details.ValueSize,
+                MinimumReadableSize = details.MinimumReadableSize,
+                HeaderWeight = details.HeaderWeight,
+                LabelWeight = details.LabelWeight,
+                SecondaryWeight = details.SecondaryWeight,
+                ValueWeight = details.ValueWeight,
+                UseTabularNumbers = details.UseTabularNumbers,
             },
             Motion = new ThemeMotion
             {
-                Enabled = !snapshot.ReducedMotion,
-                TransitionMilliseconds = snapshot.ReducedMotion ? 0 : 145,
-                AnimateValueChanges = !snapshot.ReducedMotion,
-                RespectReducedMotion = true,
+                Enabled = details.MotionEnabled,
+                TransitionMilliseconds = details.TransitionMilliseconds,
+                AnimateValueChanges = details.AnimateValueChanges,
+                RespectReducedMotion = details.RespectReducedMotion,
+                PulseStatusIndicator = details.PulseStatusIndicator,
             },
         };
     }
+
+    private static StudioThemeSnapshot ToStudioThemeSnapshot(string id, ThemeSettings theme) =>
+        new(id, theme.Name, theme.Palette.Background, theme.Palette.Card, theme.Palette.Border, theme.Palette.CpuAccent)
+        {
+            PrimaryText = theme.Palette.PrimaryText,
+            SecondaryText = theme.Palette.SecondaryText,
+            CpuAccent = theme.Palette.CpuAccent,
+            GpuAccent = theme.Palette.GpuAccent,
+            MemoryAccent = theme.Palette.MemoryAccent,
+            NetworkAccent = theme.Palette.NetworkAccent,
+            LatencyAccent = theme.Palette.LatencyAccent,
+            WeatherAccent = theme.Palette.WeatherAccent,
+            Track = theme.Palette.Track,
+            Warning = theme.Palette.Warning,
+            Critical = theme.Palette.Critical,
+            Success = theme.Palette.Success,
+            CornerRadius = theme.Surface.CornerRadius,
+            CardCornerRadius = theme.Surface.CardCornerRadius,
+            BlurEnabled = theme.Surface.BlurEnabled,
+            BlurStrength = theme.Surface.BlurStrength,
+            ShadowEnabled = theme.Surface.ShadowEnabled,
+            ShadowOpacity = theme.Surface.ShadowOpacity,
+            GlowEnabled = theme.Surface.GlowEnabled,
+            GlowOpacity = theme.Surface.GlowOpacity,
+            BorderWidth = theme.Surface.BorderWidth,
+            CardBorderWidth = theme.Surface.CardBorderWidth,
+            CardGap = theme.Surface.CardGap,
+            ContentPadding = theme.Surface.ContentPadding,
+            CardPadding = theme.Surface.CardPadding,
+            CardOpacity = theme.Surface.CardOpacity,
+            AccentWidth = theme.Surface.AccentWidth,
+            ProgressHeight = theme.Surface.ProgressHeight,
+            SparklineThickness = theme.Surface.SparklineThickness,
+            HeaderVisible = theme.Surface.HeaderVisible,
+            StatusIndicatorVisible = theme.Surface.StatusIndicatorVisible,
+            SettingsButtonVisible = theme.Surface.SettingsButtonVisible,
+            HeaderHeight = theme.Surface.HeaderHeight,
+            FontFamily = theme.Typography.FontFamily,
+            HeaderSize = theme.Typography.HeaderSize,
+            LabelSize = theme.Typography.LabelSize,
+            SecondarySize = theme.Typography.SecondarySize,
+            ValueSize = theme.Typography.ValueSize,
+            MinimumReadableSize = theme.Typography.MinimumReadableSize,
+            HeaderWeight = theme.Typography.HeaderWeight,
+            LabelWeight = theme.Typography.LabelWeight,
+            SecondaryWeight = theme.Typography.SecondaryWeight,
+            ValueWeight = theme.Typography.ValueWeight,
+            UseTabularNumbers = theme.Typography.UseTabularNumbers,
+            MotionEnabled = theme.Motion.Enabled,
+            TransitionMilliseconds = theme.Motion.TransitionMilliseconds,
+            AnimateValueChanges = theme.Motion.AnimateValueChanges,
+            RespectReducedMotion = theme.Motion.RespectReducedMotion,
+            PulseStatusIndicator = theme.Motion.PulseStatusIndicator
+        };
 
     private static PerformanceProfileSettings MapProfile(
         StudioSettingsSnapshot snapshot,
@@ -715,17 +798,11 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                                    baseline.UpdateCadenceSeconds,
             PerformanceMode = profile?.Mode.ToString() ?? baseline.PerformanceMode,
             AlertsEnabled = runtime.AlertRules.Any(item => item.Enabled),
-            ReducedMotion = theme is not null && !theme.Motion.Enabled,
+            ReducedMotion = runtime.General.ReducedMotion,
             Modules = modules,
             ThemeDetails = theme is null
                 ? baseline.ThemeDetails
-                : new StudioThemeSnapshot(
-                    mappedThemeId,
-                    theme.Name,
-                    theme.Palette.Background,
-                    theme.Palette.Card,
-                    theme.Palette.Border,
-                    theme.Palette.CpuAccent),
+                : ToStudioThemeSnapshot(mappedThemeId, theme),
             Scenes = OverlayScenes(baseline.Scenes, runtime.Scenes),
             Alerts = OverlayAlerts(baseline.Alerts, runtime.AlertRules),
         };
@@ -764,7 +841,21 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                     string.IsNullOrWhiteSpace(item.Icon) ? prior?.Icon ?? string.Empty : item.Icon,
                     string.IsNullOrWhiteSpace(item.AccentColor)
                         ? prior?.Accent ?? AccentFor(id)
-                        : item.AccentColor);
+                        : item.AccentColor)
+                {
+                    UseCustomAccent = !string.IsNullOrWhiteSpace(item.AccentColor),
+                    ShowIcon = item.ShowIcon,
+                    ShowAccent = item.ShowAccent,
+                    CardOpacity = item.CardOpacity,
+                    BorderOpacity = item.BorderOpacity,
+                    CardCornerRadiusOverride = item.CardCornerRadiusOverride,
+                    CardPaddingOverride = item.CardPaddingOverride,
+                    AccentWidthOverride = item.AccentWidthOverride,
+                    ProgressHeightOverride = item.ProgressHeightOverride,
+                    LabelSizeOverride = item.LabelSizeOverride,
+                    ValueSizeOverride = item.ValueSizeOverride,
+                    IconSizeOverride = item.IconSizeOverride
+                };
             })
             .ToArray();
     }
@@ -849,6 +940,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             "latency" => (WellKnownMetrics.NetworkPing, WellKnownMetrics.NetworkPacketLoss),
             "disk" => (new MetricId("storage.disk.activity"), new MetricId("storage.disk.free")),
             "battery" => (WellKnownMetrics.BatteryCharge, WellKnownMetrics.BatteryRemaining),
+            "weather" => (new MetricId("weather.temperature"), new MetricId("weather.condition")),
             _ => (new MetricId($"custom.{Slug(id)}"), (MetricId?)null),
         };
 
@@ -891,6 +983,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             "latency" => "module-latency",
             "disk" => "module-storage",
             "battery" => "module-battery",
+            "weather" => "module-weather",
             _ => throw new ArgumentOutOfRangeException(
                 nameof(studioId),
                 studioId,
@@ -907,6 +1000,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             "module-latency" => "latency",
             "module-storage" => "disk",
             "module-battery" => "battery",
+            "module-weather" => "weather",
             _ => null,
         };
 
@@ -1070,6 +1164,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             "disk" => "Storage",
             "fps" => "Frame rate",
             "battery" => "Power",
+            "weather" => "Weather",
             _ => id,
         };
 
@@ -1079,6 +1174,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             "gpu" => "#FFF05AD6",
             "latency" => "#FFFFC95C",
             "net" => "#FF62A7FF",
+            "weather" => "#FF62A7FF",
             _ => "#FF43E7D2",
         };
 

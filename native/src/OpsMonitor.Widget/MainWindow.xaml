@@ -38,8 +38,8 @@
                BasedOn="{StaticResource WidgetReadableText}"
                TargetType="{x:Type TextBlock}">
             <Setter Property="FontFamily" Value="{Binding WidgetFontFamily}" />
-            <Setter Property="FontSize" Value="{Binding LabelFontSize}" />
-            <Setter Property="FontWeight" Value="{Binding LabelFontWeight}" />
+            <Setter Property="FontSize" Value="{Binding HeaderFontSize}" />
+            <Setter Property="FontWeight" Value="{Binding HeaderFontWeight}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding Density}" Value="{x:Static models:WidgetDensity.Compact}">
                     <Setter Property="FontSize" Value="11" />
@@ -51,8 +51,8 @@
                BasedOn="{StaticResource WidgetReadableText}"
                TargetType="{x:Type TextBlock}">
             <Setter Property="FontFamily" Value="{Binding WidgetFontFamily}" />
-            <Setter Property="FontSize" Value="{Binding MinimumReadableFontSize}" />
-            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="FontSize" Value="{Binding SecondaryFontSize}" />
+            <Setter Property="FontWeight" Value="{Binding SecondaryFontWeight}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding Density}" Value="{x:Static models:WidgetDensity.Compact}">
                     <Setter Property="FontSize" Value="10.5" />
@@ -392,21 +392,24 @@
         </Grid.Style>
         <Border x:Name="RootSurface"
                 Background="{Binding SurfaceBrush}"
-                BorderBrush="{Binding BorderBrush}">
+                BorderBrush="{Binding BorderBrush}"
+                BorderThickness="{Binding ShellBorderThickness}"
+                CornerRadius="{Binding ShellCornerRadius}"
+                MouseLeftButtonDown="DragHeader_OnMouseLeftButtonDown">
             <Border.Style>
                 <Style TargetType="{x:Type Border}">
-                    <Setter Property="CornerRadius" Value="19" />
-                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Padding" Value="{Binding ShellContentPadding}" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding Layout}" Value="{x:Static models:WidgetLayout.Pill}">
-                            <Setter Property="CornerRadius" Value="27" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding Layout}" Value="{x:Static models:WidgetLayout.Dock}">
-                            <Setter Property="CornerRadius" Value="24" />
+                            <Setter Property="Padding" Value="0" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding Layout}" Value="{x:Static models:WidgetLayout.Mini}">
-                            <Setter Property="CornerRadius" Value="16" />
-                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="Padding" Value="0" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Density}" Value="{x:Static models:WidgetDensity.Compact}">
+                            <Setter Property="Padding" Value="0" />
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
@@ -422,15 +425,9 @@
             <Grid ClipToBounds="True">
                 <Border Height="72"
                         VerticalAlignment="Top"
+                        Background="{Binding ShellGlowBrush}"
                         CornerRadius="25,25,0,0"
                         Opacity="{Binding ShellGlowOpacity}">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                            <GradientStop Offset="0" Color="#FF48DCF9" />
-                            <GradientStop Offset="0.55" Color="#0058E6B2" />
-                            <GradientStop Offset="1" Color="#FFFF4FD8" />
-                        </LinearGradientBrush>
-                    </Border.Background>
                 </Border>
 
                 <Grid x:Name="StandardLayout">
@@ -458,10 +455,11 @@
                           Grid.Row="0"
                           Background="Transparent"
                           Opacity="{Binding ContentOpacity}"
-                          MouseLeftButtonDown="DragHeader_OnMouseLeftButtonDown">
+                          MouseLeftButtonDown="DragHeader_OnMouseLeftButtonDown"
+                          Visibility="{Binding HeaderVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Grid.Style>
                             <Style TargetType="{x:Type Grid}">
-                                <Setter Property="Height" Value="36" />
+                                <Setter Property="Height" Value="{Binding HeaderHeight}" />
                                 <Setter Property="Margin" Value="12,5,10,2" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Layout}"
@@ -511,7 +509,8 @@
                                 Background="{Binding TrackBrush}"
                                 BorderBrush="{Binding BorderBrush}"
                                 BorderThickness="1"
-                                CornerRadius="9">
+                                CornerRadius="9"
+                                Visibility="{Binding StatusIndicatorVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Border.Style>
                                 <Style TargetType="{x:Type Border}">
                                     <Setter Property="Visibility" Value="Visible" />
@@ -527,13 +526,13 @@
                                 <Ellipse x:Name="StandardUpdatePulseDot"
                                          Width="7"
                                          Height="7"
-                                         Fill="#FF58E6B2" />
+                                         Fill="{Binding SuccessBrush}" />
                                 <Ellipse Width="16"
                                          Height="16"
                                          x:Name="StandardUpdatePulseRing"
                                          Opacity="0"
                                          RenderTransformOrigin="0.5,0.5"
-                                         Stroke="#6658E6B2"
+                                         Stroke="{Binding SuccessBrush}"
                                          StrokeThickness="1">
                                     <Ellipse.RenderTransform>
                                         <ScaleTransform x:Name="StandardUpdatePulseScale"
@@ -566,7 +565,7 @@
                                      Height="10"
                                      Opacity="0"
                                      RenderTransformOrigin="0.5,0.5"
-                                     Stroke="#9958E6B2"
+                                     Stroke="{Binding SuccessBrush}"
                                      StrokeThickness="1">
                                 <Ellipse.RenderTransform>
                                     <ScaleTransform x:Name="MiniUpdatePulseScale"
@@ -577,7 +576,7 @@
                             <Ellipse x:Name="MiniUpdatePulseDot"
                                      Width="5"
                                      Height="5"
-                                     Fill="#FF58E6B2" />
+                                     Fill="{Binding SuccessBrush}" />
                         </Grid>
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -626,7 +625,8 @@
                         <Button x:Name="SettingsButton"
                                 Grid.Column="3"
                                 AutomationProperties.Name="Quick settings"
-                                Click="SettingsButton_OnClick">
+                                Click="SettingsButton_OnClick"
+                                Visibility="{Binding SettingsButtonVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Button.Style>
                                 <Style BasedOn="{StaticResource IconButtonStyle}"
                                        TargetType="{x:Type Button}">
@@ -756,7 +756,8 @@
 
                     <Grid Grid.Column="0"
                           Margin="1,0,8,0"
-                          Opacity="{Binding ContentOpacity}">
+                          Opacity="{Binding ContentOpacity}"
+                          Visibility="{Binding HeaderVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
                             <RowDefinition Height="*" />
@@ -768,13 +769,14 @@
                             <Grid Width="12"
                                   Height="12"
                                   Margin="0,0,5,0"
-                                  VerticalAlignment="Center">
+                                  VerticalAlignment="Center"
+                                  Visibility="{Binding StatusIndicatorVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <Ellipse x:Name="DockUpdatePulseRing"
                                          Width="11"
                                          Height="11"
                                          Opacity="0"
                                          RenderTransformOrigin="0.5,0.5"
-                                         Stroke="#9958E6B2"
+                                         Stroke="{Binding SuccessBrush}"
                                          StrokeThickness="1">
                                     <Ellipse.RenderTransform>
                                         <ScaleTransform x:Name="DockUpdatePulseScale"
@@ -785,7 +787,7 @@
                                 <Ellipse x:Name="DockUpdatePulseDot"
                                          Width="6"
                                          Height="6"
-                                         Fill="#FF58E6B2" />
+                                         Fill="{Binding SuccessBrush}" />
                             </Grid>
                             <TextBlock VerticalAlignment="Center"
                                        Foreground="{Binding TextPrimaryBrush}"
@@ -833,7 +835,8 @@
                             VerticalAlignment="Center"
                             AutomationProperties.Name="Quick settings"
                             Click="SettingsButton_OnClick"
-                            Style="{StaticResource IconButtonStyle}">
+                            Style="{StaticResource IconButtonStyle}"
+                            Visibility="{Binding SettingsButtonVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <TextBlock FontFamily="Segoe UI Symbol"
                                    FontSize="16"
                                    Text="⚙" />

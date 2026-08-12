@@ -35,6 +35,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("future settings schemas remain read-only", TestFutureSettingsSchemaAsync),
     ("explicit null settings members fall back safely", TestNullSettingsMembersAsync),
     ("Studio settings migrate safely and save atomically", TestStudioSettingsMigrationAsync),
+    ("Studio design packages normalize and round-trip safely", TestStudioDesignPackageAsync),
+    ("Widget designer clamps tokens and repairs contrast", TestWidgetDesignerStateAsync),
     ("Studio mapping preserves interaction and independent modules", TestStudioRuntimeMappingAsync),
     ("Studio sensor pins and alerts reach the live runtime", TestStudioSensorPinMappingAsync),
     ("Studio merges concurrent edits without losing widget changes", TestStudioConflictMergeAsync),
@@ -218,7 +220,7 @@ static async Task TestStudioSettingsMigrationAsync()
         store.Save(migrated);
         var roundTrip = store.Reload() ??
             throw new InvalidOperationException("saved Studio settings were not reloaded");
-        Assert.Equal(3, roundTrip.SchemaVersion, "Studio schema version");
+        Assert.Equal(4, roundTrip.SchemaVersion, "Studio schema version");
         Assert.False(
             Directory.EnumerateFiles(directory.FullName, "*.tmp").Any(),
             "temporary Studio settings file leaked");
@@ -227,6 +229,135 @@ static async Task TestStudioSettingsMigrationAsync()
     {
         directory.Delete(recursive: true);
     }
+}
+
+static async Task TestStudioDesignPackageAsync()
+{
+    var directory = Directory.CreateTempSubdirectory("OpsMonitorDesignPackageTests-");
+    try
+    {
+        var path = Path.Combine(directory.FullName, "night-shift.opsdesign");
+        var package = new StudioDesignPackage(
+            SchemaVersion: 1,
+            Name: "  Night shift  ",
+            Layout: "Mini",
+            Density: "Compact",
+            Theme: new StudioThemeSnapshot(
+                "night-shift",
+                "Night shift",
+                "#FF010203",
+                "#FF040506",
+                "#FF070809",
+                "#FF00D9FF")
+            {
+                PrimaryText = "#FFFFFFFF",
+                CardOpacity = 0.64,
+                HeaderVisible = false,
+                CardPadding = 7,
+                ValueSize = 17
+            },
+            Modules:
+            [
+                new StudioModuleSnapshot(
+                    "cpu", "Processor", 0, true, "Standard", "Bar",
+                    true, true, true, "1 decimal", "CPU", "#FF00D9FF")
+                {
+                    UseCustomAccent = true,
+                    CardOpacity = 0.72,
+                    CardPaddingOverride = 5,
+                    ValueSizeOverride = 16
+                }
+            ]);
+
+        DesignPackageService.Save(path, package);
+        var roundTrip = DesignPackageService.Load(path);
+
+        Assert.Equal(4, roundTrip.SchemaVersion, "design schema version");
+        Assert.Equal("Night shift", roundTrip.Name, "design name trim");
+        Assert.Equal("Mini", roundTrip.Layout, "design layout");
+        Assert.Equal(0.64, roundTrip.Theme.CardOpacity, "theme token round-trip");
+        Assert.False(roundTrip.Theme.HeaderVisible, "header visibility round-trip");
+        Assert.True(roundTrip.Modules!.Single().UseCustomAccent, "module accent mode round-trip");
+        Assert.Equal(5d, roundTrip.Modules!.Single().CardPaddingOverride!.Value, "module token round-trip");
+        Assert.False(
+            Directory.EnumerateFiles(directory.FullName, "*.tmp").Any(),
+            "temporary design package leaked");
+
+        var exportedPath = Path.Combine(directory.FullName, "exported.opsdesign");
+        using (var viewModel = new StudioViewModel(new FakeStudioSettingsSink()))
+        {
+            Assert.True(viewModel.ImportDesign(path), "custom design import failed");
+            Assert.True(viewModel.ExportDesign(exportedPath), "custom design export failed");
+        }
+
+        var exported = DesignPackageService.Load(exportedPath);
+        Assert.Equal("night-shift", exported.Theme.Id, "custom design id was replaced");
+        Assert.Equal("Night shift", exported.Theme.Name, "custom design name was replaced");
+
+        await File.WriteAllTextAsync(
+            path,
+            JsonSerializer.Serialize(package with { Modules = null }));
+        Assert.Equal(
+            0,
+            DesignPackageService.Load(path).Modules!.Count,
+            "null design modules were not normalized");
+
+        await File.WriteAllTextAsync(
+            path,
+            JsonSerializer.Serialize(package with { SchemaVersion = 99 }));
+        var rejectedFutureSchema = false;
+        try
+        {
+            _ = DesignPackageService.Load(path);
+        }
+        catch (InvalidDataException)
+        {
+            rejectedFutureSchema = true;
+        }
+
+        Assert.True(rejectedFutureSchema, "future design schema was accepted");
+    }
+    finally
+    {
+        directory.Delete(recursive: true);
+    }
+}
+
+static Task TestWidgetDesignerStateAsync()
+{
+    var designer = new WidgetDesignerState
+    {
+        CornerRadius = 999,
+        CardOpacity = -1,
+        ValueSize = 2,
+        TransitionMilliseconds = 9_999,
+        Surface = "#FFFFFFFF",
+        Card = "#FFFFFFFF",
+        PrimaryText = "#FFFDFDFD",
+        SecondaryText = "#FFF8F8F8"
+    };
+
+    Assert.Equal(48d, designer.CornerRadius, "corner radius ceiling");
+    Assert.Equal(0d, designer.CardOpacity, "card opacity floor");
+    Assert.Equal(10d, designer.ValueSize, "value size floor");
+    Assert.Equal(600, designer.TransitionMilliseconds, "transition duration ceiling");
+    Assert.False(designer.HasReadableContrast, "unreadable palette was not detected");
+
+    designer.FixContrast();
+    Assert.True(designer.HasReadableContrast, "contrast repair did not restore readability");
+    Assert.Equal("#FF000000", designer.PrimaryText, "contrast repair chose the wrong polarity");
+
+    designer.ApplyPreset(new ThemePreset(
+        "terminal",
+        "Terminal",
+        "test",
+        System.Windows.Media.Color.FromRgb(3, 15, 8),
+        System.Windows.Media.Color.FromRgb(7, 25, 13),
+        System.Windows.Media.Color.FromRgb(29, 94, 55),
+        System.Windows.Media.Color.FromRgb(92, 255, 157)));
+    Assert.Equal("Cascadia Mono", designer.FontFamily, "preset typography");
+    Assert.Equal(4d, designer.CardCornerRadius, "preset geometry");
+    return Task.CompletedTask;
 }
 
 static Task TestStudioRuntimeMappingAsync()
@@ -294,7 +425,13 @@ static Task TestStudioRuntimeMappingAsync()
         WidgetScalePercent: 80,
         UpdateCadenceSeconds: 1,
         PerformanceMode: "Efficiency",
-        Modules: modules);
+        Modules: modules,
+        ThemeDetails: new StudioThemeSnapshot(
+            "slate", "Slate", "#FF05080D", "#FF0D131C", "#FF2A3849", "#FF43E7D2")
+        {
+            MotionEnabled = false
+        },
+        ReducedMotion: false);
 
     var mapped = StudioCoreSettingsSink.MapRuntime(snapshot, current);
     var widget = mapped.Widgets.Single(item =>
@@ -314,6 +451,10 @@ static Task TestStudioRuntimeMappingAsync()
     Assert.False(
         widget.Modules[1].ShowSecondaryValue,
         "secondary-value preference was ignored");
+    Assert.False(mapped.General.ReducedMotion, "theme motion disabled global reduced-motion");
+    Assert.False(
+        mapped.Themes.Single(theme => theme.Id == widget.ThemeId).Motion.Enabled,
+        "theme motion preference was not preserved independently");
     Assert.Equal(
         "preserved-alert",
         mapped.AlertRules.Single().Id,
@@ -359,16 +500,16 @@ static Task TestStudioControlSemanticsAsync()
 {
     using var viewModel = new StudioViewModel(new FakeStudioSettingsSink());
     Assert.Equal(
-        "cpu,gpu,ram,net,latency,disk,battery",
+        "cpu,gpu,ram,net,latency,disk,battery,weather",
         string.Join(',', viewModel.Modules.Select(module => module.Id)),
         "Studio exposed an unsupported widget module");
 
     Assert.False(
         viewModel.SelectLayoutCommand.CanExecute(viewModel.SelectedLayout),
         "active layout remained clickable");
-    Assert.False(
+    Assert.True(
         viewModel.ApplyThemeCommand.CanExecute(viewModel.SelectedTheme),
-        "active theme remained clickable");
+        "active theme could not be re-applied after token edits");
     var activeScene = viewModel.Scenes.Single(scene => scene.IsActive);
     Assert.False(
         viewModel.ActivateSceneCommand.CanExecute(activeScene),
@@ -390,6 +531,15 @@ static Task TestStudioControlSemanticsAsync()
     Assert.True(cpu.ShowTemperature, "module presentation undo failed");
     cpu.Precision = "2 decimals";
     Assert.Equal("42.00%", cpu.PreviewPrimaryValue, "preview precision was not applied");
+
+    viewModel.Designer.Card = "#FFFFFFFF";
+    viewModel.Designer.PrimaryText = "#FFFDFDFD";
+    viewModel.Designer.SecondaryText = "#FFF8F8F8";
+    viewModel.FixContrastCommand.Execute(null);
+    Assert.Equal("#FF000000", viewModel.Designer.PrimaryText, "contrast fix did not apply");
+    viewModel.UndoCommand.Execute(null);
+    Assert.Equal("#FFFDFDFD", viewModel.Designer.PrimaryText, "contrast fix primary undo failed");
+    Assert.Equal("#FFF8F8F8", viewModel.Designer.SecondaryText, "contrast fix was not one undo transaction");
 
     viewModel.Density = "Airy";
     viewModel.SelectedLayout = "Dock";
@@ -1405,6 +1555,7 @@ static Task TestWidgetSettingsMappingAsync()
         SurfaceOpacity = 0.25,
         ContentOpacity = 0.9,
         UpdateCadenceSeconds = 2.5,
+        ReducedMotion = true,
         Theme = defaults.Themes[0].Name,
         CoreThemeId = defaults.Themes[0].Id,
         EnabledModules =
@@ -1423,6 +1574,7 @@ static Task TestWidgetSettingsMappingAsync()
     Assert.False(mappedWidget.Window.ClickThrough, "click-through was incorrectly saved");
     Assert.True(mappedWidget.Window.Draggable, "draggable preference was discarded");
     Assert.True(mappedWidget.Window.Resizable, "resizable preference was discarded");
+    Assert.True(mapped.General.ReducedMotion, "reduced motion did not save");
     Assert.Equal(
         TimeSpan.FromSeconds(2.5),
         mapped.PerformanceProfiles.Single(profile =>
@@ -1444,6 +1596,7 @@ static Task TestWidgetSettingsMappingAsync()
         "locked mode load mapping");
     Assert.True(loaded.Draggable, "lock reload discarded draggable preference");
     Assert.True(loaded.Resizable, "lock reload discarded resizable preference");
+    Assert.True(loaded.ReducedMotion, "reduced motion did not load");
 
     var conflictingWindow = mappedWidget.Window with
     {
@@ -1541,9 +1694,10 @@ static Task TestWidgetViewModelAsync()
     Assert.True(
         surfaceBrush.Color.A <= 24,
         "minimum shell opacity was not honored");
-    Assert.True(
-        cardBrush.Color.A >= 190,
-        "metric cards lost the minimum readability guard");
+    Assert.Equal(
+        184,
+        (int)cardBrush.Color.A,
+        "metric card opacity did not honor the selected design token");
     Assert.True(
         readabilityPlateBrush.Color.A >= 190,
         "header/footer readability plate disappeared");
