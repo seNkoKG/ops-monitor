@@ -80,7 +80,7 @@ h1 span { color: transparent; -webkit-text-stroke: 1px rgba(244,248,255,.66); }
 
 .widget-demo { --card: rgba(11,17,27,.84); position: relative; width: 226px; padding: 10px; border: 1px solid rgba(112,140,172,.3); border-radius: var(--radius); background: rgba(4,8,14,var(--widget-opacity)); box-shadow: 0 36px 80px rgba(0,0,0,.55), 0 0 70px rgba(72,220,249,.08), inset 0 1px rgba(255,255,255,.04); transform: perspective(1100px) rotateY(-5deg) rotateX(2deg); transition: width .4s cubic-bezier(.2,.8,.2,1), transform .4s ease, border-radius .3s ease; }
 .widget-head { height: 28px; display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 8px; padding: 0 4px 3px; font: 700 10px/1 "Cascadia Mono", monospace; }
-.cog { padding: 0; border: 0; color: #b9c5d5; background: transparent; cursor: pointer; }
+.cog { width: 44px; height: 44px; margin: -14px; display: grid; place-items: center; padding: 0; border: 0; color: #b9c5d5; background: transparent; cursor: pointer; }
 .metric { position: relative; min-height: 53px; margin-top: var(--gap); padding: 7px 8px 7px 10px; overflow: hidden; border: 1px solid rgba(94,120,151,.2); border-radius: calc(var(--radius) * .42); background: var(--card); }
 .metric::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 2px; background: var(--metric-color); box-shadow: 0 0 9px color-mix(in srgb, var(--metric-color), transparent 40%); }
 .metric-top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; color: var(--metric-color); font: 700 9px/1.1 "Cascadia Mono", monospace; }
@@ -105,7 +105,7 @@ h2 { font-size: clamp(50px, 6vw, 88px); }
 
 .layout-stage { min-height: 470px; padding: 24px; border: 1px solid var(--line); background: rgba(7,12,19,.78); box-shadow: inset 0 1px rgba(255,255,255,.025); }
 .segmented { display: inline-flex; padding: 4px; gap: 3px; border: 1px solid var(--line); background: #05090f; }
-.segmented button, .preset-row button { min-height: 38px; border: 0; padding: 0 22px; color: var(--muted); background: transparent; font: 700 10px/1 "Cascadia Mono", monospace; letter-spacing: .05em; cursor: pointer; }
+.segmented button, .preset-row button { min-height: 44px; border: 0; padding: 0 22px; color: var(--muted); background: transparent; font: 700 10px/1 "Cascadia Mono", monospace; letter-spacing: .05em; cursor: pointer; }
 .segmented button.active, .preset-row button.active { color: #001318; background: var(--cyan); }
 .layout-canvas { min-height: 335px; display: grid; place-items: center; overflow: auto; background: radial-gradient(circle at center, rgba(72,220,249,.06), transparent 55%), repeating-linear-gradient(0deg, transparent 0 31px, rgba(93,128,158,.07) 31px 32px), repeating-linear-gradient(90deg, transparent 0 31px, rgba(93,128,158,.07) 31px 32px); }
 .layout-preview { display: grid; gap: 1px; overflow: hidden; border: 1px solid rgba(110,140,170,.3); background: rgba(3,7,12,.9); box-shadow: 0 20px 60px rgba(0,0,0,.45); transition: width .45s ease, height .45s ease, grid-template-columns .45s ease, border-radius .45s ease; }
@@ -159,7 +159,7 @@ input[type="range"] { grid-column: 1 / -1; width: 100%; height: 2px; accent-colo
 
 footer { max-width: 1440px; min-height: 110px; margin: 0 auto; padding: 0 34px; display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; border-top: 1px solid var(--line); color: var(--dim); font-size: 10px; }footer p { text-align: center; }footer div { justify-self: end; display: flex; gap: 22px; }footer a:hover { color: var(--cyan); }
 
-dialog { width: min(1120px, calc(100vw - 40px)); max-width: none; padding: 0; border: 1px solid rgba(106,138,170,.4); background: #05090f; box-shadow: 0 50px 120px #000; }dialog::backdrop { background: rgba(0,3,7,.84); backdrop-filter: blur(9px); }dialog img { display: block; width: 100%; }dialog button { position: absolute; z-index: 2; right: 12px; top: 12px; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.22); border-radius: 50%; color: white; background: rgba(3,7,12,.8); font-size: 24px; cursor: pointer; }
+dialog { width: min(1120px, calc(100vw - 40px)); max-width: none; padding: 0; border: 1px solid rgba(106,138,170,.4); background: #05090f; box-shadow: 0 50px 120px #000; }dialog::backdrop { background: rgba(0,3,7,.84); backdrop-filter: blur(9px); }dialog img { display: block; width: 100%; }dialog button { position: absolute; z-index: 2; right: 12px; top: 12px; width: 44px; height: 44px; border: 1px solid rgba(255,255,255,.22); border-radius: 50%; color: white; background: rgba(3,7,12,.8); font-size: 24px; cursor: pointer; }
 
 .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }.reveal.visible { opacity: 1; transform: none; }
 @keyframes pulse { 0%,100% { transform: scale(.8); opacity: .65; } 45% { transform: scale(1); opacity: 1; } 70% { box-shadow: 0 0 0 8px transparent, 0 0 18px rgba(88,230,178,.3); } }
