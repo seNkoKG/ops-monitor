@@ -38,26 +38,16 @@
                BasedOn="{StaticResource WidgetReadableText}"
                TargetType="{x:Type TextBlock}">
             <Setter Property="FontFamily" Value="{Binding WidgetFontFamily}" />
-            <Setter Property="FontSize" Value="{Binding HeaderFontSize}" />
+            <Setter Property="FontSize" Value="{Binding LayoutHeaderFontSize}" />
             <Setter Property="FontWeight" Value="{Binding HeaderFontWeight}" />
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Density}" Value="{x:Static models:WidgetDensity.Compact}">
-                    <Setter Property="FontSize" Value="11" />
-                </DataTrigger>
-            </Style.Triggers>
         </Style>
 
         <Style x:Key="WidgetHeaderMetaTextStyle"
                BasedOn="{StaticResource WidgetReadableText}"
                TargetType="{x:Type TextBlock}">
             <Setter Property="FontFamily" Value="{Binding WidgetFontFamily}" />
-            <Setter Property="FontSize" Value="{Binding SecondaryFontSize}" />
+            <Setter Property="FontSize" Value="{Binding LayoutSecondaryFontSize}" />
             <Setter Property="FontWeight" Value="{Binding SecondaryFontWeight}" />
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Density}" Value="{x:Static models:WidgetDensity.Compact}">
-                    <Setter Property="FontSize" Value="10.5" />
-                </DataTrigger>
-            </Style.Triggers>
         </Style>
 
         <Style x:Key="IconButtonStyle" TargetType="{x:Type Button}">
@@ -398,20 +388,7 @@
                 MouseLeftButtonDown="DragHeader_OnMouseLeftButtonDown">
             <Border.Style>
                 <Style TargetType="{x:Type Border}">
-                    <Setter Property="Padding" Value="{Binding ShellContentPadding}" />
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding Layout}" Value="{x:Static models:WidgetLayout.Pill}">
-                        </DataTrigger>
-                        <DataTrigger Binding="{Binding Layout}" Value="{x:Static models:WidgetLayout.Dock}">
-                            <Setter Property="Padding" Value="0" />
-                        </DataTrigger>
-                        <DataTrigger Binding="{Binding Layout}" Value="{x:Static models:WidgetLayout.Mini}">
-                            <Setter Property="Padding" Value="0" />
-                        </DataTrigger>
-                        <DataTrigger Binding="{Binding Density}" Value="{x:Static models:WidgetDensity.Compact}">
-                            <Setter Property="Padding" Value="0" />
-                        </DataTrigger>
-                    </Style.Triggers>
+                    <Setter Property="Padding" Value="{Binding LayoutShellContentPadding}" />
                 </Style>
             </Border.Style>
             <Border.Effect>
@@ -459,12 +436,11 @@
                           Visibility="{Binding HeaderVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Grid.Style>
                             <Style TargetType="{x:Type Grid}">
-                                <Setter Property="Height" Value="{Binding HeaderHeight}" />
+                                <Setter Property="Height" Value="{Binding LayoutHeaderHeight}" />
                                 <Setter Property="Margin" Value="12,5,10,2" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Layout}"
                                                  Value="{x:Static models:WidgetLayout.Mini}">
-                                        <Setter Property="Height" Value="22" />
                                         <Setter Property="Margin" Value="8,1,7,0" />
                                     </DataTrigger>
                                     <MultiDataTrigger>
@@ -475,7 +451,6 @@
                                                        Value="{x:Static models:WidgetDensity.Compact}" />
                                             <Condition Binding="{Binding IsReducedScale}" Value="True" />
                                         </MultiDataTrigger.Conditions>
-                                        <Setter Property="Height" Value="17" />
                                         <Setter Property="Margin" Value="6,0,5,0" />
                                     </MultiDataTrigger>
                                     <MultiDataTrigger>
@@ -486,7 +461,6 @@
                                                        Value="{x:Static models:WidgetDensity.Compact}" />
                                             <Condition Binding="{Binding IsReducedScale}" Value="True" />
                                         </MultiDataTrigger.Conditions>
-                                        <Setter Property="Height" Value="34" />
                                         <Setter Property="Margin" Value="10,3,8,1" />
                                     </MultiDataTrigger>
                                 </Style.Triggers>

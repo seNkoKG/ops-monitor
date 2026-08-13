@@ -6,7 +6,7 @@
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-38C9FF?style=flat-square">
   <img alt="Framework" src="https://img.shields.io/badge/.NET-10.0-7655D9?style=flat-square">
   <img alt="UI" src="https://img.shields.io/badge/UI-Native%20WPF-63F6D8?style=flat-square&labelColor=111827">
-  <img alt="Version" src="https://img.shields.io/badge/version-3.3.0-F24DE7?style=flat-square&labelColor=17111F">
+  <img alt="Version" src="https://img.shields.io/badge/version-3.4.0-F24DE7?style=flat-square&labelColor=17111F">
 </p>
 
 <p align="center">
@@ -17,7 +17,7 @@
 <p align="center">
   <a href="https://senkokg.github.io/ops-monitor/"><strong>Explore the website</strong></a>
   ·
-  <a href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.3.0"><strong>Download v3.3</strong></a>
+  <a href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.0"><strong>Download v3.4</strong></a>
 </p>
 
 ## The desktop, without the dashboard clutter
@@ -28,7 +28,7 @@ battery, and local weather. The separate Studio handles deep customization so
 the desktop overlay remains clean.
 
 <p align="center">
-  <img src="docs/assets/screenshots/studio-v3.3.png" width="100%" alt="OPS Monitor 3.3 Studio with the production-renderer Mini preview">
+  <img src="docs/assets/screenshots/studio-v3.4.png" width="100%" alt="OPS Monitor 3.4 Studio with readable temperature controls and production-renderer preview">
 </p>
 
 ### Built to disappear until you need it
@@ -36,8 +36,9 @@ the desktop overlay remains clean.
 - **Four responsive layouts** — Pill, Rail, Dock, and an ultra-small Mini.
 - **Real hardware telemetry** — CPU, GPU, RAM, VRAM, disks, fans, clocks,
   power, temperatures, battery, uptime, ping, jitter, and packet loss.
-- **Local weather intelligence** — current conditions, hourly and eight-day
-  forecasts, official ARSO alerts, air quality, UV, pollen, and animated radar.
+- **Local weather intelligence** — ARSO live observations and official regional
+  outlooks, three-model forecast confidence, 15-minute rain nowcast, hourly and
+  eight-day guidance, air quality, UV, pollen, warnings, and animated radar.
 - **A real customization surface** — eight presets plus independent palette,
   surface, geometry, graph, typography, motion, opacity, scale, density,
   sensor, refresh, startup, lock, click-through, and window controls. Every
@@ -59,7 +60,7 @@ persists its position and scale.
 <table>
   <tr>
     <td width="34%" align="center">
-      <img src="docs/assets/screenshots/widget-mini-v3.3.png" width="245" alt="OPS Monitor 3.3 Mini with hardware, network, packet loss, and weather rows">
+      <img src="docs/assets/screenshots/widget-mini-v3.3.png" width="245" alt="OPS Monitor Mini with readable temperatures, packet loss, and weather">
     </td>
     <td>
       <h3>Mini, but still useful</h3>
@@ -73,10 +74,13 @@ persists its position and scale.
 
 ## Weather that understands place
 
-The default location is Celje, Slovenia, and any location can be searched and
-saved. OPS Monitor blends forecast and air-quality data from Open-Meteo with
-official Slovenian observations, warnings, and radar from ARSO. Results are
-cached, refresh work never overlaps, and the radar only downloads when opened.
+The default location is Celje, Slovenia, and any location or exact coordinate
+can be searched and saved. OPS Monitor prioritizes the nearest official ARSO
+station, adds ARSO's regional outlook, warnings, and radar, then compares
+Open-Meteo Best Match, ECMWF IFS, and DWD ICON-EU guidance. The suite explains
+model agreement, includes a 15-minute precipitation nowcast, and keeps a
+six-hour last-known-good cache. Refresh work never overlaps and radar data is
+downloaded only when its view opens.
 
 <p align="center">
   <img src="docs/assets/screenshots/weather-overview.png" width="100%" alt="OPS Weather overview for Celje, Slovenia">
@@ -133,10 +137,11 @@ cd .\ops-monitor\native
 `Build.ps1` restores the solution, builds Release, and runs the deterministic
 behavioral test suites.
 
-Version 3.3 expands that shared renderer into a detailed design workbench,
-keeps the 80% Mini preview aligned with the live widget, and stabilizes brief
-temperature and network sampling gaps. See the [changelog](CHANGELOG.md) and
-[roadmap](ROADMAP.md) for the complete release contract.
+Version 3.4 adds local forecast confidence and nowcasting, makes compact
+temperature/status typography directly adjustable, and removes fixed template
+values that previously made several designer controls appear ineffective. See
+the [changelog](CHANGELOG.md) and [roadmap](ROADMAP.md) for the complete release
+contract.
 
 ### Install for the current user
 

@@ -44,7 +44,7 @@ public static class WidgetSizingPolicy
             (WidgetDesign.Pill, WidgetDensity.Comfortable) =>
                 new SizePair(260, 64 + (modules * 144)),
             (WidgetDesign.Canvas, WidgetDensity.Compact) =>
-                new SizePair(176, 38 + (modules * 30)),
+                new SizePair(176, 44 + (modules * 30)),
             (WidgetDesign.Canvas, WidgetDensity.Normal) =>
                 new SizePair(196, 50 + (modules * 38)),
             (WidgetDesign.Canvas, WidgetDensity.Comfortable) =>
@@ -65,10 +65,10 @@ public static class WidgetSizingPolicy
             effectiveDensity == WidgetDensity.Compact &&
             scale < 1)
         {
-            // Mini swaps to 28px rows and a reduced header below 100%. Derive
-            // the floor from the live row count so optional modules never end
-            // up below the window edge.
-            scaledHeight = Math.Max(176, 36 + (modules * 28));
+            // Mini uses 29px readable rows below 100%. Keep a 40px allowance
+            // for the header, shell insets and rounding so the final module is
+            // never clipped when weather or another optional module is shown.
+            scaledHeight = Math.Max(184, 40 + (modules * 29));
         }
 
         return new WidgetSizeRecommendation(

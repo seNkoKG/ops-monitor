@@ -56,6 +56,8 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<WeatherHour> Hourly { get; } = [];
 
+    public ObservableCollection<WeatherMinute> Nowcast { get; } = [];
+
     public ObservableCollection<WeatherDay> Daily { get; } = [];
 
     public ObservableCollection<WeatherLocation> SearchResults { get; } = [];
@@ -73,6 +75,7 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
             _current = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(AlertVisibility));
+            OnPropertyChanged(nameof(OfficialOutlookVisibility));
             OnPropertyChanged(nameof(DaylightLabel));
         }
     }
@@ -113,6 +116,10 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
     }
 
     public Visibility AlertVisibility => Current?.Alert is { IsActive: true }
+        ? Visibility.Visible
+        : Visibility.Collapsed;
+
+    public Visibility OfficialOutlookVisibility => Current?.OfficialOutlook is not null
         ? Visibility.Visible
         : Visibility.Collapsed;
 
@@ -160,7 +167,7 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
 
     public string RadarFrameLabel => _radarFrames.Count == 0
         ? "Waiting for radar"
-        : $"Frame {_radarFrameIndex + 1} / {_radarFrames.Count}";
+        : $"{_radarFrameIndex + 1} / {_radarFrames.Count} · 5-minute frames";
 
     private async void Window_OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -197,6 +204,12 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
 
         Current = snapshot;
         LocationQuery = snapshot.Location.Name;
+        Nowcast.Clear();
+        foreach (WeatherMinute minute in snapshot.Nowcast)
+        {
+            Nowcast.Add(minute);
+        }
+
         Hourly.Clear();
         foreach (WeatherHour hour in snapshot.Hourly)
         {
@@ -210,12 +223,12 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
         }
 
         OnPropertyChanged(nameof(DaylightLabel));
-        StatusText = $"{snapshot.FreshnessLabel} · {snapshot.ObservationSource} ({snapshot.StationName})";
+        StatusText = $"{snapshot.FreshnessLabel} · {snapshot.ObservationSource} · {snapshot.Confidence.Label}";
     }
 
     private async Task RefreshWeatherAsync()
     {
-        StatusText = "Refreshing ARSO observations and forecast…";
+        StatusText = "Refreshing ARSO observations, radar intelligence and 3-model forecast…";
         await _weatherService.RefreshNowAsync().ConfigureAwait(true);
         ApplySnapshot(_weatherService.Current);
         if (_weatherService.Current is null)

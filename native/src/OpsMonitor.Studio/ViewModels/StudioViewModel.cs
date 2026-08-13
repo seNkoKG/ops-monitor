@@ -63,6 +63,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     private Brush _previewCardBrush = Brushes.Transparent;
     private Brush _previewBorderBrush = Brushes.Transparent;
     private Brush _previewAccentBrush = Brushes.Aquamarine;
+    private Brush _previewShellGlowBrush = Brushes.Transparent;
     private double _previewWidth;
     private double _previewHeight;
     private double _previewModuleWidth;
@@ -633,6 +634,20 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _previewAccentBrush, value);
     }
 
+    public Brush PreviewShellGlowBrush
+    {
+        get => _previewShellGlowBrush;
+        private set => SetProperty(ref _previewShellGlowBrush, value);
+    }
+
+    public double PreviewShellShadowOpacity => Designer.ShadowEnabled
+        ? Math.Clamp(Designer.ShadowOpacity, 0, 0.8)
+        : 0;
+
+    public double PreviewShellGlowOpacity => Designer.GlowEnabled
+        ? Math.Clamp(Designer.GlowOpacity, 0, 0.5)
+        : 0;
+
     public double PreviewWidth => _previewWidth;
     public double PreviewHeight => _previewHeight;
     public WidgetLayoutModel PreviewWidgetLayout => SelectedLayout switch
@@ -658,6 +673,34 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     public FontWeight ValueFontWeight => FontWeight.FromOpenTypeWeight(Designer.ValueWeight);
     public bool UseTabularNumbers => Designer.UseTabularNumbers;
     public bool IsReducedScale => WidgetScalePercent < 100;
+    public Thickness LayoutShellContentPadding
+    {
+        get
+        {
+            double padding = Designer.ContentPadding;
+            double effective = SelectedLayout switch
+            {
+                "Dock" or "Mini" => Math.Clamp(padding * 0.2, 0, 2),
+                _ when Density == "Compact" => Math.Clamp(padding * 0.2, 0, 2),
+                _ => padding
+            };
+            return new Thickness(effective);
+        }
+    }
+    public double LayoutHeaderHeight => SelectedLayout switch
+    {
+        "Mini" when IsReducedScale => Math.Clamp(Designer.HeaderHeight * 0.45, 17, 26),
+        "Mini" => Math.Clamp(Designer.HeaderHeight * 0.62, 17, 34),
+        "Pill" when Density == "Compact" && IsReducedScale =>
+            Math.Clamp(Designer.HeaderHeight * 0.82, 26, 38),
+        _ => Designer.HeaderHeight
+    };
+    public double LayoutHeaderFontSize => SelectedLayout switch
+    {
+        "Mini" => Math.Clamp(Designer.HeaderSize, 10, 14),
+        "Pill" when Density == "Compact" => Math.Clamp(Designer.HeaderSize, 10, 16),
+        _ => Designer.HeaderSize
+    };
     public double WidgetWidth
     {
         get => _previewWidth;
@@ -726,7 +769,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     public string ResourceWakeups { get; } = "Adaptive";
     public string AppVersion { get; } =
-        $"OPS Monitor Studio · v{typeof(StudioViewModel).Assembly.GetName().Version?.ToString(3) ?? "3.3.0"}";
+        $"OPS Monitor Studio · v{typeof(StudioViewModel).Assembly.GetName().Version?.ToString(3) ?? "3.4.0"}";
     public string WidgetActionLabel
     {
         get => _widgetActionLabel;
@@ -2138,6 +2181,21 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             Math.Max(BackgroundOpacity * 0.54, 0.5 * guardStrength));
         PreviewAccentBrush = new SolidColorBrush(
             ColorText.Parse(Designer.CpuAccent, Colors.Cyan));
+        var glow = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(1, 0),
+            GradientStops =
+            {
+                new GradientStop(ColorText.Parse(Designer.CpuAccent, Colors.Cyan), 0),
+                new GradientStop(Color.FromArgb(0, 0, 0, 0), 0.55),
+                new GradientStop(ColorText.Parse(Designer.GpuAccent, Colors.Magenta), 1)
+            }
+        };
+        glow.Freeze();
+        PreviewShellGlowBrush = glow;
+        OnPropertyChanged(nameof(PreviewShellShadowOpacity));
+        OnPropertyChanged(nameof(PreviewShellGlowOpacity));
     }
 
     private void CheckForUpdates()
@@ -2193,6 +2251,11 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(LabelFontWeight));
         OnPropertyChanged(nameof(ValueFontWeight));
         OnPropertyChanged(nameof(UseTabularNumbers));
+        OnPropertyChanged(nameof(LayoutShellContentPadding));
+        OnPropertyChanged(nameof(LayoutHeaderHeight));
+        OnPropertyChanged(nameof(LayoutHeaderFontSize));
+        OnPropertyChanged(nameof(PreviewShellShadowOpacity));
+        OnPropertyChanged(nameof(PreviewShellGlowOpacity));
     }
 
     private static SolidColorBrush FrozenBrush(string colorText, Color fallback)
@@ -2310,6 +2373,9 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
         OnPropertyChanged(nameof(WidgetWidth));
         OnPropertyChanged(nameof(WidgetHeight));
+        OnPropertyChanged(nameof(LayoutShellContentPadding));
+        OnPropertyChanged(nameof(LayoutHeaderHeight));
+        OnPropertyChanged(nameof(LayoutHeaderFontSize));
         RefreshModulePresentation();
     }
 

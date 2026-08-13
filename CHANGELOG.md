@@ -3,6 +3,47 @@
 All notable OPS Monitor changes are documented here. Versions follow semantic
 versioning.
 
+## [3.4.0] — 2026-08-13
+
+### Added
+
+- A local-first weather confidence layer that compares Open-Meteo Best Match,
+  ECMWF IFS, and DWD ICON-EU guidance for Celje and other saved locations.
+- Fifteen-minute precipitation nowcast, model-agreement scores, richer hourly
+  humidity/gust/visibility/cloud detail, and precipitation totals in the
+  multi-day forecast.
+- Official ARSO regional outlooks alongside nearest-station observations,
+  Slovenian warnings, air quality, and the animated national radar.
+- A six-hour last-known-good weather cache so a brief provider or connection
+  outage does not blank the suite.
+- Direct per-module controls for temperature/status and primary-value size in
+  the Structure inspector.
+
+### Fixed
+
+- Nullable tail values in multi-model forecast feeds no longer abort weather
+  refreshes or get converted into misleading zero readings.
+- Compact and Mini typography no longer ignores designer sizes. CPU/GPU
+  temperatures, packet loss, and metadata remain readable at the smallest
+  supported footprint.
+- Secondary font weight now reaches every metric card, and the readable-minimum
+  token protects labels, values, icons, and temperature/status text together.
+- Compact card radius, padding, gap, progress height, and icon sizing now derive
+  from their global or per-module tokens instead of fixed template constants.
+- Shell padding and header geometry now use the same layout-aware rules in
+  Studio and the live widget, with expanded Mini sizing to prevent a final
+  weather or custom-sensor row from being cut off.
+- Text and color fields apply as the user types rather than waiting for focus
+  to leave the control.
+
+### Changed
+
+- The weather detail view now identifies its source mix and exact coordinates,
+  explains forecast confidence, and keeps official observations separate from
+  model guidance.
+- Visual Designer labels now call out temperature/status typography explicitly
+  instead of hiding it under generic “secondary” terminology.
+
 ## [3.3.0] — 2026-08-13
 
 ### Added
@@ -71,5 +112,6 @@ versioning.
 - Release artifacts contain package identity and version markers for safe
   in-place updates.
 
+[3.4.0]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.0
 [3.3.0]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.3.0
 [3.2.0]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.2.0

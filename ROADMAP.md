@@ -28,7 +28,18 @@ together.
 - Schema-5 portable designs, safe migration, atomic reset/undo, contrast-aware
   compositing, and malformed-package recovery.
 
-## 3.4 — Profiles and automation
+## 3.4 — Weather intelligence and designer reliability
+
+- ARSO live observations and official regional outlooks combined with
+  Open-Meteo Best Match, ECMWF IFS, and DWD ICON-EU forecast guidance.
+- Fifteen-minute precipitation nowcast, confidence/model-agreement analysis,
+  richer hourly and daily conditions, and a last-known-good offline cache.
+- Fully wired compact typography, spacing, radius, icon, and progress tokens,
+  with direct temperature/status controls and shared preview/runtime rules.
+- Expanded Mini safety sizing and automated no-clipping checks at 80%, 100%,
+  and 125% scale.
+
+## 3.5 — Profiles and automation
 
 - User-editable hotkeys with conflict detection.
 - Scene triggers for process, full-screen app, AC/battery state, schedule, and
@@ -36,7 +47,7 @@ together.
 - Import/export for complete profiles, not only visual design tokens.
 - Per-monitor placement profiles and safer recovery when displays change.
 
-## 3.5 — Telemetry depth
+## 3.6 — Telemetry depth
 
 - Multi-GPU selection and per-device cards.
 - Per-core CPU, disk volume, fan curve, motherboard, and process telemetry.

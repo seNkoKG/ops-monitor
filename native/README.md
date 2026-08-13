@@ -27,12 +27,15 @@ curated. Missing or stale sensors are labeled honestly instead of being replaced
 with invented values.
 
 The optional Weather module adds a compact current-conditions row to the Widget.
-Opening it reveals a full local suite with hourly and eight-day forecasts,
-official ARSO warnings and animated Slovenia radar, air quality, pollutants,
-pollen, UV, sunrise, and sunset. Celje is the default location; location search
-and the last selection persist in Widget settings. Forecast and atmospheric
-data use Open-Meteo/CAMS, while Slovenian radar and warnings come from ARSO.
-Weather responses are cached and radar data is fetched only when its view opens.
+Opening it reveals a full local suite with a 15-minute precipitation nowcast,
+model-agreement confidence, hourly and eight-day forecasts, official ARSO
+observations, regional outlooks, warnings and animated Slovenia radar, plus air
+quality, pollutants, pollen, UV, sunrise, and sunset. Celje is the default
+location; location or coordinate search and the last selection persist in
+Widget settings. Guidance combines Open-Meteo Best Match, ECMWF IFS, and DWD
+ICON-EU, while Slovenian observations and official products come from ARSO.
+Weather responses retain a six-hour last-known-good cache and radar data is
+fetched only when its view opens.
 
 Settings are written atomically under `%LOCALAPPDATA%\OPS Monitor`:
 
@@ -82,9 +85,9 @@ Publish produces a combined companion-app folder and ZIP:
 
 ```text
 artifacts\publish\framework-dependent\
-artifacts\publish\OPS-Monitor-v3.3.0-framework-dependent.zip
+artifacts\publish\OPS-Monitor-v3.4.0-framework-dependent.zip
 artifacts\publish\win-x64-self-contained\
-artifacts\publish\OPS-Monitor-v3.3.0-win-x64-self-contained.zip
+artifacts\publish\OPS-Monitor-v3.4.0-win-x64-self-contained.zip
 ```
 
 Widget and Studio intentionally live in the same folder. This lets each app open

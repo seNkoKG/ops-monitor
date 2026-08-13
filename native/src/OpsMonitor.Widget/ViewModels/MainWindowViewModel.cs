@@ -287,6 +287,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
 
                 OnPropertyChanged(nameof(BrandLabel));
                 OnPropertyChanged(nameof(CanChangeDensity));
+                RaiseLayoutAwareThemeProperties();
             }
         }
     }
@@ -302,7 +303,13 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     public WidgetDensity Density
     {
         get => _density;
-        set => SetProperty(ref _density, NormalizeDensity(Layout, value));
+        set
+        {
+            if (SetProperty(ref _density, NormalizeDensity(Layout, value)))
+            {
+                RaiseLayoutAwareThemeProperties();
+            }
+        }
     }
 
     public bool CanChangeDensity => Layout != WidgetLayout.Dock;
@@ -408,6 +415,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(ScaleFactor));
                 OnPropertyChanged(nameof(ContentScaleFactor));
                 OnPropertyChanged(nameof(IsReducedScale));
+                RaiseLayoutAwareThemeProperties();
             }
         }
     }
@@ -624,12 +632,46 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     public CornerRadius ShellCornerRadius { get => _shellCornerRadius; private set => SetProperty(ref _shellCornerRadius, value); }
     public Thickness ShellBorderThickness { get => _shellBorderThickness; private set => SetProperty(ref _shellBorderThickness, value); }
     public Thickness ShellContentPadding { get => _shellContentPadding; private set => SetProperty(ref _shellContentPadding, value); }
+    public Thickness LayoutShellContentPadding
+    {
+        get
+        {
+            double padding = ShellContentPadding.Left;
+            double effective = Layout switch
+            {
+                WidgetLayout.Dock or WidgetLayout.Mini => Math.Clamp(padding * 0.2, 0, 2),
+                _ when Density == WidgetDensity.Compact => Math.Clamp(padding * 0.2, 0, 2),
+                _ => padding
+            };
+            return new Thickness(effective);
+        }
+    }
     public bool HeaderVisible { get => _headerVisible; private set => SetProperty(ref _headerVisible, value); }
     public bool StatusIndicatorVisible { get => _statusIndicatorVisible; private set => SetProperty(ref _statusIndicatorVisible, value); }
     public bool SettingsButtonVisible { get => _settingsButtonVisible; private set => SetProperty(ref _settingsButtonVisible, value); }
     public double HeaderHeight { get => _headerHeight; private set => SetProperty(ref _headerHeight, value); }
     public double HeaderFontSize { get => _headerFontSize; private set => SetProperty(ref _headerFontSize, value); }
     public double SecondaryFontSize { get => _secondaryFontSize; private set => SetProperty(ref _secondaryFontSize, value); }
+    public double LayoutHeaderHeight => Layout switch
+    {
+        WidgetLayout.Mini when IsReducedScale => Math.Clamp(HeaderHeight * 0.45, 17, 26),
+        WidgetLayout.Mini => Math.Clamp(HeaderHeight * 0.62, 17, 34),
+        WidgetLayout.Pill when Density == WidgetDensity.Compact && IsReducedScale =>
+            Math.Clamp(HeaderHeight * 0.82, 26, 38),
+        _ => HeaderHeight
+    };
+    public double LayoutHeaderFontSize => Layout switch
+    {
+        WidgetLayout.Mini => Math.Clamp(HeaderFontSize, 10, 14),
+        WidgetLayout.Pill when Density == WidgetDensity.Compact => Math.Clamp(HeaderFontSize, 10, 16),
+        _ => HeaderFontSize
+    };
+    public double LayoutSecondaryFontSize => Layout switch
+    {
+        WidgetLayout.Mini => Math.Clamp(SecondaryFontSize, 10, 13),
+        WidgetLayout.Pill when Density == WidgetDensity.Compact => Math.Clamp(SecondaryFontSize, 10, 15),
+        _ => SecondaryFontSize
+    };
     public FontWeight HeaderFontWeight { get => _headerFontWeight; private set => SetProperty(ref _headerFontWeight, value); }
     public FontWeight SecondaryFontWeight { get => _secondaryFontWeight; private set => SetProperty(ref _secondaryFontWeight, value); }
     public bool MotionEnabled { get => _motionEnabled; private set => SetProperty(ref _motionEnabled, value); }
@@ -1447,6 +1489,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         TransitionMilliseconds = _reducedMotion
             ? 0
             : Math.Clamp(theme.TransitionMilliseconds, 0, 600);
+        RaiseLayoutAwareThemeProperties();
 
         if (Metrics is not null)
         {
@@ -1455,6 +1498,14 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
                 metric.ApplyTheme(theme);
             }
         }
+    }
+
+    private void RaiseLayoutAwareThemeProperties()
+    {
+        OnPropertyChanged(nameof(LayoutShellContentPadding));
+        OnPropertyChanged(nameof(LayoutHeaderHeight));
+        OnPropertyChanged(nameof(LayoutHeaderFontSize));
+        OnPropertyChanged(nameof(LayoutSecondaryFontSize));
     }
 
     private static Geometry ParseGeometry(string data)

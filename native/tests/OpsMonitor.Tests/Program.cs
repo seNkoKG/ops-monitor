@@ -23,6 +23,11 @@ if (args.Contains("--live", StringComparer.OrdinalIgnoreCase))
     return await RunLiveProbeAsync();
 }
 
+if (args.Contains("--live-weather", StringComparer.OrdinalIgnoreCase))
+{
+    return await RunLiveWeatherProbeAsync();
+}
+
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("metric store publishes only meaningful changes", TestMetricStoreAsync),
@@ -170,6 +175,42 @@ static async Task<int> RunLiveProbeAsync()
         IReadOnlyDictionary<MetricId, MetricSample> metrics,
         MetricId id) =>
         metrics.TryGetValue(id, out var sample) && sample.HasUsableValue;
+}
+
+static async Task<int> RunLiveWeatherProbeAsync()
+{
+    var location = new WeatherLocation(
+        "Celje",
+        "Slovenia",
+        46.2366,
+        15.2259,
+        "Europe/Ljubljana",
+        "CELJE_MEDLOG");
+    using var service = new WeatherService(location, TimeSpan.FromMinutes(15));
+    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+    Console.WriteLine("Collecting live Celje weather from ARSO and Open-Meteo...");
+    await service.RefreshNowAsync(timeout.Token);
+    if (service.Current is not { } snapshot)
+    {
+        Console.Error.WriteLine("Live weather probe failed: no snapshot was published.");
+        return 1;
+    }
+
+    Console.WriteLine($"Source: {snapshot.ObservationSource}");
+    Console.WriteLine($"Station: {snapshot.StationName}");
+    Console.WriteLine($"Current: {snapshot.TemperatureCelsius:0.0} C, {snapshot.Condition}");
+    Console.WriteLine($"Confidence: {snapshot.Confidence.Score}% ({snapshot.Confidence.ModelCount} models)");
+    Console.WriteLine($"Nowcast/hourly/daily: {snapshot.Nowcast.Count}/{snapshot.Hourly.Count}/{snapshot.Daily.Count}");
+    Console.WriteLine($"ARSO outlook: {(snapshot.OfficialOutlook is null ? "unavailable" : "available")}");
+
+    bool complete = !snapshot.IsStale &&
+                    snapshot.Nowcast.Count > 0 &&
+                    snapshot.Hourly.Count > 0 &&
+                    snapshot.Daily.Count > 0 &&
+                    snapshot.Confidence.ModelCount >= 2;
+    Console.WriteLine($"Live weather result: {(complete ? "OK" : "INCOMPLETE")}");
+    return complete ? 0 : 1;
 }
 
 static async Task TestStudioSettingsMigrationAsync()
@@ -464,9 +505,56 @@ static Task TestStudioRuntimeMappingAsync()
         ThemeDetails: new StudioThemeSnapshot(
             "slate", "Slate", "#FF05080D", "#FF0D131C", "#FF2A3849", "#FF43E7D2")
         {
+            PrimaryText = "#FFF1F5FA",
+            SecondaryText = "#FFAAB7C8",
+            GpuAccent = "#FFFF5DDD",
+            MemoryAccent = "#FF54E4AF",
+            NetworkAccent = "#FF68ACFF",
+            LatencyAccent = "#FFFFCA61",
+            WeatherAccent = "#FF70B8FF",
+            Track = "#55405060",
+            Warning = "#FFFFC96A",
+            Critical = "#FFFF6079",
+            Success = "#FF62E5AC",
+            CornerRadius = 31,
+            CardCornerRadius = 9,
+            BlurEnabled = false,
+            BlurStrength = 0.42,
+            ShadowEnabled = false,
+            ShadowOpacity = 0.46,
+            GlowEnabled = true,
+            GlowOpacity = 0.27,
+            BorderWidth = 0.75,
+            CardBorderWidth = 1.25,
+            CardGap = 5,
+            ContentPadding = 7,
+            CardPadding = 6,
+            CardOpacity = 0.64,
+            AccentWidth = 2.5,
+            ProgressHeight = 5.5,
             MotionEnabled = false,
+            TransitionMilliseconds = 240,
+            AnimateValueChanges = false,
+            RespectReducedMotion = false,
+            PulseStatusIndicator = false,
+            HeaderVisible = false,
+            StatusIndicatorVisible = false,
+            SettingsButtonVisible = false,
+            HeaderHeight = 28,
+            FontFamily = "Cascadia Mono",
+            HeaderSize = 13,
+            LabelSize = 14,
+            SecondarySize = 15,
+            ValueSize = 26,
             IconSize = 16,
+            MinimumReadableSize = 11,
+            HeaderWeight = 700,
+            LabelWeight = 650,
+            SecondaryWeight = 575,
+            ValueWeight = 750,
+            UseTabularNumbers = false,
             ProgressCornerRadius = 3,
+            SparklineThickness = 2.25,
             SparklineFillOpacity = 0.23
         },
         ReducedMotion: false);
@@ -495,7 +583,34 @@ static Task TestStudioRuntimeMappingAsync()
     Assert.Equal(16d, mappedTheme.Typography.IconSize, "theme icon size never reached Core");
     Assert.Equal(3d, mappedTheme.Surface.ProgressCornerRadius, "theme progress radius never reached Core");
     var runtimeSettings = WidgetSettingsStore.MergeCoreSettings(new WidgetSettings(), mapped);
-    Assert.Equal(16d, runtimeSettings.RuntimeThemes.Single(theme => theme.Id == widget.ThemeId).IconSize, "theme icon size never reached widget runtime");
+    var runtimeTheme = runtimeSettings.RuntimeThemes.Single(theme => theme.Id == widget.ThemeId);
+    Assert.Equal("#FF62E5AC", runtimeTheme.Success, "success color never reached widget runtime");
+    Assert.Equal(31d, runtimeTheme.CornerRadius, "shell radius never reached widget runtime");
+    Assert.Equal(9d, runtimeTheme.CardCornerRadius, "card radius never reached widget runtime");
+    Assert.False(runtimeTheme.BlurEnabled, "blur toggle never reached widget runtime");
+    Assert.Equal(0.42, runtimeTheme.BlurStrength, "blur strength never reached widget runtime");
+    Assert.False(runtimeTheme.ShadowEnabled, "shadow toggle never reached widget runtime");
+    Assert.Equal(0.46, runtimeTheme.ShadowOpacity, "shadow opacity never reached widget runtime");
+    Assert.Equal(0.27, runtimeTheme.GlowOpacity, "glow opacity never reached widget runtime");
+    Assert.Equal(7d, runtimeTheme.ContentPadding, "shell padding never reached widget runtime");
+    Assert.Equal(6d, runtimeTheme.CardPadding, "card padding never reached widget runtime");
+    Assert.Equal(0.64, runtimeTheme.CardOpacity, "card opacity never reached widget runtime");
+    Assert.Equal(2.5, runtimeTheme.AccentWidth, "accent width never reached widget runtime");
+    Assert.Equal(5.5, runtimeTheme.ProgressHeight, "progress height never reached widget runtime");
+    Assert.Equal(2.25, runtimeTheme.SparklineThickness, "sparkline stroke never reached widget runtime");
+    Assert.Equal("Cascadia Mono", runtimeTheme.FontFamily, "font family never reached widget runtime");
+    Assert.Equal(15d, runtimeTheme.SecondarySize, "temperature size never reached widget runtime");
+    Assert.Equal(575, runtimeTheme.SecondaryWeight, "temperature weight never reached widget runtime");
+    Assert.Equal(16d, runtimeTheme.IconSize, "theme icon size never reached widget runtime");
+    Assert.False(runtimeTheme.UseTabularNumbers, "tabular-number toggle never reached widget runtime");
+    Assert.False(runtimeTheme.HeaderVisible, "header visibility never reached widget runtime");
+    Assert.False(runtimeTheme.StatusIndicatorVisible, "status visibility never reached widget runtime");
+    Assert.False(runtimeTheme.SettingsButtonVisible, "settings visibility never reached widget runtime");
+    Assert.Equal(28d, runtimeTheme.HeaderHeight, "header height never reached widget runtime");
+    Assert.Equal(240, runtimeTheme.TransitionMilliseconds, "transition duration never reached widget runtime");
+    Assert.False(runtimeTheme.AnimateValueChanges, "value-animation toggle never reached widget runtime");
+    Assert.False(runtimeTheme.RespectReducedMotion, "reduced-motion preference never reached widget runtime");
+    Assert.False(runtimeTheme.PulseStatusIndicator, "pulse toggle never reached widget runtime");
     Assert.Equal("#FF152333", runtimeSettings.ModulePresentation[WidgetModuleCatalog.Network].CardColor, "module color never reached widget runtime");
     Assert.Equal(700, runtimeSettings.ModulePresentation[WidgetModuleCatalog.Network].ValueWeightOverride!.Value, "module type override never reached widget runtime");
     Assert.False(mapped.General.ReducedMotion, "theme motion disabled global reduced-motion");
@@ -607,6 +722,20 @@ static Task TestStudioControlSemanticsAsync()
         "Studio enabled density choices that Dock cannot render");
     viewModel.Density = "Comfortable";
     Assert.Equal("Compact", viewModel.Density, "Studio accepted a non-compact Dock density");
+
+    viewModel.Designer.ShadowEnabled = true;
+    viewModel.Designer.ShadowOpacity = 0.46;
+    Assert.Equal(0.46, viewModel.PreviewShellShadowOpacity,
+        "designer shadow opacity did not reach the live canvas");
+    viewModel.Designer.ShadowEnabled = false;
+    Assert.Equal(0d, viewModel.PreviewShellShadowOpacity,
+        "designer shadow toggle did not reach the live canvas");
+    viewModel.Designer.GlowEnabled = true;
+    viewModel.Designer.GlowOpacity = 0.31;
+    Assert.Equal(0.31, viewModel.PreviewShellGlowOpacity,
+        "designer glow opacity did not reach the live canvas");
+    Assert.False(ReferenceEquals(System.Windows.Media.Brushes.Transparent, viewModel.PreviewShellGlowBrush),
+        "designer glow palette did not reach the live canvas");
 
     viewModel.ContentOpacity = 0.9;
     viewModel.ReloadCommand.Execute(null);
@@ -1316,7 +1445,7 @@ static Task TestWeatherIntegrationAsync()
     Assert.Equal(-180d, enabled.WeatherLongitude, "weather longitude clamp");
 
     const string observationXml = """
-        <data><metData><domain_longTitle>Far station</domain_longTitle><domain_lat>45</domain_lat><domain_lon>14</domain_lon><t>11</t><rh>50</rh></metData><metData><domain_longTitle>Celje</domain_longTitle><domain_lat>46.2366</domain_lat><domain_lon>15.2259</domain_lon><t>19.3</t><rh>93</rh><ff_val_kmh>3</ff_val_kmh><dd_shortText>JZ</dd_shortText><msl>1014.2</msl><tsValid_issued_RFC822>08 Aug 2026 05:30:00 +0000</tsValid_issued_RFC822></metData></data>
+        <data><metData><domain_longTitle>Far station</domain_longTitle><domain_lat>45</domain_lat><domain_lon>14</domain_lon><t>11</t><rh>50</rh></metData><metData><domain_longTitle>Celje</domain_longTitle><domain_lat>46.2366</domain_lat><domain_lon>15.2259</domain_lon><t>19.3</t><rh>93</rh><td>18.1</td><ff_val_kmh>3</ff_val_kmh><ffmax_val_kmh>11</ffmax_val_kmh><dd_shortText>JZ</dd_shortText><msl>1014.2</msl><rr_val>0.4</rr_val><tsValid_issued_RFC822>08 Aug 2026 05:30:00 +0000</tsValid_issued_RFC822></metData></data>
         """;
     var location = new WeatherLocation(
         "Celje", "Slovenia", 46.2366, 15.2259, "Europe/Ljubljana", "CELJE_MEDLOG");
@@ -1325,6 +1454,35 @@ static Task TestWeatherIntegrationAsync()
     Assert.Equal("Celje", observation!.StationName, "nearest ARSO station");
     Assert.Equal(19.3, observation.TemperatureCelsius, "ARSO temperature");
     Assert.Equal(93, observation.RelativeHumidity, "ARSO humidity");
+    Assert.Equal(11d, observation.WindGustKilometresPerHour, "ARSO wind gust");
+    Assert.True(observation.DewPointCelsius is not null, "ARSO dew point missing");
+    Assert.True(observation.PrecipitationMillimetres is not null, "ARSO precipitation missing");
+    Assert.Equal(18.1, observation.DewPointCelsius ?? double.NaN, "ARSO dew point");
+    Assert.Equal(0.4, observation.PrecipitationMillimetres ?? double.NaN, "ARSO precipitation");
+
+    using (JsonDocument nullableForecast = JsonDocument.Parse(
+               """{"doubleValues":[15.2,null,16.1],"intValues":[72,null,81]}"""))
+    {
+        double[] doubleValues = WeatherService.ReadDoubleArray(
+            nullableForecast.RootElement,
+            "doubleValues");
+        int[] intValues = WeatherService.ReadIntArray(
+            nullableForecast.RootElement,
+            "intValues");
+        Assert.True(double.IsNaN(doubleValues[1]),
+            "nullable forecast double was converted into fabricated zero");
+        Assert.Equal(int.MinValue, intValues[1],
+            "nullable forecast integer was converted into fabricated zero");
+    }
+
+    const string outlookXml = """
+        <data><metData><nn_shortText>delno oblačno</nn_shortText><tnsyn>12</tnsyn><txsyn>27</txsyn><ffmax_val_kmh>31</ffmax_val_kmh><tsUpdated_RFC822>08 Aug 2026 04:00:00 +0000</tsUpdated_RFC822></metData></data>
+        """;
+    var outlook = WeatherService.ParseOfficialOutlook(outlookXml, "Savinjska");
+    Assert.True(outlook is not null, "ARSO official outlook was not parsed");
+    Assert.Equal("Savinjska", outlook!.Region, "ARSO outlook region");
+    Assert.True(outlook.Summary.Contains("12–27°", StringComparison.Ordinal),
+        "ARSO outlook temperature range");
 
     const string warningXml = """
         <alert xmlns="urn:oasis:names:tc:emergency:cap:1.2"><info><language>en-GB</language><headline>Thunderstorm warning</headline><description>Local storms possible.</description><onset>2026-08-08T12:00:00+02:00</onset><expires>2026-08-08T18:00:00+02:00</expires><parameter><valueName>awareness_level</valueName><value>2; yellow; Moderate</value></parameter></info></alert>
@@ -1520,20 +1678,20 @@ static Task TestWidgetSizingAsync()
         5,
         100);
     Assert.Equal(176d, miniFive.SuggestedWidth, "Mini width");
-    Assert.Equal(188d, miniFive.SuggestedHeight, "single-line Mini height");
+    Assert.Equal(194d, miniFive.SuggestedHeight, "single-line Mini height");
 
     var miniEighty = LiveWidgetSizingPolicy.Calculate(
         WidgetLayout.Mini,
         OpsMonitor.Widget.Models.WidgetDensity.Compact,
         5,
         80);
-    Assert.Equal(176d, miniEighty.SuggestedHeight, "80% Mini readable height floor");
+    Assert.Equal(185d, miniEighty.SuggestedHeight, "80% Mini readable height floor");
     var miniSixEighty = LiveWidgetSizingPolicy.Calculate(
         WidgetLayout.Mini,
         OpsMonitor.Widget.Models.WidgetDensity.Compact,
         6,
         80);
-    Assert.Equal(204d, miniSixEighty.SuggestedHeight, "six-module Mini avoids clipping");
+    Assert.Equal(214d, miniSixEighty.SuggestedHeight, "six-module Mini avoids clipping");
 
     var dockFive = LiveWidgetSizingPolicy.Calculate(
         WidgetLayout.Dock,
@@ -1741,12 +1899,13 @@ static Task TestWidgetViewModelAsync()
             ContentOpacity = 0.1,
             ScalePercent = 50,
             UpdateCadenceSeconds = 0.1,
+            Theme = "Typography test",
             RuntimeThemes =
             [
                 new WidgetRuntimeTheme
                 {
-                    Id = "carbon-glass",
-                    Name = "Carbon Glass",
+                    Id = "typography-test",
+                    Name = "Typography test",
                     Background = "#080B12",
                     Card = "#0F1521",
                     Border = "#364258",
@@ -1759,6 +1918,10 @@ static Task TestWidgetViewModelAsync()
                     Critical = "#FF566E",
                     Success = "#58E6B2",
                     IconSize = 15,
+                    MinimumReadableSize = 12,
+                    SecondarySize = 17,
+                    SecondaryWeight = 650,
+                    ValueSize = 42,
                     ProgressCornerRadius = 3,
                     SparklineFillOpacity = 0.2
                 }
@@ -1815,10 +1978,16 @@ static Task TestWidgetViewModelAsync()
     Assert.True(
         viewModel.MinimumReadableFontSize >= 11,
         "minimum readable typography floor");
+    var cpuTypography = viewModel.Metrics.Single(metric => metric.Key == WidgetModuleCatalog.Cpu);
+    Assert.Equal(17d, cpuTypography.SecondaryFontSize, "temperature/status size token");
+    Assert.Equal(12d, cpuTypography.CompactSecondaryFontSize, "compact temperature/status size cap");
+    Assert.Equal(11.5d, cpuTypography.MiniSecondaryFontSize, "Mini temperature/status size cap");
+    Assert.Equal(10.5d, cpuTypography.MiniValueFontSize, "Mini primary-value size cap");
+    Assert.Equal(650, cpuTypography.SecondaryFontWeight.ToOpenTypeWeight(), "temperature/status weight token");
     Assert.True(
         viewModel.ThemeOptions.Contains("Void") &&
         viewModel.ThemeOptions.Contains("Contrast") &&
-        viewModel.ThemeOptions.Contains("Carbon Glass"),
+        viewModel.ThemeOptions.Contains("Typography test"),
         "runtime themes replaced rather than augmented built-in themes");
     Assert.Equal(
         TimeSpan.FromSeconds(0.5),

@@ -140,7 +140,7 @@
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock FontSize="18" FontWeight="SemiBold" Text="OPS WEATHER" />
                     <TextBlock Margin="0,2,0,0" Style="{StaticResource MutedText}"
-                               Text="ARSO live intelligence · high-resolution forecast" />
+                               Text="ARSO observations · 3-model forecast · 15-minute detail" />
                 </StackPanel>
 
                 <Grid x:Name="LocationSearchHost" Grid.Column="2" Margin="14,0">
@@ -243,6 +243,15 @@
                                                 <TextBlock Margin="8,0" Style="{StaticResource MutedText}" Text="·" />
                                                 <TextBlock Style="{StaticResource MutedText}" Text="{Binding Current.ObservationSource}" />
                                             </StackPanel>
+                                            <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
+                                                <Border Padding="8,4" Background="#2458E6B2" CornerRadius="8">
+                                                    <TextBlock Foreground="{StaticResource WeatherGreen}" FontSize="10"
+                                                               FontWeight="Bold" Text="{Binding Current.Confidence.Label}" />
+                                                </Border>
+                                                <TextBlock Margin="9,0,0,0" VerticalAlignment="Center"
+                                                           Style="{StaticResource MutedText}"
+                                                           Text="{Binding Current.Confidence.Detail}" />
+                                            </StackPanel>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -259,10 +268,15 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Style="{StaticResource SectionTitle}" Text="LIVE CONDITIONS" />
-                                            <TextBlock Grid.Column="1" Style="{StaticResource MutedText}"
-                                                       Text="{Binding Current.StationName}" />
+                                            <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                                <TextBlock HorizontalAlignment="Right" Style="{StaticResource MutedText}"
+                                                           Text="{Binding Current.StationName}" />
+                                                <TextBlock Margin="0,2,0,0" HorizontalAlignment="Right"
+                                                           Foreground="{StaticResource WeatherCyan}" FontSize="9"
+                                                           Text="{Binding Current.CoordinateLabel}" />
+                                            </StackPanel>
                                         </Grid>
-                                        <UniformGrid Grid.Row="1" Margin="0,16,0,0" Columns="2" Rows="2">
+                                        <UniformGrid Grid.Row="1" Margin="0,16,0,0" Columns="2" Rows="4">
                                             <StackPanel Margin="0,0,10,12">
                                                 <TextBlock Style="{StaticResource MutedText}" Text="HUMIDITY" />
                                                 <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
@@ -282,6 +296,26 @@
                                                 <TextBlock Style="{StaticResource MutedText}" Text="PRESSURE" />
                                                 <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
                                                            Text="{Binding Current.PressureLabel}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,12,10,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="WIND GUST" />
+                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
+                                                           Text="{Binding Current.GustLabel}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="10,12,0,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="DEW POINT" />
+                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
+                                                           Text="{Binding Current.DewPointLabel}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,12,10,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="VISIBILITY" />
+                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
+                                                           Text="{Binding Current.VisibilityLabel}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="10,12,0,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="CLOUD COVER" />
+                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
+                                                           Text="{Binding Current.CloudLabel}" />
                                             </StackPanel>
                                         </UniformGrid>
                                     </Grid>
@@ -313,6 +347,64 @@
                                 </Grid>
                             </Border>
 
+                            <Border Margin="0,10,0,0" Padding="18,14" Style="{StaticResource GlassCard}"
+                                    Visibility="{Binding OfficialOutlookVisibility}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="38" Height="38" Background="#2248DCF9" CornerRadius="11">
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource WeatherCyan}" FontSize="17" Text="◎" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                                        <TextBlock FontSize="14" FontWeight="SemiBold"
+                                                   Text="{Binding Current.OfficialOutlook.Summary}" />
+                                        <TextBlock Margin="0,3,0,0" Style="{StaticResource MutedText}"
+                                                   Text="Official national-service regional outlook" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" VerticalAlignment="Center"
+                                               Foreground="{StaticResource WeatherCyan}" FontSize="11"
+                                               Text="{Binding Current.OfficialOutlook.SourceLabel}" />
+                                </Grid>
+                            </Border>
+
+                            <Grid Margin="2,18,0,9">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource SectionTitle}" Text="NEXT 4 HOURS · 15-MINUTE RAIN" />
+                                <TextBlock Grid.Column="1" Style="{StaticResource MutedText}"
+                                           Text="High-resolution Central Europe guidance" />
+                            </Grid>
+                            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding Nowcast}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Width="86" Margin="0,0,7,0" Padding="10,9" Style="{StaticResource GlassCard}">
+                                                <StackPanel HorizontalAlignment="Center">
+                                                    <TextBlock HorizontalAlignment="Center" Style="{StaticResource MutedText}"
+                                                               Text="{Binding TimeLabel}" />
+                                                    <TextBlock Margin="0,5,0,3" HorizontalAlignment="Center"
+                                                               FontFamily="Segoe UI Emoji" FontSize="20" Text="{Binding Icon}" />
+                                                    <TextBlock HorizontalAlignment="Center" Foreground="{StaticResource WeatherCyan}"
+                                                               FontSize="12" FontWeight="SemiBold" Text="{Binding RainLabel}" />
+                                                    <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center"
+                                                               Foreground="{StaticResource WeatherMuted}" FontSize="9"
+                                                               Text="{Binding ConfidenceScore, StringFormat={}{0}% agree}" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
                             <TextBlock Margin="2,18,0,9" Style="{StaticResource SectionTitle}" Text="NEXT 24 HOURS" />
                             <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
                                 <ItemsControl ItemsSource="{Binding Hourly}">
@@ -321,7 +413,7 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Width="104" Margin="0,0,8,0" Padding="12" Style="{StaticResource GlassCard}">
+                                            <Border Width="116" Margin="0,0,8,0" Padding="12" Style="{StaticResource GlassCard}">
                                                 <StackPanel HorizontalAlignment="Center">
                                                     <TextBlock HorizontalAlignment="Center" Style="{StaticResource MutedText}"
                                                                Text="{Binding TimeLabel}" />
@@ -332,6 +424,12 @@
                                                     <TextBlock Margin="0,7,0,0" HorizontalAlignment="Center"
                                                                Foreground="{StaticResource WeatherCyan}" FontSize="11"
                                                                Text="{Binding RainLabel}" />
+                                                    <TextBlock Margin="0,4,0,0" HorizontalAlignment="Center"
+                                                               Foreground="{StaticResource WeatherMuted}" FontSize="9"
+                                                               Text="{Binding DetailLabel}" />
+                                                    <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center"
+                                                               Foreground="{StaticResource WeatherGreen}" FontSize="9"
+                                                               Text="{Binding ConfidenceLabel, StringFormat={}AGREE {0}}" />
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
@@ -346,11 +444,12 @@
                                         <Border Margin="0,0,0,7" Padding="15,10" Style="{StaticResource GlassCard}">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="105" />
-                                                    <ColumnDefinition Width="55" />
+                                                    <ColumnDefinition Width="92" />
+                                                    <ColumnDefinition Width="48" />
                                                     <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="120" />
-                                                    <ColumnDefinition Width="105" />
+                                                    <ColumnDefinition Width="155" />
+                                                    <ColumnDefinition Width="175" />
+                                                    <ColumnDefinition Width="108" />
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding DayLabel}" />
                                                 <TextBlock Grid.Column="1" VerticalAlignment="Center" FontFamily="Segoe UI Emoji"
@@ -359,9 +458,12 @@
                                                            FontWeight="SemiBold" Text="{Binding RangeLabel}" />
                                                 <TextBlock Grid.Column="3" VerticalAlignment="Center" Foreground="{StaticResource WeatherCyan}"
                                                            Text="{Binding RainLabel}" />
-                                                <TextBlock Grid.Column="4" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                <TextBlock Grid.Column="4" VerticalAlignment="Center"
                                                            Style="{StaticResource MutedText}"
-                                                           Text="{Binding WindKilometresPerHour, StringFormat={}{0:0} km/h}" />
+                                                           Text="{Binding WindLabel}" />
+                                                <TextBlock Grid.Column="5" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Foreground="{StaticResource WeatherGreen}" FontSize="10"
+                                                           Text="{Binding ConfidenceLabel}" />
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
@@ -540,7 +642,7 @@
                 <TextBlock VerticalAlignment="Center" Style="{StaticResource MutedText}"
                            Text="{Binding StatusText}" />
                 <TextBlock Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource MutedText}"
-                           Text="Data: ARSO · Open-Meteo · CAMS  |  Radar © ARSO" />
+                           Text="ARSO observations/warnings/radar · Open-Meteo Best Match + ECMWF + ICON · CAMS air" />
             </Grid>
         </Grid>
     </Border>

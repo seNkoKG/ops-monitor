@@ -240,6 +240,13 @@
                                 <controls:StudioSettingToggle Margin="0,0,6,7" Header="Trend" Description="Sparkline when supported" IsChecked="{Binding ShowSparkline}"/>
                                 <controls:StudioSettingToggle Margin="6,0,0,7" Header="Secondary reading" Description="Temperature or quality" IsChecked="{Binding ShowTemperature}"/>
                             </UniformGrid>
+                            <Border Margin="0,7,0,0" Padding="14,12" Background="#1417BFD8" BorderBrush="#5548DCF9" BorderThickness="1" CornerRadius="10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <controls:StudioSettingSlider Grid.Column="0" Margin="0,0,10,0" Header="Temperature / status size" Description="CPU and GPU temperature, packet loss and metadata" Minimum="-1" Maximum="24" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding SecondarySize}"/>
+                                    <controls:StudioSettingSlider Grid.Column="1" Margin="10,0,0,0" Header="Primary value size" Description="Load, memory, network and latency values" Minimum="-1" Maximum="42" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding ValueSize}"/>
+                                </Grid>
+                            </Border>
                             <Expander Margin="0,12,0,0" Header="Advanced module overrides" IsExpanded="False">
                                 <StackPanel Margin="0,14,0,0">
                                     <TextBlock Margin="0,0,0,12" Text="INHERIT follows the global design system. Overrides affect only this module and remain safe in Mini and Pill." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
@@ -272,7 +279,7 @@
 
                                     <TextBlock Margin="0,16,0,9" Text="TYPE OVERRIDES" Style="{StaticResource SectionLabel}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Label size" Description="Override module label type" Minimum="-1" Maximum="26" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding LabelSize}"/>
-                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Secondary size" Description="Override status and metadata" Minimum="-1" Maximum="24" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding SecondarySize}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Temperature / status size" Description="Override temperature, loss and metadata" Minimum="-1" Maximum="24" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding SecondarySize}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Value size" Description="Override primary value type" Minimum="-1" Maximum="42" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding ValueSize}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Icon size" Description="Override the module glyph" Minimum="-1" Maximum="32" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding IconSize}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Label weight" Description="100 thin to 900 black" Minimum="-1" Maximum="900" SmallChange="50" TickFrequency="50" ValueFormat="0" InheritAtMinimum="True" Value="{Binding LabelWeight}"/>
@@ -416,14 +423,14 @@
                             <Grid><TextBlock Text="Font family" FontWeight="SemiBold"/><TextBlock HorizontalAlignment="Right" Text="Installed Windows fonts" Style="{StaticResource CaptionText}"/></Grid>
                             <ComboBox Margin="0,7,0,0" IsEditable="True" IsTextSearchEnabled="True"
                                       ItemsSource="{Binding DataContext.InstalledFontFamilies, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"
+                                      Text="{Binding FontFamily, UpdateSourceTrigger=PropertyChanged}"
                                       MaxDropDownHeight="360" AutomationProperties.Name="Font family"/>
                         </StackPanel>
                         <Grid Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <StackPanel>
                                 <controls:StudioSettingSlider Header="Header size" Description="Widget title" Minimum="8" Maximum="24" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding HeaderSize}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Label size" Description="Module names" Minimum="8" Maximum="26" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding LabelSize}"/>
-                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Secondary size" Description="Temperatures and metadata" Minimum="8" Maximum="24" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding SecondarySize}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Temperature / status size" Description="CPU/GPU temperature, packet loss and metadata" Minimum="8" Maximum="24" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding SecondarySize}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Value size" Description="Primary metric values" Minimum="10" Maximum="42" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding ValueSize}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Icon size" Description="Module glyphs in spacious layouts" Minimum="8" Maximum="32" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding IconSize}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Readable minimum" Description="Lower safety bound" Minimum="8" Maximum="18" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding MinimumReadableSize}"/>
@@ -431,7 +438,7 @@
                             <StackPanel Grid.Column="2">
                                 <controls:StudioSettingSlider Header="Header weight" Description="100 thin to 900 black" Minimum="100" Maximum="900" SmallChange="50" TickFrequency="50" IsSnapToTickEnabled="True" Value="{Binding HeaderWeight}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Label weight" Description="Module name weight" Minimum="100" Maximum="900" SmallChange="50" TickFrequency="50" IsSnapToTickEnabled="True" Value="{Binding LabelWeight}"/>
-                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Secondary weight" Description="Metadata weight" Minimum="100" Maximum="900" SmallChange="50" TickFrequency="50" IsSnapToTickEnabled="True" Value="{Binding SecondaryWeight}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Temperature / status weight" Description="Temperature, loss and metadata emphasis" Minimum="100" Maximum="900" SmallChange="50" TickFrequency="50" IsSnapToTickEnabled="True" Value="{Binding SecondaryWeight}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Value weight" Description="Primary metric weight" Minimum="100" Maximum="900" SmallChange="50" TickFrequency="50" IsSnapToTickEnabled="True" Value="{Binding ValueWeight}"/>
                                 <controls:StudioSettingToggle Margin="0,13,0,0" Header="Tabular numbers" Description="Keep changing values aligned" IsChecked="{Binding UseTabularNumbers}"/>
                             </StackPanel>

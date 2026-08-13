@@ -69,6 +69,8 @@
                     Value="{Binding ThemeContext.WidgetFontFamily, ElementName=Root}" />
             <Setter Property="FontSize"
                     Value="{Binding DataContext.SecondaryFontSize, ElementName=Root}" />
+            <Setter Property="FontWeight"
+                    Value="{Binding DataContext.SecondaryFontWeight, ElementName=Root}" />
         </Style>
 
         <Style x:Key="MetricValueTextStyle"
@@ -290,8 +292,8 @@
                                 CornerRadius="5"
                                 Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Grid>
-                            <Path Width="9"
-                                  Height="9"
+                            <Path Width="{Binding CompactIconSize}"
+                                  Height="{Binding CompactIconSize}"
                                   Data="{Binding IconData}"
                                   Stretch="Uniform"
                                   Stroke="{Binding AccentBrush}"
@@ -355,7 +357,7 @@
                               StrokeLineJoin="Round"
                               StrokeThickness="{Binding CompactSparklineThickness}"
                               Visibility="{Binding ShowSparkline, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                        <ProgressBar Height="2"
+                        <ProgressBar Height="{Binding CompactProgressHeight}"
                                      VerticalAlignment="Bottom"
                                      Value="{Binding Progress}"
                                      Style="{StaticResource MetricProgressStyle}"
@@ -368,12 +370,12 @@
         <Border>
             <Border.Style>
                 <Style TargetType="{x:Type Border}">
-                    <Setter Property="Margin" Value="0,0,0,1" />
-                    <Setter Property="Padding" Value="4,0" />
+                    <Setter Property="Margin" Value="{Binding MiniCardMargin}" />
+                    <Setter Property="Padding" Value="{Binding MiniCardPadding}" />
                     <Setter Property="Background" Value="{Binding CardSurfaceBrush}" />
                     <Setter Property="BorderBrush" Value="{Binding CardBorderBrush}" />
-                    <Setter Property="BorderThickness" Value="1" />
-                    <Setter Property="CornerRadius" Value="6" />
+                    <Setter Property="BorderThickness" Value="{Binding CardBorderThickness}" />
+                    <Setter Property="CornerRadius" Value="{Binding MiniCardCornerRadius}" />
                     <Setter Property="Visibility" Value="Collapsed" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding Layout, ElementName=Root}"
@@ -389,11 +391,9 @@
                                 <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                            Value="True" />
                             </MultiDataTrigger.Conditions>
-                            <Setter Property="Padding" Value="3,0" />
+                            <Setter Property="Padding" Value="{Binding MiniCardPadding}" />
                             <Setter Property="Margin" Value="0" />
-                            <Setter Property="Background" Value="Transparent" />
-                            <Setter Property="BorderThickness" Value="0,0,0,1" />
-                            <Setter Property="CornerRadius" Value="0" />
+                            <Setter Property="CornerRadius" Value="{Binding MiniCardCornerRadius}" />
                         </MultiDataTrigger>
                     </Style.Triggers>
                 </Style>
@@ -432,8 +432,8 @@
                                 CornerRadius="4"
                                 Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Grid>
-                            <Path Width="8"
-                                  Height="8"
+                            <Path Width="{Binding MiniIconSize}"
+                                  Height="{Binding MiniIconSize}"
                                   Data="{Binding IconData}"
                                   Stretch="Uniform"
                                   Stroke="{Binding AccentBrush}"
@@ -505,7 +505,7 @@
                               StrokeLineJoin="Round"
                               StrokeThickness="{Binding MiniSparklineThickness}"
                               Visibility="{Binding ShowSparkline, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                        <ProgressBar Height="1"
+                        <ProgressBar Height="{Binding MiniProgressHeight}"
                                      VerticalAlignment="Bottom"
                                      Value="{Binding Progress}"
                                      Style="{StaticResource MetricProgressStyle}"
@@ -539,18 +539,18 @@
                             </MultiDataTrigger.Conditions>
                             <Setter Property="Visibility" Value="Collapsed" />
                         </MultiDataTrigger>
-                        <DataTrigger Binding="{Binding Layout, ElementName=Root}" Value="{x:Static models:WidgetLayout.Rail}">
-                        <Setter Property="Margin" Value="0,0,0,6" />
-                        <Setter Property="Padding" Value="10,9" />
-                        <Setter Property="CornerRadius" Value="11" />
+                    <DataTrigger Binding="{Binding Layout, ElementName=Root}" Value="{x:Static models:WidgetLayout.Rail}">
+                        <Setter Property="Margin" Value="{Binding CardMargin}" />
+                        <Setter Property="Padding" Value="{Binding CardPadding}" />
+                        <Setter Property="CornerRadius" Value="{Binding CardCornerRadius}" />
                     </DataTrigger>
                     <DataTrigger Binding="{Binding Layout, ElementName=Root}" Value="{x:Static models:WidgetLayout.Dock}">
-                        <Setter Property="Margin" Value="0,0,5,0" />
-                        <Setter Property="Padding" Value="8,6" />
-                        <Setter Property="CornerRadius" Value="11" />
+                        <Setter Property="Margin" Value="{Binding DockCardMargin}" />
+                        <Setter Property="Padding" Value="{Binding DockCardPadding}" />
+                        <Setter Property="CornerRadius" Value="{Binding DockCardCornerRadius}" />
                     </DataTrigger>
                     <DataTrigger Binding="{Binding Density, ElementName=Root}" Value="{x:Static models:WidgetDensity.Compact}">
-                        <Setter Property="Padding" Value="7,3" />
+                        <Setter Property="Padding" Value="{Binding CompactCardPadding}" />
                     </DataTrigger>
                     <MultiDataTrigger>
                         <MultiDataTrigger.Conditions>
@@ -559,8 +559,8 @@
                             <Condition Binding="{Binding Density, ElementName=Root}"
                                        Value="{x:Static models:WidgetDensity.Compact}" />
                         </MultiDataTrigger.Conditions>
-                        <Setter Property="Margin" Value="0,0,0,4" />
-                        <Setter Property="CornerRadius" Value="13" />
+                        <Setter Property="Margin" Value="{Binding CompactCardMargin}" />
+                        <Setter Property="CornerRadius" Value="{Binding CompactCardCornerRadius}" />
                     </MultiDataTrigger>
                     <MultiDataTrigger>
                         <MultiDataTrigger.Conditions>
@@ -584,9 +584,9 @@
                             <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                        Value="True" />
                         </MultiDataTrigger.Conditions>
-                        <Setter Property="Margin" Value="0,0,0,2" />
-                        <Setter Property="Padding" Value="5,1" />
-                        <Setter Property="CornerRadius" Value="11" />
+                        <Setter Property="Margin" Value="{Binding MiniCardMargin}" />
+                        <Setter Property="Padding" Value="{Binding MiniCardPadding}" />
+                        <Setter Property="CornerRadius" Value="{Binding MiniCardCornerRadius}" />
                     </MultiDataTrigger>
                 </Style.Triggers>
             </Style>
@@ -768,7 +768,7 @@
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Density, ElementName=Root}"
                                                  Value="{x:Static models:WidgetDensity.Compact}">
-                                        <Setter Property="FontSize" Value="11" />
+                                        <Setter Property="FontSize" Value="{Binding CompactLabelFontSize}" />
                                     </DataTrigger>
                                     <MultiDataTrigger>
                                         <MultiDataTrigger.Conditions>
@@ -777,7 +777,7 @@
                                             <Condition Binding="{Binding Density, ElementName=Root}"
                                                        Value="{x:Static models:WidgetDensity.Compact}" />
                                         </MultiDataTrigger.Conditions>
-                                        <Setter Property="FontSize" Value="10.5" />
+                                        <Setter Property="FontSize" Value="{Binding CompactLabelFontSize}" />
                                     </MultiDataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -805,7 +805,7 @@
                                         <DataTrigger Binding="{Binding Density, ElementName=Root}"
                                                      Value="{x:Static models:WidgetDensity.Compact}">
                                             <Setter Property="MaxWidth" Value="82" />
-                                            <Setter Property="FontSize" Value="11" />
+                                            <Setter Property="FontSize" Value="{Binding CompactSecondaryFontSize}" />
                                         </DataTrigger>
                                         <MultiDataTrigger>
                                             <MultiDataTrigger.Conditions>
@@ -815,7 +815,7 @@
                                                            Value="{x:Static models:WidgetDensity.Compact}" />
                                             </MultiDataTrigger.Conditions>
                                             <Setter Property="MaxWidth" Value="54" />
-                                            <Setter Property="FontSize" Value="10.5" />
+                                            <Setter Property="FontSize" Value="{Binding CompactSecondaryFontSize}" />
                                         </MultiDataTrigger>
                                         <MultiDataTrigger>
                                             <MultiDataTrigger.Conditions>
@@ -847,14 +847,14 @@
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding Density, ElementName=Root}" Value="{x:Static models:WidgetDensity.Compact}">
                                     <Setter Property="Text" Value="{Binding CompactPrimaryValue}" />
-                                    <Setter Property="FontSize" Value="18" />
+                                    <Setter Property="FontSize" Value="{Binding CompactValueFontSize}" />
                                     <Setter Property="Margin" Value="0,1,0,1" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Layout, ElementName=Root}" Value="{x:Static models:WidgetLayout.Dock}">
-                                    <Setter Property="FontSize" Value="21" />
+                                    <Setter Property="FontSize" Value="{Binding ValueFontSize}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Layout, ElementName=Root}" Value="{x:Static models:WidgetLayout.Rail}">
-                                    <Setter Property="FontSize" Value="22" />
+                                    <Setter Property="FontSize" Value="{Binding ValueFontSize}" />
                                 </DataTrigger>
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
@@ -863,7 +863,7 @@
                                         <Condition Binding="{Binding Density, ElementName=Root}"
                                                    Value="{x:Static models:WidgetDensity.Compact}" />
                                     </MultiDataTrigger.Conditions>
-                                    <Setter Property="FontSize" Value="17" />
+                                    <Setter Property="FontSize" Value="{Binding CompactValueFontSize}" />
                                     <Setter Property="Margin" Value="0,0,0,0" />
                                 </MultiDataTrigger>
                                 <MultiDataTrigger>
@@ -874,7 +874,7 @@
                                                    Value="{x:Static models:WidgetDensity.Compact}" />
                                         <Condition Binding="{Binding Key}" Value="memory" />
                                     </MultiDataTrigger.Conditions>
-                                    <Setter Property="FontSize" Value="15" />
+                                    <Setter Property="FontSize" Value="{Binding CompactValueFontSize}" />
                                 </MultiDataTrigger>
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
@@ -884,7 +884,7 @@
                                                    Value="{x:Static models:WidgetDensity.Compact}" />
                                         <Condition Binding="{Binding Key}" Value="network" />
                                     </MultiDataTrigger.Conditions>
-                                    <Setter Property="FontSize" Value="15" />
+                                    <Setter Property="FontSize" Value="{Binding CompactValueFontSize}" />
                                 </MultiDataTrigger>
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
@@ -895,7 +895,7 @@
                                         <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                                    Value="True" />
                                     </MultiDataTrigger.Conditions>
-                                    <Setter Property="FontSize" Value="16" />
+                                    <Setter Property="FontSize" Value="{Binding CompactValueFontSize}" />
                                     <Setter Property="Margin" Value="0" />
                                 </MultiDataTrigger>
                             </Style.Triggers>
@@ -917,7 +917,7 @@
                                         <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                                    Value="True" />
                                     </MultiDataTrigger.Conditions>
-                                    <Setter Property="Height" Value="2" />
+                                    <Setter Property="Height" Value="{Binding CompactProgressHeight}" />
                                 </MultiDataTrigger>
                             </Style.Triggers>
                         </Style>

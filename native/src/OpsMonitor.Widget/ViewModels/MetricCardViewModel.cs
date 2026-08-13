@@ -72,8 +72,19 @@ public sealed class MetricCardViewModel : ObservableObject
     private Thickness _cardBorderThickness = new(1);
     private Thickness _cardPadding = new(10);
     private Thickness _cardMargin = new(0, 0, 0, 6);
+    private CornerRadius _compactCardCornerRadius = new(9);
+    private Thickness _compactCardPadding = new(7, 3, 7, 3);
+    private Thickness _compactCardMargin = new(0, 0, 0, 4);
+    private CornerRadius _miniCardCornerRadius = new(6);
+    private Thickness _miniCardPadding = new(4, 0, 4, 0);
+    private Thickness _miniCardMargin = new(0, 0, 0, 1);
+    private CornerRadius _dockCardCornerRadius = new(11);
+    private Thickness _dockCardPadding = new(8, 6, 8, 6);
+    private Thickness _dockCardMargin = new(0, 0, 5, 0);
     private double _accentWidth = 3;
     private double _progressHeight = 4;
+    private double _compactProgressHeight = 3;
+    private double _miniProgressHeight = 1;
     private CornerRadius _progressCornerRadius = new(2);
     private double _sparklineThickness = 1.5;
     private double _sparklineFillOpacity = 0.16;
@@ -82,6 +93,7 @@ public sealed class MetricCardViewModel : ObservableObject
     private double _valueFontSize = 18;
     private double _iconSize = 14;
     private FontWeight _labelFontWeight = FontWeights.SemiBold;
+    private FontWeight _secondaryFontWeight = FontWeights.Medium;
     private FontWeight _valueFontWeight = FontWeights.SemiBold;
     private double _compactLabelFontSize = 10;
     private double _compactSecondaryFontSize = 9.5;
@@ -203,8 +215,19 @@ public sealed class MetricCardViewModel : ObservableObject
     public Thickness CardBorderThickness { get => _cardBorderThickness; private set => SetProperty(ref _cardBorderThickness, value); }
     public Thickness CardPadding { get => _cardPadding; private set => SetProperty(ref _cardPadding, value); }
     public Thickness CardMargin { get => _cardMargin; private set => SetProperty(ref _cardMargin, value); }
+    public CornerRadius CompactCardCornerRadius { get => _compactCardCornerRadius; private set => SetProperty(ref _compactCardCornerRadius, value); }
+    public Thickness CompactCardPadding { get => _compactCardPadding; private set => SetProperty(ref _compactCardPadding, value); }
+    public Thickness CompactCardMargin { get => _compactCardMargin; private set => SetProperty(ref _compactCardMargin, value); }
+    public CornerRadius MiniCardCornerRadius { get => _miniCardCornerRadius; private set => SetProperty(ref _miniCardCornerRadius, value); }
+    public Thickness MiniCardPadding { get => _miniCardPadding; private set => SetProperty(ref _miniCardPadding, value); }
+    public Thickness MiniCardMargin { get => _miniCardMargin; private set => SetProperty(ref _miniCardMargin, value); }
+    public CornerRadius DockCardCornerRadius { get => _dockCardCornerRadius; private set => SetProperty(ref _dockCardCornerRadius, value); }
+    public Thickness DockCardPadding { get => _dockCardPadding; private set => SetProperty(ref _dockCardPadding, value); }
+    public Thickness DockCardMargin { get => _dockCardMargin; private set => SetProperty(ref _dockCardMargin, value); }
     public double AccentWidth { get => _accentWidth; private set => SetProperty(ref _accentWidth, value); }
     public double ProgressHeight { get => _progressHeight; private set => SetProperty(ref _progressHeight, value); }
+    public double CompactProgressHeight { get => _compactProgressHeight; private set => SetProperty(ref _compactProgressHeight, value); }
+    public double MiniProgressHeight { get => _miniProgressHeight; private set => SetProperty(ref _miniProgressHeight, value); }
     public CornerRadius ProgressCornerRadius { get => _progressCornerRadius; private set => SetProperty(ref _progressCornerRadius, value); }
     public double SparklineThickness { get => _sparklineThickness; private set => SetProperty(ref _sparklineThickness, value); }
     public double SparklineFillOpacity { get => _sparklineFillOpacity; private set => SetProperty(ref _sparklineFillOpacity, value); }
@@ -213,6 +236,7 @@ public sealed class MetricCardViewModel : ObservableObject
     public double ValueFontSize { get => _valueFontSize; private set => SetProperty(ref _valueFontSize, value); }
     public double IconSize { get => _iconSize; private set => SetProperty(ref _iconSize, value); }
     public FontWeight LabelFontWeight { get => _labelFontWeight; private set => SetProperty(ref _labelFontWeight, value); }
+    public FontWeight SecondaryFontWeight { get => _secondaryFontWeight; private set => SetProperty(ref _secondaryFontWeight, value); }
     public FontWeight ValueFontWeight { get => _valueFontWeight; private set => SetProperty(ref _valueFontWeight, value); }
     public double CompactLabelFontSize { get => _compactLabelFontSize; private set => SetProperty(ref _compactLabelFontSize, value); }
     public double CompactSecondaryFontSize { get => _compactSecondaryFontSize; private set => SetProperty(ref _compactSecondaryFontSize, value); }
@@ -460,37 +484,73 @@ public sealed class MetricCardViewModel : ObservableObject
         PrimaryTextBrush = CreateBrush(primaryTextColor);
         SecondaryTextBrush = CreateBrush(secondaryTextColor);
         TrackBrush = CreateBrush(trackColor);
-        CardCornerRadius = new CornerRadius(Math.Clamp(
-            _cardCornerRadiusOverride ?? theme.CardCornerRadius, 0, 40));
+        double cardCornerRadius = Math.Clamp(
+            _cardCornerRadiusOverride ?? theme.CardCornerRadius, 0, 40);
+        CardCornerRadius = new CornerRadius(cardCornerRadius);
         CardBorderThickness = new Thickness(Math.Clamp(
             _cardBorderWidthOverride ?? theme.CardBorderWidth, 0, 4));
-        CardPadding = new Thickness(Math.Clamp(_cardPaddingOverride ?? theme.CardPadding, 0, 28));
-        CardMargin = new Thickness(0, 0, 0, Math.Clamp(
-            _cardGapOverride ?? theme.CardGap, 0, 20));
+        double cardPadding = Math.Clamp(_cardPaddingOverride ?? theme.CardPadding, 0, 28);
+        double cardGap = Math.Clamp(_cardGapOverride ?? theme.CardGap, 0, 20);
+        CardPadding = new Thickness(cardPadding);
+        CardMargin = new Thickness(0, 0, 0, cardGap);
+        CompactCardCornerRadius = new CornerRadius(Math.Clamp(cardCornerRadius * 0.75, 0, 14));
+        CompactCardPadding = new Thickness(
+            Math.Clamp(cardPadding * 0.7, 0, 8),
+            Math.Clamp(cardPadding * 0.3, 0, 4),
+            Math.Clamp(cardPadding * 0.7, 0, 8),
+            Math.Clamp(cardPadding * 0.3, 0, 4));
+        CompactCardMargin = new Thickness(0, 0, 0, Math.Clamp(cardGap, 0, 6));
+        MiniCardCornerRadius = new CornerRadius(Math.Clamp(cardCornerRadius * 0.5, 0, 8));
+        MiniCardPadding = new Thickness(
+            Math.Clamp(cardPadding * 0.4, 0, 5),
+            0,
+            Math.Clamp(cardPadding * 0.4, 0, 5),
+            0);
+        MiniCardMargin = new Thickness(0, 0, 0, Math.Clamp(cardGap * 0.2, 0, 2));
+        DockCardCornerRadius = new CornerRadius(Math.Clamp(cardCornerRadius * 0.9, 0, 14));
+        DockCardPadding = new Thickness(
+            Math.Clamp(cardPadding * 0.8, 0, 10),
+            Math.Clamp(cardPadding * 0.6, 0, 8),
+            Math.Clamp(cardPadding * 0.8, 0, 10),
+            Math.Clamp(cardPadding * 0.6, 0, 8));
+        DockCardMargin = new Thickness(0, 0, Math.Clamp(cardGap, 0, 10), 0);
         AccentWidth = Math.Clamp(_accentWidthOverride ?? theme.AccentWidth, 0, 10);
         OnPropertyChanged(nameof(EffectiveAccentWidth));
         ProgressHeight = Math.Clamp(_progressHeightOverride ?? theme.ProgressHeight, 1, 12);
+        CompactProgressHeight = Math.Clamp(ProgressHeight * 0.75, 1, 4);
+        MiniProgressHeight = Math.Clamp(ProgressHeight * 0.35, 1, 2);
         ProgressCornerRadius = new CornerRadius(Math.Clamp(
             _progressCornerRadiusOverride ?? theme.ProgressCornerRadius, 0, 6));
         SparklineThickness = Math.Clamp(
             _sparklineThicknessOverride ?? theme.SparklineThickness, 0.5, 5);
-        LabelFontSize = Math.Clamp(_labelSizeOverride ?? theme.LabelSize, 8, 26);
-        SecondaryFontSize = Math.Clamp(_secondarySizeOverride ?? theme.SecondarySize, 8, 24);
-        ValueFontSize = Math.Clamp(_valueSizeOverride ?? theme.ValueSize, 10, 42);
-        IconSize = Math.Clamp(_iconSizeOverride ?? theme.IconSize, 8, 32);
+        double readableMinimum = Math.Clamp(theme.MinimumReadableSize, 8, 18);
+        LabelFontSize = Math.Max(
+            readableMinimum,
+            Math.Clamp(_labelSizeOverride ?? theme.LabelSize, 8, 26));
+        SecondaryFontSize = Math.Max(
+            readableMinimum,
+            Math.Clamp(_secondarySizeOverride ?? theme.SecondarySize, 8, 24));
+        ValueFontSize = Math.Max(
+            readableMinimum + 2,
+            Math.Clamp(_valueSizeOverride ?? theme.ValueSize, 10, 42));
+        IconSize = Math.Max(
+            readableMinimum,
+            Math.Clamp(_iconSizeOverride ?? theme.IconSize, 8, 32));
         LabelFontWeight = FontWeight.FromOpenTypeWeight(Math.Clamp(
             _labelWeightOverride ?? theme.LabelWeight, 100, 900));
+        SecondaryFontWeight = FontWeight.FromOpenTypeWeight(Math.Clamp(
+            theme.SecondaryWeight, 100, 900));
         ValueFontWeight = FontWeight.FromOpenTypeWeight(Math.Clamp(
             _valueWeightOverride ?? theme.ValueWeight, 100, 900));
-        CompactLabelFontSize = Math.Clamp(LabelFontSize * 0.86, 8, 11);
-        CompactSecondaryFontSize = Math.Clamp(SecondaryFontSize * 0.9, 8, 10.5);
-        CompactValueFontSize = Math.Clamp(ValueFontSize * 0.82, 10, 15);
-        CompactIconSize = Math.Clamp(IconSize * 0.7, 8, 10);
+        CompactLabelFontSize = Math.Clamp(LabelFontSize * 0.92, 9, 13);
+        CompactSecondaryFontSize = Math.Clamp(SecondaryFontSize * 0.96, 9.5, 12);
+        CompactValueFontSize = Math.Clamp(ValueFontSize * 0.86, 11, 18);
+        CompactIconSize = Math.Clamp(IconSize * 0.76, 8.5, 11);
         CompactSparklineThickness = Math.Clamp(SparklineThickness * 0.58, 0.6, 1.5);
-        MiniLabelFontSize = Math.Clamp(LabelFontSize * 0.74, 8, 10);
-        MiniSecondaryFontSize = Math.Clamp(SecondaryFontSize * 0.82, 8, 9.5);
+        MiniLabelFontSize = Math.Clamp(LabelFontSize * 0.9, 9, 11);
+        MiniSecondaryFontSize = Math.Clamp(SecondaryFontSize, 10, 11.5);
         MiniValueFontSize = Math.Clamp(ValueFontSize * 0.58, 10, 10.5);
-        MiniIconSize = Math.Clamp(IconSize * 0.62, 8, 10);
+        MiniIconSize = Math.Clamp(IconSize * 0.7, 8.5, 10.5);
         MiniSparklineThickness = Math.Clamp(SparklineThickness * 0.48, 0.5, 1);
         UpdateStateBrush();
     }

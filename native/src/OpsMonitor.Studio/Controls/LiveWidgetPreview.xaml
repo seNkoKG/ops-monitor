@@ -90,21 +90,17 @@
                             BorderThickness="{Binding Designer.BorderWidth}"
                             CornerRadius="{Binding Designer.CornerRadius}"
                             ClipToBounds="True">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="18"
+                                              Direction="270"
+                                              Opacity="{Binding PreviewShellShadowOpacity}"
+                                              ShadowDepth="5"
+                                              Color="#FF000000"/>
+                        </Border.Effect>
                         <Grid>
                             <Grid.Style>
                                 <Style TargetType="{x:Type Grid}">
-                                    <Setter Property="Margin" Value="{Binding Designer.ContentPadding}"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
-                                            <Setter Property="Margin" Value="0"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding SelectedLayout}" Value="Mini">
-                                            <Setter Property="Margin" Value="0"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding Density}" Value="Compact">
-                                            <Setter Property="Margin" Value="0"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
+                                    <Setter Property="Margin" Value="{Binding LayoutShellContentPadding}"/>
                                 </Style>
                             </Grid.Style>
                             <Grid.RowDefinitions>
@@ -112,17 +108,25 @@
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
+                            <Border Grid.RowSpan="2"
+                                    Height="72"
+                                    VerticalAlignment="Top"
+                                    Background="{Binding PreviewShellGlowBrush}"
+                                    CornerRadius="25,25,0,0"
+                                    Opacity="{Binding PreviewShellGlowOpacity}"
+                                    IsHitTestVisible="False"/>
+
                             <Grid Opacity="{Binding ContentOpacity}">
                                 <Grid.Style>
                                     <Style TargetType="Grid">
                                         <Setter Property="Margin" Value="3,2,3,7"/>
+                                        <Setter Property="Height" Value="{Binding LayoutHeaderHeight}"/>
                                         <Setter Property="Visibility" Value="{Binding Designer.HeaderVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding SelectedLayout}" Value="Mini">
-                                                <Setter Property="Height" Value="21"/>
                                                 <Setter Property="Margin" Value="8,1,7,0"/>
                                             </DataTrigger>
                                             <MultiDataTrigger>
@@ -131,7 +135,6 @@
                                                     <Condition Binding="{Binding Density}" Value="Compact"/>
                                                     <Condition Binding="{Binding IsReducedScale}" Value="True"/>
                                                 </MultiDataTrigger.Conditions>
-                                                <Setter Property="Height" Value="13"/>
                                                 <Setter Property="Margin" Value="6,0,5,0"/>
                                             </MultiDataTrigger>
                                         </Style.Triggers>
@@ -144,12 +147,12 @@
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Grid Width="11" Height="11" Margin="0,0,7,0"
                                           Visibility="{Binding Designer.StatusIndicatorVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <Ellipse Stroke="#8858E6B2"/>
-                                        <Ellipse Width="6" Height="6" Fill="#FF58E6B2"/>
+                                        <Ellipse Stroke="{Binding Designer.SuccessBrush}" Opacity="0.55"/>
+                                        <Ellipse Width="6" Height="6" Fill="{Binding Designer.SuccessBrush}"/>
                                     </Grid>
                                     <TextBlock Text="{Binding PreviewTitle}"
                                                FontFamily="{Binding Designer.FontFamily}"
-                                               FontSize="{Binding Designer.HeaderSize}"
+                                               FontSize="{Binding LayoutHeaderFontSize}"
                                                Foreground="{Binding Designer.PrimaryTextBrush}"
                                                FontWeight="SemiBold"/>
                                 </StackPanel>

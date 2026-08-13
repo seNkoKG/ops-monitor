@@ -20,6 +20,12 @@ public sealed record WeatherHour(
     int PrecipitationProbability,
     double PrecipitationMillimetres,
     double WindKilometresPerHour,
+    double WindGustKilometresPerHour,
+    int RelativeHumidity,
+    double DewPointCelsius,
+    double VisibilityKilometres,
+    int CloudCover,
+    int ConfidenceScore,
     int WeatherCode)
 {
     public string TimeLabel => Time.ToString("HH:mm", System.Globalization.CultureInfo.CurrentCulture);
@@ -27,6 +33,26 @@ public sealed record WeatherHour(
     public string TemperatureLabel => $"{Math.Round(TemperatureCelsius):0}°";
 
     public string RainLabel => $"{PrecipitationProbability}%";
+
+    public string DetailLabel => $"RH {RelativeHumidity}% · G {WindGustKilometresPerHour:0}";
+
+    public string ConfidenceLabel => $"{ConfidenceScore}%";
+
+    public string Icon => WeatherPresentation.Icon(WeatherCode, Time.Hour is >= 6 and < 21);
+}
+
+public sealed record WeatherMinute(
+    DateTime Time,
+    double PrecipitationMillimetres,
+    int PrecipitationProbability,
+    int ConfidenceScore,
+    int WeatherCode)
+{
+    public string TimeLabel => Time.ToString("HH:mm", System.Globalization.CultureInfo.CurrentCulture);
+
+    public string RainLabel => PrecipitationMillimetres < 0.05
+        ? $"{PrecipitationProbability}%"
+        : $"{PrecipitationMillimetres:0.0} mm";
 
     public string Icon => WeatherPresentation.Icon(WeatherCode, Time.Hour is >= 6 and < 21);
 }
@@ -36,8 +62,11 @@ public sealed record WeatherDay(
     double MinimumCelsius,
     double MaximumCelsius,
     int PrecipitationProbability,
+    double PrecipitationMillimetres,
     double WindKilometresPerHour,
+    double WindGustKilometresPerHour,
     double UvIndex,
+    int ConfidenceScore,
     int WeatherCode,
     DateTime? Sunrise,
     DateTime? Sunset)
@@ -48,9 +77,43 @@ public sealed record WeatherDay(
 
     public string RangeLabel => $"{Math.Round(MinimumCelsius):0}°  /  {Math.Round(MaximumCelsius):0}°";
 
-    public string RainLabel => $"{PrecipitationProbability}% rain";
+    public string RainLabel => PrecipitationMillimetres < 0.05
+        ? $"{PrecipitationProbability}% rain"
+        : $"{PrecipitationProbability}% · {PrecipitationMillimetres:0.#} mm";
+
+    public string WindLabel => $"{WindKilometresPerHour:0} · gust {WindGustKilometresPerHour:0} km/h";
+
+    public string ConfidenceLabel => $"{ConfidenceScore}% agreement";
 
     public string Icon => WeatherPresentation.Icon(WeatherCode, true);
+}
+
+public sealed record ForecastConfidence(
+    int Score,
+    double TemperatureSpreadCelsius,
+    int PrecipitationSpreadPercent,
+    int ModelCount)
+{
+    public string Label => Score switch
+    {
+        >= 85 => "HIGH CONFIDENCE",
+        >= 70 => "GOOD CONFIDENCE",
+        >= 50 => "MIXED SIGNAL",
+        _ => "LOW CONFIDENCE"
+    };
+
+    public string Detail =>
+        $"{ModelCount} models · ±{TemperatureSpreadCelsius / 2:0.0}° · rain spread {PrecipitationSpreadPercent}%";
+}
+
+public sealed record OfficialWeatherOutlook(
+    string Region,
+    string Summary,
+    DateTimeOffset? IssuedAt)
+{
+    public string SourceLabel => IssuedAt is { } issued
+        ? $"ARSO {Region} · issued {issued.LocalDateTime:t}"
+        : $"ARSO {Region}";
 }
 
 public sealed record WeatherAlert(
@@ -101,13 +164,20 @@ public sealed record WeatherSnapshot(
     double FeelsLikeCelsius,
     int RelativeHumidity,
     double WindKilometresPerHour,
+    double WindGustKilometresPerHour,
     string WindDirection,
     double? PressureHectopascals,
+    double? DewPointCelsius,
+    double? VisibilityKilometres,
+    int CloudCover,
     double PrecipitationMillimetres,
     int PrecipitationProbability,
     int WeatherCode,
     AirQualitySnapshot? AirQuality,
     WeatherAlert? Alert,
+    ForecastConfidence Confidence,
+    OfficialWeatherOutlook? OfficialOutlook,
+    IReadOnlyList<WeatherMinute> Nowcast,
     IReadOnlyList<WeatherHour> Hourly,
     IReadOnlyList<WeatherDay> Daily,
     bool IsStale = false)
@@ -126,11 +196,26 @@ public sealed record WeatherSnapshot(
         ? $"{WindKilometresPerHour:0} km/h"
         : $"{WindDirection} {WindKilometresPerHour:0} km/h";
 
+    public string GustLabel => $"{WindGustKilometresPerHour:0} km/h";
+
+    public string DewPointLabel => DewPointCelsius is { } dewPoint
+        ? $"{dewPoint:0}°"
+        : "N/A";
+
+    public string VisibilityLabel => VisibilityKilometres is { } visibility
+        ? visibility >= 10 ? $"{visibility:0} km" : $"{visibility:0.0} km"
+        : "N/A";
+
+    public string CloudLabel => $"{CloudCover}%";
+
     public string PressureLabel => PressureHectopascals is { } pressure
         ? $"{pressure:0} hPa"
         : "N/A";
 
     public string RainLabel => $"{PrecipitationProbability}%";
+
+    public string CoordinateLabel =>
+        $"{Location.Latitude:0.0000}, {Location.Longitude:0.0000}";
 
     public string FreshnessLabel => IsStale
         ? $"Last good update {UpdatedAt.LocalDateTime:t}"

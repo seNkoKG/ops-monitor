@@ -95,7 +95,7 @@ document.querySelectorAll('[data-toggle]').forEach(button => {
   });
 });
 
-const layoutSpecs = { pill: 'PILL // 196 × 350', rail: 'RAIL // 240 × 286', dock: 'DOCK // 700 × 104', mini: 'MINI // 176 × 204' };
+const layoutSpecs = { pill: 'PILL // 196 × 350', rail: 'RAIL // 240 × 286', dock: 'DOCK // 700 × 104', mini: 'MINI // 176 × 214' };
 document.querySelectorAll('[data-layout]').forEach(button => {
   button.addEventListener('click', () => {
     const layout = button.dataset.layout;
