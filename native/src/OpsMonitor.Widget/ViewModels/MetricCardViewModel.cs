@@ -39,29 +39,60 @@ public sealed class MetricCardViewModel : ObservableObject
     private string _title;
     private string _icon = string.Empty;
     private string _customAccentColor = string.Empty;
+    private string _customCardColor = string.Empty;
+    private string _customBorderColor = string.Empty;
+    private string _customPrimaryTextColor = string.Empty;
+    private string _customSecondaryTextColor = string.Empty;
+    private string _customTrackColor = string.Empty;
     private bool _showIcon = true;
     private bool _showAccent = true;
     private double _cardOpacity = 1;
     private double _borderOpacity = 1;
     private double? _cardCornerRadiusOverride;
+    private double? _cardBorderWidthOverride;
+    private double? _cardGapOverride;
     private double? _cardPaddingOverride;
     private double? _accentWidthOverride;
     private double? _progressHeightOverride;
+    private double? _progressCornerRadiusOverride;
+    private double? _sparklineThicknessOverride;
+    private double? _sparklineFillOpacityOverride;
     private double? _labelSizeOverride;
+    private double? _secondarySizeOverride;
     private double? _valueSizeOverride;
     private double? _iconSizeOverride;
+    private int? _labelWeightOverride;
+    private int? _valueWeightOverride;
     private Brush _cardSurfaceBrush = Brushes.Black;
     private Brush _cardBorderBrush = Brushes.DimGray;
+    private Brush _primaryTextBrush = Brushes.White;
+    private Brush _secondaryTextBrush = Brushes.LightGray;
+    private Brush _trackBrush = Brushes.DimGray;
     private CornerRadius _cardCornerRadius = new(12);
     private Thickness _cardBorderThickness = new(1);
     private Thickness _cardPadding = new(10);
     private Thickness _cardMargin = new(0, 0, 0, 6);
     private double _accentWidth = 3;
     private double _progressHeight = 4;
+    private CornerRadius _progressCornerRadius = new(2);
     private double _sparklineThickness = 1.5;
+    private double _sparklineFillOpacity = 0.16;
     private double _labelFontSize = 11;
+    private double _secondaryFontSize = 10;
     private double _valueFontSize = 18;
     private double _iconSize = 14;
+    private FontWeight _labelFontWeight = FontWeights.SemiBold;
+    private FontWeight _valueFontWeight = FontWeights.SemiBold;
+    private double _compactLabelFontSize = 10;
+    private double _compactSecondaryFontSize = 9.5;
+    private double _compactValueFontSize = 14;
+    private double _compactIconSize = 9;
+    private double _compactSparklineThickness = 0.8;
+    private double _miniLabelFontSize = 9;
+    private double _miniSecondaryFontSize = 8.5;
+    private double _miniValueFontSize = 12;
+    private double _miniIconSize = 8;
+    private double _miniSparklineThickness = 0.7;
 
     public MetricCardViewModel(
         string key,
@@ -91,7 +122,7 @@ public sealed class MetricCardViewModel : ObservableObject
     public string CompactTitle =>
         StringComparer.Ordinal.Equals(Key, WidgetModuleCatalog.Weather) &&
         Title.Equals("Weather", StringComparison.OrdinalIgnoreCase)
-            ? "WX"
+            ? "WEATHER"
             : Title;
 
     public string Icon
@@ -108,6 +139,11 @@ public sealed class MetricCardViewModel : ObservableObject
     }
 
     public string CustomAccentColor => _customAccentColor;
+    public string CustomCardColor => _customCardColor;
+    public string CustomBorderColor => _customBorderColor;
+    public string CustomPrimaryTextColor => _customPrimaryTextColor;
+    public string CustomSecondaryTextColor => _customSecondaryTextColor;
+    public string CustomTrackColor => _customTrackColor;
 
     public Geometry IconData { get; }
 
@@ -121,6 +157,7 @@ public sealed class MetricCardViewModel : ObservableObject
                 OnPropertyChanged(nameof(ShowDefaultIcon));
                 OnPropertyChanged(nameof(ShowCustomIcon));
                 OnPropertyChanged(nameof(CompactIconColumnWidth));
+                OnPropertyChanged(nameof(CompactValueMargin));
             }
         }
     }
@@ -139,27 +176,54 @@ public sealed class MetricCardViewModel : ObservableObject
     }
     public double EffectiveAccentWidth => ShowAccent ? AccentWidth : 0;
     public double CompactIconColumnWidth => ShowIcon ? 16 : 0;
+    public Thickness CompactValueMargin => new(CompactIconColumnWidth, 0, 0, 0);
     public double CardOpacity => _cardOpacity;
     public double BorderOpacity => _borderOpacity;
     public double? CardCornerRadiusOverride => _cardCornerRadiusOverride;
+    public double? CardBorderWidthOverride => _cardBorderWidthOverride;
+    public double? CardGapOverride => _cardGapOverride;
     public double? CardPaddingOverride => _cardPaddingOverride;
     public double? AccentWidthOverride => _accentWidthOverride;
     public double? ProgressHeightOverride => _progressHeightOverride;
+    public double? ProgressCornerRadiusOverride => _progressCornerRadiusOverride;
+    public double? SparklineThicknessOverride => _sparklineThicknessOverride;
+    public double? SparklineFillOpacityOverride => _sparklineFillOpacityOverride;
     public double? LabelSizeOverride => _labelSizeOverride;
+    public double? SecondarySizeOverride => _secondarySizeOverride;
     public double? ValueSizeOverride => _valueSizeOverride;
     public double? IconSizeOverride => _iconSizeOverride;
+    public int? LabelWeightOverride => _labelWeightOverride;
+    public int? ValueWeightOverride => _valueWeightOverride;
     public Brush CardSurfaceBrush { get => _cardSurfaceBrush; private set => SetProperty(ref _cardSurfaceBrush, value); }
     public Brush CardBorderBrush { get => _cardBorderBrush; private set => SetProperty(ref _cardBorderBrush, value); }
+    public Brush PrimaryTextBrush { get => _primaryTextBrush; private set => SetProperty(ref _primaryTextBrush, value); }
+    public Brush SecondaryTextBrush { get => _secondaryTextBrush; private set => SetProperty(ref _secondaryTextBrush, value); }
+    public Brush TrackBrush { get => _trackBrush; private set => SetProperty(ref _trackBrush, value); }
     public CornerRadius CardCornerRadius { get => _cardCornerRadius; private set => SetProperty(ref _cardCornerRadius, value); }
     public Thickness CardBorderThickness { get => _cardBorderThickness; private set => SetProperty(ref _cardBorderThickness, value); }
     public Thickness CardPadding { get => _cardPadding; private set => SetProperty(ref _cardPadding, value); }
     public Thickness CardMargin { get => _cardMargin; private set => SetProperty(ref _cardMargin, value); }
     public double AccentWidth { get => _accentWidth; private set => SetProperty(ref _accentWidth, value); }
     public double ProgressHeight { get => _progressHeight; private set => SetProperty(ref _progressHeight, value); }
+    public CornerRadius ProgressCornerRadius { get => _progressCornerRadius; private set => SetProperty(ref _progressCornerRadius, value); }
     public double SparklineThickness { get => _sparklineThickness; private set => SetProperty(ref _sparklineThickness, value); }
+    public double SparklineFillOpacity { get => _sparklineFillOpacity; private set => SetProperty(ref _sparklineFillOpacity, value); }
     public double LabelFontSize { get => _labelFontSize; private set => SetProperty(ref _labelFontSize, value); }
+    public double SecondaryFontSize { get => _secondaryFontSize; private set => SetProperty(ref _secondaryFontSize, value); }
     public double ValueFontSize { get => _valueFontSize; private set => SetProperty(ref _valueFontSize, value); }
     public double IconSize { get => _iconSize; private set => SetProperty(ref _iconSize, value); }
+    public FontWeight LabelFontWeight { get => _labelFontWeight; private set => SetProperty(ref _labelFontWeight, value); }
+    public FontWeight ValueFontWeight { get => _valueFontWeight; private set => SetProperty(ref _valueFontWeight, value); }
+    public double CompactLabelFontSize { get => _compactLabelFontSize; private set => SetProperty(ref _compactLabelFontSize, value); }
+    public double CompactSecondaryFontSize { get => _compactSecondaryFontSize; private set => SetProperty(ref _compactSecondaryFontSize, value); }
+    public double CompactValueFontSize { get => _compactValueFontSize; private set => SetProperty(ref _compactValueFontSize, value); }
+    public double CompactIconSize { get => _compactIconSize; private set => SetProperty(ref _compactIconSize, value); }
+    public double CompactSparklineThickness { get => _compactSparklineThickness; private set => SetProperty(ref _compactSparklineThickness, value); }
+    public double MiniLabelFontSize { get => _miniLabelFontSize; private set => SetProperty(ref _miniLabelFontSize, value); }
+    public double MiniSecondaryFontSize { get => _miniSecondaryFontSize; private set => SetProperty(ref _miniSecondaryFontSize, value); }
+    public double MiniValueFontSize { get => _miniValueFontSize; private set => SetProperty(ref _miniValueFontSize, value); }
+    public double MiniIconSize { get => _miniIconSize; private set => SetProperty(ref _miniIconSize, value); }
+    public double MiniSparklineThickness { get => _miniSparklineThickness; private set => SetProperty(ref _miniSparklineThickness, value); }
 
     public ObservableCollection<MetricDetailViewModel> Details { get; } = [];
 
@@ -224,7 +288,8 @@ public sealed class MetricCardViewModel : ObservableObject
     public bool ShowProgress =>
         IsProgressAvailable &&
         (Visualization is WidgetModuleVisualization.Progress or
-            WidgetModuleVisualization.Gauge);
+            WidgetModuleVisualization.Gauge or
+            WidgetModuleVisualization.ValueAndProgress);
 
     public bool ShowSparkline =>
         Visualization == WidgetModuleVisualization.Sparkline ||
@@ -376,25 +441,57 @@ public sealed class MetricCardViewModel : ObservableObject
             _ => theme.CpuAccent
         };
         var color = ParseColor(_customAccentColor, semanticColor);
+        var cardColor = ParseColor(_customCardColor, theme.Card);
+        var borderColor = ParseColor(_customBorderColor, theme.Border);
+        var primaryTextColor = ParseColor(_customPrimaryTextColor, theme.TextPrimary);
+        var secondaryTextColor = ParseColor(_customSecondaryTextColor, theme.TextSecondary);
+        var trackColor = ParseColor(_customTrackColor, theme.Track);
 
         _warningColor = theme.Warning;
         _criticalColor = theme.Critical;
         AccentBrush = CreateBrush(color);
-        HistoryFillBrush = CreateBrush(Color.FromArgb(42, color.R, color.G, color.B));
-        CardSurfaceBrush = CreateBrush(WithOpacity(theme.Card, theme.CardOpacity * _cardOpacity));
-        CardBorderBrush = CreateBrush(WithOpacity(theme.Border, _borderOpacity));
+        SparklineFillOpacity = Math.Clamp(
+            _sparklineFillOpacityOverride ?? theme.SparklineFillOpacity,
+            0,
+            0.5);
+        HistoryFillBrush = CreateBrush(WithOpacity(color, SparklineFillOpacity));
+        CardSurfaceBrush = CreateBrush(WithOpacity(cardColor, theme.CardOpacity * _cardOpacity));
+        CardBorderBrush = CreateBrush(WithOpacity(borderColor, _borderOpacity));
+        PrimaryTextBrush = CreateBrush(primaryTextColor);
+        SecondaryTextBrush = CreateBrush(secondaryTextColor);
+        TrackBrush = CreateBrush(trackColor);
         CardCornerRadius = new CornerRadius(Math.Clamp(
             _cardCornerRadiusOverride ?? theme.CardCornerRadius, 0, 40));
-        CardBorderThickness = new Thickness(Math.Clamp(theme.CardBorderWidth, 0, 4));
+        CardBorderThickness = new Thickness(Math.Clamp(
+            _cardBorderWidthOverride ?? theme.CardBorderWidth, 0, 4));
         CardPadding = new Thickness(Math.Clamp(_cardPaddingOverride ?? theme.CardPadding, 0, 28));
-        CardMargin = new Thickness(0, 0, 0, Math.Clamp(theme.CardGap, 0, 20));
+        CardMargin = new Thickness(0, 0, 0, Math.Clamp(
+            _cardGapOverride ?? theme.CardGap, 0, 20));
         AccentWidth = Math.Clamp(_accentWidthOverride ?? theme.AccentWidth, 0, 10);
         OnPropertyChanged(nameof(EffectiveAccentWidth));
         ProgressHeight = Math.Clamp(_progressHeightOverride ?? theme.ProgressHeight, 1, 12);
-        SparklineThickness = Math.Clamp(theme.SparklineThickness, 0.5, 5);
+        ProgressCornerRadius = new CornerRadius(Math.Clamp(
+            _progressCornerRadiusOverride ?? theme.ProgressCornerRadius, 0, 6));
+        SparklineThickness = Math.Clamp(
+            _sparklineThicknessOverride ?? theme.SparklineThickness, 0.5, 5);
         LabelFontSize = Math.Clamp(_labelSizeOverride ?? theme.LabelSize, 8, 26);
+        SecondaryFontSize = Math.Clamp(_secondarySizeOverride ?? theme.SecondarySize, 8, 24);
         ValueFontSize = Math.Clamp(_valueSizeOverride ?? theme.ValueSize, 10, 42);
-        IconSize = Math.Clamp(_iconSizeOverride ?? 14, 8, 32);
+        IconSize = Math.Clamp(_iconSizeOverride ?? theme.IconSize, 8, 32);
+        LabelFontWeight = FontWeight.FromOpenTypeWeight(Math.Clamp(
+            _labelWeightOverride ?? theme.LabelWeight, 100, 900));
+        ValueFontWeight = FontWeight.FromOpenTypeWeight(Math.Clamp(
+            _valueWeightOverride ?? theme.ValueWeight, 100, 900));
+        CompactLabelFontSize = Math.Clamp(LabelFontSize * 0.86, 8, 11);
+        CompactSecondaryFontSize = Math.Clamp(SecondaryFontSize * 0.9, 8, 10.5);
+        CompactValueFontSize = Math.Clamp(ValueFontSize * 0.82, 10, 15);
+        CompactIconSize = Math.Clamp(IconSize * 0.7, 8, 10);
+        CompactSparklineThickness = Math.Clamp(SparklineThickness * 0.58, 0.6, 1.5);
+        MiniLabelFontSize = Math.Clamp(LabelFontSize * 0.74, 8, 10);
+        MiniSecondaryFontSize = Math.Clamp(SecondaryFontSize * 0.82, 8, 9.5);
+        MiniValueFontSize = Math.Clamp(ValueFontSize * 0.58, 10, 10.5);
+        MiniIconSize = Math.Clamp(IconSize * 0.62, 8, 10);
+        MiniSparklineThickness = Math.Clamp(SparklineThickness * 0.48, 0.5, 1);
         UpdateStateBrush();
     }
 
@@ -411,17 +508,35 @@ public sealed class MetricCardViewModel : ObservableObject
         Icon = presentation.Icon ?? string.Empty;
         _customAccentColor = presentation.AccentColor ?? string.Empty;
         OnPropertyChanged(nameof(CustomAccentColor));
+        _customCardColor = presentation.CardColor ?? string.Empty;
+        _customBorderColor = presentation.BorderColor ?? string.Empty;
+        _customPrimaryTextColor = presentation.PrimaryTextColor ?? string.Empty;
+        _customSecondaryTextColor = presentation.SecondaryTextColor ?? string.Empty;
+        _customTrackColor = presentation.TrackColor ?? string.Empty;
+        OnPropertyChanged(nameof(CustomCardColor));
+        OnPropertyChanged(nameof(CustomBorderColor));
+        OnPropertyChanged(nameof(CustomPrimaryTextColor));
+        OnPropertyChanged(nameof(CustomSecondaryTextColor));
+        OnPropertyChanged(nameof(CustomTrackColor));
         ShowIcon = presentation.ShowIcon;
         ShowAccent = presentation.ShowAccent;
         _cardOpacity = Math.Clamp(presentation.CardOpacity, 0.2, 1);
         _borderOpacity = Math.Clamp(presentation.BorderOpacity, 0, 1);
         _cardCornerRadiusOverride = NormalizeOverride(presentation.CardCornerRadiusOverride, 0, 40);
+        _cardBorderWidthOverride = NormalizeOverride(presentation.CardBorderWidthOverride, 0, 4);
+        _cardGapOverride = NormalizeOverride(presentation.CardGapOverride, 0, 20);
         _cardPaddingOverride = NormalizeOverride(presentation.CardPaddingOverride, 0, 28);
         _accentWidthOverride = NormalizeOverride(presentation.AccentWidthOverride, 0, 10);
         _progressHeightOverride = NormalizeOverride(presentation.ProgressHeightOverride, 1, 12);
+        _progressCornerRadiusOverride = NormalizeOverride(presentation.ProgressCornerRadiusOverride, 0, 6);
+        _sparklineThicknessOverride = NormalizeOverride(presentation.SparklineThicknessOverride, 0.5, 5);
+        _sparklineFillOpacityOverride = NormalizeOverride(presentation.SparklineFillOpacityOverride, 0, 0.5);
         _labelSizeOverride = NormalizeOverride(presentation.LabelSizeOverride, 8, 26);
+        _secondarySizeOverride = NormalizeOverride(presentation.SecondarySizeOverride, 8, 24);
         _valueSizeOverride = NormalizeOverride(presentation.ValueSizeOverride, 10, 42);
         _iconSizeOverride = NormalizeOverride(presentation.IconSizeOverride, 8, 32);
+        _labelWeightOverride = NormalizeOverride(presentation.LabelWeightOverride, 100, 900);
+        _valueWeightOverride = NormalizeOverride(presentation.ValueWeightOverride, 100, 900);
         if (_theme is not null)
         {
             ApplyTheme(_theme);
@@ -458,6 +573,11 @@ public sealed class MetricCardViewModel : ObservableObject
 
     private static double? NormalizeOverride(double? value, double minimum, double maximum) =>
         value is { } candidate && double.IsFinite(candidate)
+            ? Math.Clamp(candidate, minimum, maximum)
+            : null;
+
+    private static int? NormalizeOverride(int? value, int minimum, int maximum) =>
+        value is { } candidate
             ? Math.Clamp(candidate, minimum, maximum)
             : null;
 

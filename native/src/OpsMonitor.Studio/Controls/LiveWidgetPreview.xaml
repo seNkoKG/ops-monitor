@@ -57,7 +57,7 @@
 
         <Border Grid.Row="2"
                 Margin="20,0,20,16"
-                Background="#FF080B11"
+                Background="#FF0B111A"
                 BorderBrush="{StaticResource Brush.Border}"
                 BorderThickness="1"
                 CornerRadius="14"
@@ -66,9 +66,9 @@
                 <Grid.Background>
                     <DrawingBrush TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute">
                         <DrawingBrush.Drawing>
-                            <GeometryDrawing Brush="#FF080B11">
+                            <GeometryDrawing Brush="#FF0B111A">
                                 <GeometryDrawing.Pen>
-                                    <Pen Brush="#18364A62" Thickness="0.5"/>
+                                    <Pen Brush="#2B36506B" Thickness="0.5"/>
                                 </GeometryDrawing.Pen>
                                 <GeometryDrawing.Geometry>
                                     <GeometryGroup>
@@ -82,6 +82,7 @@
                 </Grid.Background>
 
                 <Viewbox Margin="22" Stretch="Uniform">
+                    <Grid>
                     <Border Width="{Binding PreviewWidth}"
                             Height="{Binding PreviewHeight}"
                             Background="{Binding PreviewSurfaceBrush}"
@@ -89,21 +90,50 @@
                             BorderThickness="{Binding Designer.BorderWidth}"
                             CornerRadius="{Binding Designer.CornerRadius}"
                             ClipToBounds="True">
-                        <Grid Margin="{Binding Designer.ContentPadding}">
+                        <Grid>
+                            <Grid.Style>
+                                <Style TargetType="{x:Type Grid}">
+                                    <Setter Property="Margin" Value="{Binding Designer.ContentPadding}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
+                                            <Setter Property="Margin" Value="0"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding SelectedLayout}" Value="Mini">
+                                            <Setter Property="Margin" Value="0"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Density}" Value="Compact">
+                                            <Setter Property="Margin" Value="0"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
-                            <Grid Margin="3,2,3,7"
-                                  Opacity="{Binding ContentOpacity}"
-                                  Visibility="{Binding Designer.HeaderVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Grid Opacity="{Binding ContentOpacity}">
                                 <Grid.Style>
                                     <Style TargetType="Grid">
+                                        <Setter Property="Margin" Value="3,2,3,7"/>
+                                        <Setter Property="Visibility" Value="{Binding Designer.HeaderVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding SelectedLayout}" Value="Dock">
                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                             </DataTrigger>
+                                            <DataTrigger Binding="{Binding SelectedLayout}" Value="Mini">
+                                                <Setter Property="Height" Value="21"/>
+                                                <Setter Property="Margin" Value="8,1,7,0"/>
+                                            </DataTrigger>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding SelectedLayout}" Value="Mini"/>
+                                                    <Condition Binding="{Binding Density}" Value="Compact"/>
+                                                    <Condition Binding="{Binding IsReducedScale}" Value="True"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Height" Value="13"/>
+                                                <Setter Property="Margin" Value="6,0,5,0"/>
+                                            </MultiDataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Grid.Style>
@@ -131,8 +161,8 @@
                             </Grid>
 
                             <ItemsControl Grid.Row="1"
-                                          Margin="-3"
-                                          ItemsSource="{Binding Modules}"
+                                          Margin="0"
+                                          ItemsSource="{Binding VisibleModulesView}"
                                           Opacity="{Binding ContentOpacity}"
                                           ClipToBounds="True">
                                 <ItemsControl.ItemsPanel>
@@ -156,6 +186,13 @@
                             </ItemsControl>
                         </Grid>
                     </Border>
+                    <Border Width="{Binding PreviewWidth}"
+                            Height="{Binding PreviewHeight}"
+                            BorderBrush="#3458DCEB"
+                            BorderThickness="1"
+                            CornerRadius="{Binding Designer.CornerRadius}"
+                            IsHitTestVisible="False"/>
+                    </Grid>
                 </Viewbox>
             </Grid>
         </Border>

@@ -220,10 +220,15 @@ static async Task TestStudioSettingsMigrationAsync()
             migrated.VisibleModules,
             "visible module normalization");
 
+        var nullModuleJson = JsonSerializer.Serialize(legacy)
+            .Replace("\"Modules\":null", "\"Modules\":[null]", StringComparison.Ordinal);
+        await File.WriteAllTextAsync(settingsPath, nullModuleJson);
+        Assert.True(store.Reload() is not null, "null Studio module element crashed migration");
+
         store.Save(migrated);
         var roundTrip = store.Reload() ??
             throw new InvalidOperationException("saved Studio settings were not reloaded");
-        Assert.Equal(4, roundTrip.SchemaVersion, "Studio schema version");
+        Assert.Equal(5, roundTrip.SchemaVersion, "Studio schema version");
         Assert.False(
             Directory.EnumerateFiles(directory.FullName, "*.tmp").Any(),
             "temporary Studio settings file leaked");
@@ -257,7 +262,10 @@ static async Task TestStudioDesignPackageAsync()
                 CardOpacity = 0.64,
                 HeaderVisible = false,
                 CardPadding = 7,
-                ValueSize = 17
+                ValueSize = 17,
+                IconSize = 15,
+                ProgressCornerRadius = 3,
+                SparklineFillOpacity = 0.24
             },
             Modules:
             [
@@ -266,7 +274,13 @@ static async Task TestStudioDesignPackageAsync()
                     true, true, true, "1 decimal", "CPU", "#FF00D9FF")
                 {
                     UseCustomAccent = true,
+                    CardColor = "#FF111827",
+                    PrimaryTextColor = "#FFEFF6FF",
                     CardOpacity = 0.72,
+                    CardBorderWidthOverride = 1.5,
+                    SparklineThicknessOverride = 2.25,
+                    SecondarySizeOverride = 11,
+                    LabelWeightOverride = 700,
                     CardPaddingOverride = 5,
                     ValueSizeOverride = 16
                 }
@@ -275,12 +289,17 @@ static async Task TestStudioDesignPackageAsync()
         DesignPackageService.Save(path, package);
         var roundTrip = DesignPackageService.Load(path);
 
-        Assert.Equal(4, roundTrip.SchemaVersion, "design schema version");
+        Assert.Equal(5, roundTrip.SchemaVersion, "design schema version");
         Assert.Equal("Night shift", roundTrip.Name, "design name trim");
         Assert.Equal("Mini", roundTrip.Layout, "design layout");
         Assert.Equal(0.64, roundTrip.Theme.CardOpacity, "theme token round-trip");
+        Assert.Equal(15d, roundTrip.Theme.IconSize, "theme icon token round-trip");
+        Assert.Equal(0.24, roundTrip.Theme.SparklineFillOpacity, "theme graph token round-trip");
         Assert.False(roundTrip.Theme.HeaderVisible, "header visibility round-trip");
         Assert.True(roundTrip.Modules!.Single().UseCustomAccent, "module accent mode round-trip");
+        Assert.Equal("#FF111827", roundTrip.Modules!.Single().CardColor, "module color round-trip");
+        Assert.Equal(1.5, roundTrip.Modules!.Single().CardBorderWidthOverride!.Value, "module border token round-trip");
+        Assert.Equal(700, roundTrip.Modules!.Single().LabelWeightOverride!.Value, "module type token round-trip");
         Assert.Equal(5d, roundTrip.Modules!.Single().CardPaddingOverride!.Value, "module token round-trip");
         Assert.False(
             Directory.EnumerateFiles(directory.FullName, "*.tmp").Any(),
@@ -333,6 +352,9 @@ static Task TestWidgetDesignerStateAsync()
         CornerRadius = 999,
         CardOpacity = -1,
         ValueSize = 2,
+        IconSize = 99,
+        ProgressCornerRadius = 99,
+        SparklineFillOpacity = 9,
         TransitionMilliseconds = 9_999,
         Surface = "#FFFFFFFF",
         Card = "#FFFFFFFF",
@@ -343,6 +365,9 @@ static Task TestWidgetDesignerStateAsync()
     Assert.Equal(48d, designer.CornerRadius, "corner radius ceiling");
     Assert.Equal(0d, designer.CardOpacity, "card opacity floor");
     Assert.Equal(10d, designer.ValueSize, "value size floor");
+    Assert.Equal(32d, designer.IconSize, "icon size ceiling");
+    Assert.Equal(6d, designer.ProgressCornerRadius, "progress radius ceiling");
+    Assert.Equal(0.5, designer.SparklineFillOpacity, "sparkline fill ceiling");
     Assert.Equal(600, designer.TransitionMilliseconds, "transition duration ceiling");
     Assert.False(designer.HasReadableContrast, "unreadable palette was not detected");
 
@@ -391,7 +416,14 @@ static Task TestStudioRuntimeMappingAsync()
             true,
             "Adaptive",
             "↕",
-            "#FF62A7FF"),
+            "#FF62A7FF")
+        {
+            CardColor = "#FF152333",
+            SecondaryTextColor = "#FFB7C8DA",
+            CardBorderWidthOverride = 1.5,
+            SparklineFillOpacityOverride = 0.22,
+            ValueWeightOverride = 700
+        },
         new StudioModuleSnapshot(
             "latency",
             "Latency",
@@ -432,7 +464,10 @@ static Task TestStudioRuntimeMappingAsync()
         ThemeDetails: new StudioThemeSnapshot(
             "slate", "Slate", "#FF05080D", "#FF0D131C", "#FF2A3849", "#FF43E7D2")
         {
-            MotionEnabled = false
+            MotionEnabled = false,
+            IconSize = 16,
+            ProgressCornerRadius = 3,
+            SparklineFillOpacity = 0.23
         },
         ReducedMotion: false);
 
@@ -454,6 +489,15 @@ static Task TestStudioRuntimeMappingAsync()
     Assert.False(
         widget.Modules[1].ShowSecondaryValue,
         "secondary-value preference was ignored");
+    Assert.Equal("#FF152333", widget.Modules[0].CardColor, "module color never reached Core");
+    Assert.Equal(1.5, widget.Modules[0].CardBorderWidthOverride!.Value, "module geometry never reached Core");
+    var mappedTheme = mapped.Themes.Single(theme => theme.Id == widget.ThemeId);
+    Assert.Equal(16d, mappedTheme.Typography.IconSize, "theme icon size never reached Core");
+    Assert.Equal(3d, mappedTheme.Surface.ProgressCornerRadius, "theme progress radius never reached Core");
+    var runtimeSettings = WidgetSettingsStore.MergeCoreSettings(new WidgetSettings(), mapped);
+    Assert.Equal(16d, runtimeSettings.RuntimeThemes.Single(theme => theme.Id == widget.ThemeId).IconSize, "theme icon size never reached widget runtime");
+    Assert.Equal("#FF152333", runtimeSettings.ModulePresentation[WidgetModuleCatalog.Network].CardColor, "module color never reached widget runtime");
+    Assert.Equal(700, runtimeSettings.ModulePresentation[WidgetModuleCatalog.Network].ValueWeightOverride!.Value, "module type override never reached widget runtime");
     Assert.False(mapped.General.ReducedMotion, "theme motion disabled global reduced-motion");
     Assert.False(
         mapped.Themes.Single(theme => theme.Id == widget.ThemeId).Motion.Enabled,
@@ -534,6 +578,17 @@ static Task TestStudioControlSemanticsAsync()
     Assert.True(cpu.ShowTemperature, "module presentation undo failed");
     cpu.Precision = "2 decimals";
     Assert.Equal("42.00%", cpu.PreviewPrimaryValue, "preview precision was not applied");
+    cpu.UseCustomCardColor = true;
+    cpu.CardHex = "#FF192331";
+    cpu.ValueWeight = 750;
+    Assert.True(
+        viewModel.ResetModuleOverridesCommand.CanExecute(cpu),
+        "custom module state did not enable reset");
+    viewModel.ResetModuleOverridesCommand.Execute(cpu);
+    Assert.False(cpu.HasOverrides, "module reset left visual overrides behind");
+    viewModel.UndoCommand.Execute(null);
+    Assert.True(cpu.UseCustomCardColor, "module reset was not one undo transaction");
+    Assert.Equal(750, cpu.ValueWeight, "module type override did not restore");
 
     viewModel.Designer.Card = "#FFFFFFFF";
     viewModel.Designer.PrimaryText = "#FFFDFDFD";
@@ -1350,11 +1405,33 @@ static Task TestWidgetModuleSaveAsync()
         [WidgetModuleCatalog.Latency] = new()
         {
             Size = WidgetModuleSize.Medium,
-            Visualization = WidgetModuleVisualization.Value,
+            Visualization = WidgetModuleVisualization.ValueAndProgress,
             ShowLabel = false,
             ShowSecondaryValue = false,
             ShowTrend = false,
-            DecimalPlacesOverride = 2
+            DecimalPlacesOverride = 2,
+            CardColor = "#FF101820",
+            BorderColor = "#FF52708F",
+            PrimaryTextColor = "#FFF8FCFF",
+            SecondaryTextColor = "#FFB4C3D5",
+            TrackColor = "#66384B61",
+            CardOpacity = 0.74,
+            BorderOpacity = 0.61,
+            CardCornerRadiusOverride = 9,
+            CardBorderWidthOverride = 1.75,
+            CardGapOverride = 4,
+            CardPaddingOverride = 7,
+            AccentWidthOverride = 2.5,
+            ProgressHeightOverride = 5,
+            ProgressCornerRadiusOverride = 2.5,
+            SparklineThicknessOverride = 2,
+            SparklineFillOpacityOverride = 0.21,
+            LabelSizeOverride = 12,
+            SecondarySizeOverride = 10.5,
+            ValueSizeOverride = 20,
+            IconSizeOverride = 16,
+            LabelWeightOverride = 700,
+            ValueWeightOverride = 650
         }
     };
 
@@ -1373,7 +1450,7 @@ static Task TestWidgetModuleSaveAsync()
     Assert.Equal(1, network.Order, "network order did not save");
     Assert.Equal(ModuleSize.Medium, latency.Size, "module size did not save");
     Assert.Equal(
-        ModuleVisualization.Value,
+        ModuleVisualization.ValueAndProgress,
         latency.Visualization,
         "module visualization did not save");
     Assert.False(latency.ShowLabel, "module label visibility did not save");
@@ -1382,6 +1459,17 @@ static Task TestWidgetModuleSaveAsync()
         "module secondary visibility did not save");
     Assert.False(latency.ShowTrend, "module trend visibility did not save");
     Assert.Equal(2, latency.DecimalPlacesOverride!.Value, "module precision did not save");
+    Assert.Equal("#FF101820", latency.CardColor, "module card color did not save");
+    Assert.Equal("#FF52708F", latency.BorderColor, "module border color did not save");
+    Assert.Equal("#FFF8FCFF", latency.PrimaryTextColor, "module primary text color did not save");
+    Assert.Equal(1.75, latency.CardBorderWidthOverride!.Value, "module border width did not save");
+    Assert.Equal(0.21, latency.SparklineFillOpacityOverride!.Value, "module graph fill did not save");
+    Assert.Equal(10.5, latency.SecondarySizeOverride!.Value, "module secondary size did not save");
+    Assert.Equal(650, latency.ValueWeightOverride!.Value, "module value weight did not save");
+    WidgetModulePresentation saved = WidgetModuleCatalog.GetPresentation(configured)[WidgetModuleCatalog.Latency];
+    Assert.Equal(WidgetModuleVisualization.ValueAndProgress, saved.Visualization, "module visualization did not round-trip");
+    Assert.Equal("#66384B61", saved.TrackColor, "module track color did not round-trip");
+    Assert.Equal(2.5, saved.ProgressCornerRadiusOverride!.Value, "module progress radius did not round-trip");
     Assert.True(unsupported.Enabled, "unsupported module visibility changed");
     Assert.True(unsupported.Order >= 7, "unsupported module order collided with widget modules");
     return Task.CompletedTask;
@@ -1669,7 +1757,10 @@ static Task TestWidgetViewModelAsync()
                     NetworkAccent = "#48DCF9",
                     Warning = "#FFC35A",
                     Critical = "#FF566E",
-                    Success = "#58E6B2"
+                    Success = "#58E6B2",
+                    IconSize = 15,
+                    ProgressCornerRadius = 3,
+                    SparklineFillOpacity = 0.2
                 }
             ],
             ModulePresentation = new Dictionary<string, WidgetModulePresentation>(
@@ -1677,8 +1768,17 @@ static Task TestWidgetViewModelAsync()
             {
                 [WidgetModuleCatalog.Network] = new()
                 {
-                    Visualization = WidgetModuleVisualization.ValueAndSparkline,
-                    ShowTrend = false
+                    Visualization = WidgetModuleVisualization.ValueAndProgress,
+                    ShowTrend = false,
+                    CardColor = "#FF182432",
+                    BorderColor = "#FF6D8299",
+                    PrimaryTextColor = "#FFFFF1B8",
+                    SecondaryTextColor = "#FFC5D2DF",
+                    TrackColor = "#66566A7E",
+                    CardBorderWidthOverride = 1.75,
+                    ProgressCornerRadiusOverride = 2.5,
+                    SparklineFillOpacityOverride = 0.28,
+                    ValueWeightOverride = 700
                 }
             }
         });
@@ -1786,6 +1886,15 @@ static Task TestWidgetViewModelAsync()
     Assert.Equal("26 ms", latency.PrimaryValue, "latency value formatting");
     Assert.Equal("LOSS 0.4%", latency.Status, "packet-loss value formatting");
     Assert.False(network.ShowSparkline, "disabled module trend remained visible");
+    Assert.True(network.ShowValue, "value-plus-bar mode hid the primary value");
+    Assert.True(network.ShowProgress, "value-plus-bar mode hid the progress bar");
+    Assert.Equal(1.75, network.CardBorderThickness.Left, "module border override was ignored");
+    Assert.Equal(2.5, network.ProgressCornerRadius.TopLeft, "module progress radius was ignored");
+    Assert.Equal(0.28, network.SparklineFillOpacity, "module graph fill was ignored");
+    Assert.Equal(
+        System.Windows.Media.Color.FromRgb(255, 241, 184),
+        ((System.Windows.Media.SolidColorBrush)network.PrimaryTextBrush).Color,
+        "module primary text color was ignored");
     network.ApplyPresentation(new WidgetModulePresentation
     {
         Visualization = WidgetModuleVisualization.Sparkline,
@@ -1795,8 +1904,33 @@ static Task TestWidgetViewModelAsync()
         network.ShowSparkline,
         "pure sparkline mode lost its only primary visualization");
     Assert.Equal(6, viewModel.VisibleModuleCount, "default visible module count");
+    var weather = viewModel.Metrics.Single(metric => metric.Key == WidgetModuleCatalog.Weather);
+    Assert.Equal("WEATHER", weather.CompactTitle, "weather label used an unexplained abbreviation");
     Assert.Equal("Updated now", viewModel.LastUpdatedText, "snapshot update state");
     Assert.Equal(1, updatePulses, "each applied snapshot raises one visual update pulse");
+
+    source.Publish(new TelemetrySnapshot(
+        DateTimeOffset.Now,
+        new CpuTelemetry(44.1, null, 4.2, 86, SensorState.Stale),
+        new GpuTelemetry(7.1, null, 2.3, 3.2, 16, SensorState.Stale),
+        new MemoryTelemetry(15.4, 30.9, 17.2, 6.3, SensorState.Available),
+        new NetworkTelemetry(
+            5_600_000,
+            29_000,
+            null,
+            null,
+            null,
+            SensorState.Available,
+            SensorState.Unavailable),
+        new StorageTelemetry(0, 0, 0, null, "Unavailable", SensorState.Unavailable),
+        new BatteryTelemetry(null, "Not present", null, null, SensorState.Unavailable)));
+
+    Assert.Equal("TEMP 56°C", cpu.Status, "brief CPU sensor gap flashed unavailable");
+    Assert.Equal(SensorState.Stale, cpu.State, "held CPU temperature was not marked stale");
+    Assert.Equal("26 ms", latency.PrimaryValue, "brief ping gap flashed unavailable");
+    Assert.Equal("LOSS 0.4%", latency.Status, "brief packet-loss gap flashed unavailable");
+    Assert.Equal(SensorState.Stale, latency.State, "held connectivity was not marked stale");
+    Assert.Equal(2, updatePulses, "each applied snapshot raises one visual update pulse");
     return Task.CompletedTask;
 }
 
@@ -2012,9 +2146,9 @@ static Task TestStudioApplicationResourcesAsync()
                     var moduleList = FindVisualDescendant<System.Windows.Controls.ItemsControl>(preview);
                     Assert.True(moduleList is not null, $"{layout} preview did not create its module list");
                     Assert.Equal(
-                        viewModel.Modules.Count,
+                        viewModel.Modules.Count(module => module.IsVisible),
                         moduleList!.Items.Count,
-                        $"{layout} preview did not bind every module");
+                        $"{layout} preview reserved rows for hidden modules");
                     Assert.True(
                         moduleList.ActualHeight > 0 && moduleList.ActualWidth > 0,
                         $"{layout} preview module list was clipped ({moduleList.ActualWidth:0} x {moduleList.ActualHeight:0})");
@@ -2025,6 +2159,10 @@ static Task TestStudioApplicationResourcesAsync()
                     Assert.True(
                         cards.Length > 0,
                         $"{layout} preview did not materialize the production MetricCard renderer");
+                    Assert.Equal(
+                        viewModel.Modules.Count(module => module.IsVisible),
+                        cards.Length,
+                        $"{layout} preview clipped a visible module at {scale}% scale");
                     Assert.True(
                         cards.All(card =>
                             card.ActualHeight > 0 &&
@@ -2032,6 +2170,13 @@ static Task TestStudioApplicationResourcesAsync()
                             double.IsFinite(card.ActualHeight) &&
                             double.IsFinite(card.ActualWidth)),
                         $"{layout} production cards were not measurable at {scale}% scale");
+                    var cardBottoms = cards.Select(card =>
+                        card.TransformToAncestor(moduleList).Transform(
+                            new System.Windows.Point(0, card.ActualHeight)).Y).ToArray();
+                    Assert.True(
+                        cardBottoms.All(bottom => bottom <= moduleList.ActualHeight + 0.5),
+                        $"{layout} preview placed a card below its visible bounds at {scale}% scale " +
+                        $"(bottom {cardBottoms.Max():0.0}, viewport {moduleList.ActualHeight:0.0})");
 
                     var cpuLabel = cards
                         .SelectMany(FindVisualDescendants<System.Windows.Controls.TextBlock>)
@@ -2039,6 +2184,26 @@ static Task TestStudioApplicationResourcesAsync()
                     Assert.True(
                         cpuLabel is { IsVisible: true, ActualHeight: > 0 },
                         $"{layout} CPU label was not visible at {scale}% scale");
+                    Assert.True(
+                        cards.Any(card => card.DataContext is MetricCardViewModel metric &&
+                                          metric.Key == WidgetModuleCatalog.Weather),
+                        $"{layout} weather module fell outside the preview at {scale}% scale");
+                    if (layout == "Mini")
+                    {
+                        var cpuCard = cards.Single(card =>
+                            card.DataContext is MetricCardViewModel metric &&
+                            metric.Key == WidgetModuleCatalog.Cpu);
+                        var cpuMetric = (MetricCardViewModel)cpuCard.DataContext;
+                        var valueText = FindVisualDescendants<System.Windows.Controls.TextBlock>(cpuCard)
+                            .First(item => item.IsVisible && item.Text == cpuMetric.CompactPrimaryValue);
+                        var valueBottom = valueText.TransformToAncestor(cpuCard).Transform(
+                            new System.Windows.Point(0, valueText.ActualHeight)).Y;
+                        Assert.True(
+                            valueBottom <= cpuCard.ActualHeight + 0.5,
+                            $"Mini value text exceeded its card at {scale}% scale " +
+                            $"(top {valueBottom - valueText.ActualHeight:0.0}, height {valueText.ActualHeight:0.0}, " +
+                            $"bottom {valueBottom:0.0}, card {cpuCard.ActualHeight:0.0})");
+                    }
                 }
             }
 

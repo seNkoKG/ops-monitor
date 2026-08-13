@@ -475,7 +475,7 @@
                                                        Value="{x:Static models:WidgetDensity.Compact}" />
                                             <Condition Binding="{Binding IsReducedScale}" Value="True" />
                                         </MultiDataTrigger.Conditions>
-                                        <Setter Property="Height" Value="19" />
+                                        <Setter Property="Height" Value="17" />
                                         <Setter Property="Margin" Value="6,0,5,0" />
                                     </MultiDataTrigger>
                                     <MultiDataTrigger>
@@ -644,8 +644,8 @@
                                                            Value="{x:Static models:WidgetDensity.Compact}" />
                                                 <Condition Binding="{Binding IsReducedScale}" Value="True" />
                                             </MultiDataTrigger.Conditions>
-                                            <Setter Property="Width" Value="18" />
-                                            <Setter Property="Height" Value="18" />
+                                            <Setter Property="Width" Value="16" />
+                                            <Setter Property="Height" Value="16" />
                                         </MultiDataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -668,7 +668,7 @@
                                                                Value="{x:Static models:WidgetDensity.Compact}" />
                                                     <Condition Binding="{Binding IsReducedScale}" Value="True" />
                                                 </MultiDataTrigger.Conditions>
-                                                <Setter Property="FontSize" Value="12" />
+                                                <Setter Property="FontSize" Value="11" />
                                             </MultiDataTrigger>
                                         </Style.Triggers>
                                     </Style>

@@ -417,7 +417,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                     order,
                     true,
                     "Medium",
-                    "Bar + sparkline",
+                    "Value + sparkline",
                     true,
                     true,
                     true,
@@ -445,17 +445,30 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                     SecondaryMetric = metrics.Secondary,
                     Icon = item.Icon,
                     AccentColor = item.UseCustomAccent ? item.Accent : string.Empty,
+                    CardColor = item.CardColor,
+                    BorderColor = item.BorderColor,
+                    PrimaryTextColor = item.PrimaryTextColor,
+                    SecondaryTextColor = item.SecondaryTextColor,
+                    TrackColor = item.TrackColor,
                     ShowIcon = item.ShowIcon,
                     ShowAccent = item.ShowAccent,
                     CardOpacity = item.CardOpacity,
                     BorderOpacity = item.BorderOpacity,
                     CardCornerRadiusOverride = item.CardCornerRadiusOverride,
+                    CardBorderWidthOverride = item.CardBorderWidthOverride,
+                    CardGapOverride = item.CardGapOverride,
                     CardPaddingOverride = item.CardPaddingOverride,
                     AccentWidthOverride = item.AccentWidthOverride,
                     ProgressHeightOverride = item.ProgressHeightOverride,
+                    ProgressCornerRadiusOverride = item.ProgressCornerRadiusOverride,
+                    SparklineThicknessOverride = item.SparklineThicknessOverride,
+                    SparklineFillOpacityOverride = item.SparklineFillOpacityOverride,
                     LabelSizeOverride = item.LabelSizeOverride,
+                    SecondarySizeOverride = item.SecondarySizeOverride,
                     ValueSizeOverride = item.ValueSizeOverride,
                     IconSizeOverride = item.IconSizeOverride,
+                    LabelWeightOverride = item.LabelWeightOverride,
+                    ValueWeightOverride = item.ValueWeightOverride,
                     ShowLabel = item.ShowLabel,
                     ShowSecondaryValue = metrics.Secondary.HasValue &&
                                          item.ShowTemperature,
@@ -522,7 +535,9 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                 CardOpacity = details.CardOpacity,
                 AccentWidth = details.AccentWidth,
                 ProgressHeight = details.ProgressHeight,
+                ProgressCornerRadius = details.ProgressCornerRadius,
                 SparklineThickness = details.SparklineThickness,
+                SparklineFillOpacity = details.SparklineFillOpacity,
                 HeaderVisible = details.HeaderVisible,
                 StatusIndicatorVisible = details.StatusIndicatorVisible,
                 SettingsButtonVisible = details.SettingsButtonVisible,
@@ -535,6 +550,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                 LabelSize = details.LabelSize,
                 SecondarySize = details.SecondarySize,
                 ValueSize = details.ValueSize,
+                IconSize = details.IconSize,
                 MinimumReadableSize = details.MinimumReadableSize,
                 HeaderWeight = details.HeaderWeight,
                 LabelWeight = details.LabelWeight,
@@ -584,7 +600,9 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             CardOpacity = theme.Surface.CardOpacity,
             AccentWidth = theme.Surface.AccentWidth,
             ProgressHeight = theme.Surface.ProgressHeight,
+            ProgressCornerRadius = theme.Surface.ProgressCornerRadius,
             SparklineThickness = theme.Surface.SparklineThickness,
+            SparklineFillOpacity = theme.Surface.SparklineFillOpacity,
             HeaderVisible = theme.Surface.HeaderVisible,
             StatusIndicatorVisible = theme.Surface.StatusIndicatorVisible,
             SettingsButtonVisible = theme.Surface.SettingsButtonVisible,
@@ -594,6 +612,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             LabelSize = theme.Typography.LabelSize,
             SecondarySize = theme.Typography.SecondarySize,
             ValueSize = theme.Typography.ValueSize,
+            IconSize = theme.Typography.IconSize,
             MinimumReadableSize = theme.Typography.MinimumReadableSize,
             HeaderWeight = theme.Typography.HeaderWeight,
             LabelWeight = theme.Typography.LabelWeight,
@@ -781,9 +800,7 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
             },
             BackgroundOpacity = widget.Window.SurfaceOpacity,
             ContentOpacity = widget.Window.ContentOpacity,
-            FontScale = theme is null
-                ? baseline.FontScale
-                : Math.Clamp(theme.Typography.LabelSize / 12, 0.9, 1.35),
+            FontScale = 1,
             AlwaysOnTop = widget.Window.AlwaysOnTop,
             PositionLocked = widget.Window.Locked,
             ClickThrough = widget.Window.ClickThrough,
@@ -844,17 +861,30 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
                         : item.AccentColor)
                 {
                     UseCustomAccent = !string.IsNullOrWhiteSpace(item.AccentColor),
+                    CardColor = item.CardColor,
+                    BorderColor = item.BorderColor,
+                    PrimaryTextColor = item.PrimaryTextColor,
+                    SecondaryTextColor = item.SecondaryTextColor,
+                    TrackColor = item.TrackColor,
                     ShowIcon = item.ShowIcon,
                     ShowAccent = item.ShowAccent,
                     CardOpacity = item.CardOpacity,
                     BorderOpacity = item.BorderOpacity,
                     CardCornerRadiusOverride = item.CardCornerRadiusOverride,
+                    CardBorderWidthOverride = item.CardBorderWidthOverride,
+                    CardGapOverride = item.CardGapOverride,
                     CardPaddingOverride = item.CardPaddingOverride,
                     AccentWidthOverride = item.AccentWidthOverride,
                     ProgressHeightOverride = item.ProgressHeightOverride,
+                    ProgressCornerRadiusOverride = item.ProgressCornerRadiusOverride,
+                    SparklineThicknessOverride = item.SparklineThicknessOverride,
+                    SparklineFillOpacityOverride = item.SparklineFillOpacityOverride,
                     LabelSizeOverride = item.LabelSizeOverride,
+                    SecondarySizeOverride = item.SecondarySizeOverride,
                     ValueSizeOverride = item.ValueSizeOverride,
-                    IconSizeOverride = item.IconSizeOverride
+                    IconSizeOverride = item.IconSizeOverride,
+                    LabelWeightOverride = item.LabelWeightOverride,
+                    ValueWeightOverride = item.ValueWeightOverride
                 };
             })
             .ToArray();
@@ -1066,21 +1096,22 @@ public sealed partial class StudioCoreSettingsSink : IStudioSettingsSink
     private static ModuleVisualization ParseVisualization(string value)
         => value switch
         {
-            "Number only" => ModuleVisualization.Value,
-            "Bar" => ModuleVisualization.Progress,
-            "Sparkline" => ModuleVisualization.Sparkline,
+            "Number only" or "Value only" => ModuleVisualization.Value,
+            "Bar" or "Bar only" => ModuleVisualization.Progress,
+            "Sparkline" or "Sparkline only" => ModuleVisualization.Sparkline,
             "Dial" => ModuleVisualization.Gauge,
+            "Value + bar" => ModuleVisualization.ValueAndProgress,
             _ => ModuleVisualization.ValueAndSparkline,
         };
 
     private static string StudioVisualization(ModuleVisualization value)
         => value switch
         {
-            ModuleVisualization.Value => "Number only",
-            ModuleVisualization.Progress => "Bar",
-            ModuleVisualization.Sparkline => "Sparkline",
-            ModuleVisualization.Gauge => "Dial",
-            _ => "Bar + sparkline",
+            ModuleVisualization.Value => "Value only",
+            ModuleVisualization.Progress => "Bar only",
+            ModuleVisualization.Sparkline => "Sparkline only",
+            ModuleVisualization.Gauge or ModuleVisualization.ValueAndProgress => "Value + bar",
+            _ => "Value + sparkline",
         };
 
     private static int? ParsePrecision(string value)

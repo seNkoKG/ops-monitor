@@ -20,18 +20,20 @@
             <Setter Property="Minimum" Value="0" />
             <Setter Property="Maximum" Value="100" />
             <Setter Property="Background"
-                    Value="{Binding ThemeContext.TrackBrush, ElementName=Root}" />
+                    Value="{Binding TrackBrush}" />
             <Setter Property="Foreground" Value="{Binding AccentBrush}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ProgressBar}">
                         <Grid>
-                            <Border Background="{TemplateBinding Background}" CornerRadius="2" />
-                            <Border x:Name="PART_Track" CornerRadius="2">
+                            <Border Background="{TemplateBinding Background}"
+                                    CornerRadius="{Binding ProgressCornerRadius}" />
+                            <Border x:Name="PART_Track"
+                                    CornerRadius="{Binding ProgressCornerRadius}">
                                 <Border x:Name="PART_Indicator"
                                         HorizontalAlignment="Left"
                                         Background="{TemplateBinding Foreground}"
-                                        CornerRadius="2" />
+                                        CornerRadius="{Binding ProgressCornerRadius}" />
                             </Border>
                         </Grid>
                     </ControlTemplate>
@@ -55,9 +57,9 @@
             <Setter Property="FontFamily"
                     Value="{Binding ThemeContext.WidgetFontFamily, ElementName=Root}" />
             <Setter Property="FontSize"
-                    Value="{Binding ThemeContext.LabelFontSize, ElementName=Root}" />
+                    Value="{Binding DataContext.LabelFontSize, ElementName=Root}" />
             <Setter Property="FontWeight"
-                    Value="{Binding ThemeContext.LabelFontWeight, ElementName=Root}" />
+                    Value="{Binding DataContext.LabelFontWeight, ElementName=Root}" />
         </Style>
 
         <Style x:Key="MetricMetaTextStyle"
@@ -66,8 +68,7 @@
             <Setter Property="FontFamily"
                     Value="{Binding ThemeContext.WidgetFontFamily, ElementName=Root}" />
             <Setter Property="FontSize"
-                    Value="{Binding ThemeContext.LabelFontSize, ElementName=Root}" />
-            <Setter Property="FontWeight" Value="Normal" />
+                    Value="{Binding DataContext.SecondaryFontSize, ElementName=Root}" />
         </Style>
 
         <Style x:Key="MetricValueTextStyle"
@@ -76,9 +77,9 @@
             <Setter Property="FontFamily"
                     Value="{Binding ThemeContext.WidgetFontFamily, ElementName=Root}" />
             <Setter Property="FontSize"
-                    Value="{Binding ThemeContext.ValueFontSize, ElementName=Root}" />
+                    Value="{Binding DataContext.ValueFontSize, ElementName=Root}" />
             <Setter Property="FontWeight"
-                    Value="{Binding ThemeContext.ValueFontWeight, ElementName=Root}" />
+                    Value="{Binding DataContext.ValueFontWeight, ElementName=Root}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding ThemeContext.UseTabularNumbers, ElementName=Root}"
                              Value="True">
@@ -226,8 +227,8 @@
                         <Condition Binding="{Binding ThemeContext.IsReducedScale, ElementName=Root}"
                                    Value="True" />
                     </MultiDataTrigger.Conditions>
-                    <Setter Property="Height" Value="28" />
-                    <Setter Property="MinHeight" Value="28" />
+                    <Setter Property="Height" Value="29" />
+                    <Setter Property="MinHeight" Value="29" />
                 </MultiDataTrigger>
             </Style.Triggers>
         </Style>
@@ -285,7 +286,7 @@
                         <Border Width="14"
                                 Height="14"
                                 HorizontalAlignment="Left"
-                                Background="{Binding ThemeContext.TrackBrush, ElementName=Root}"
+                                Background="{Binding TrackBrush}"
                                 CornerRadius="5"
                                 Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Grid>
@@ -300,7 +301,7 @@
                                   StrokeThickness="1.6"
                                   Visibility="{Binding ShowDefaultIcon, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       FontFamily="Segoe UI Emoji" FontSize="9"
+                                       FontFamily="Segoe UI Emoji" FontSize="{Binding CompactIconSize}"
                                        Foreground="{Binding AccentBrush}" Text="{Binding Icon}"
                                        Visibility="{Binding ShowCustomIcon, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             </Grid>
@@ -308,7 +309,7 @@
 
                         <TextBlock Grid.Column="1"
                                    VerticalAlignment="Center"
-                                   FontSize="11"
+                                   FontSize="{Binding CompactLabelFontSize}"
                                    Foreground="{Binding AccentBrush}"
                                    Style="{StaticResource MetricLabelTextStyle}"
                                    Text="{Binding CompactTitle}"
@@ -324,8 +325,8 @@
                                      Margin="0,0,4,0"
                                      Fill="{Binding StateBrush}" />
                             <TextBlock MaxWidth="84"
-                                       FontSize="10.5"
-                                       Foreground="{Binding ThemeContext.TextSecondaryBrush, ElementName=Root}"
+                                       FontSize="{Binding CompactSecondaryFontSize}"
+                                       Foreground="{Binding SecondaryTextBrush}"
                                        Style="{StaticResource MetricMetaTextStyle}"
                                        Text="{Binding Status}"
                                        TextTrimming="CharacterEllipsis" />
@@ -333,21 +334,26 @@
                     </Grid>
 
                     <TextBlock Grid.Row="1"
+                               Margin="{Binding CompactValueMargin}"
                                VerticalAlignment="Center"
-                               FontSize="15"
-                               Foreground="{Binding ThemeContext.TextPrimaryBrush, ElementName=Root}"
+                               FontSize="{Binding CompactValueFontSize}"
+                               Foreground="{Binding PrimaryTextBrush}"
                                Style="{StaticResource MetricValueTextStyle}"
                                Text="{Binding CompactPrimaryValue}"
                                TextTrimming="CharacterEllipsis"
                                Visibility="{Binding ShowValue, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                     <Grid Grid.Row="2" ClipToBounds="True">
+                        <Path Data="{Binding HistoryAreaGeometry}"
+                              Fill="{Binding HistoryFillBrush}"
+                              Stretch="Fill"
+                              Visibility="{Binding ShowSparkline, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <Path Data="{Binding HistoryGeometry}"
                               Opacity="0.58"
                               Stretch="Fill"
                               Stroke="{Binding AccentBrush}"
                               StrokeLineJoin="Round"
-                              StrokeThickness="0.8"
+                              StrokeThickness="{Binding CompactSparklineThickness}"
                               Visibility="{Binding ShowSparkline, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <ProgressBar Height="2"
                                      VerticalAlignment="Bottom"
@@ -384,6 +390,7 @@
                                            Value="True" />
                             </MultiDataTrigger.Conditions>
                             <Setter Property="Padding" Value="3,0" />
+                            <Setter Property="Margin" Value="0" />
                             <Setter Property="Background" Value="Transparent" />
                             <Setter Property="BorderThickness" Value="0,0,0,1" />
                             <Setter Property="CornerRadius" Value="0" />
@@ -408,7 +415,7 @@
                 <Grid Grid.Column="1" Margin="6,0,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="12" />
-                        <RowDefinition Height="14" />
+                        <RowDefinition Height="16" />
                     </Grid.RowDefinitions>
 
                     <Grid>
@@ -421,7 +428,7 @@
                         <Border Width="12"
                                 Height="12"
                                 HorizontalAlignment="Left"
-                                Background="{Binding ThemeContext.TrackBrush, ElementName=Root}"
+                                Background="{Binding TrackBrush}"
                                 CornerRadius="4"
                                 Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Grid>
@@ -435,7 +442,7 @@
                                   StrokeThickness="1.4"
                                   Visibility="{Binding ShowDefaultIcon, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       FontFamily="Segoe UI Emoji" FontSize="8"
+                                       FontFamily="Segoe UI Emoji" FontSize="{Binding MiniIconSize}"
                                        Foreground="{Binding AccentBrush}" Text="{Binding Icon}"
                                        Visibility="{Binding ShowCustomIcon, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             </Grid>
@@ -443,7 +450,7 @@
 
                         <TextBlock Grid.Column="1"
                                    VerticalAlignment="Center"
-                                   FontSize="11"
+                                   FontSize="{Binding MiniLabelFontSize}"
                                    Foreground="{Binding AccentBrush}"
                                    Style="{StaticResource MetricLabelTextStyle}"
                                    Text="{Binding CompactTitle}"
@@ -460,8 +467,8 @@
                                      Margin="0,0,3,0"
                                      Fill="{Binding StateBrush}" />
                             <TextBlock MaxWidth="64"
-                                       FontSize="10.5"
-                                       Foreground="{Binding ThemeContext.TextSecondaryBrush, ElementName=Root}"
+                                       FontSize="{Binding MiniSecondaryFontSize}"
+                                       Foreground="{Binding SecondaryTextBrush}"
                                        Style="{StaticResource MetricMetaTextStyle}"
                                        Text="{Binding Status}"
                                        TextTrimming="CharacterEllipsis" />
@@ -469,26 +476,34 @@
                     </Grid>
 
                     <TextBlock Grid.Row="1"
+                               Height="18"
+                               Margin="{Binding CompactValueMargin}"
                                VerticalAlignment="Center"
-                               FontSize="13"
-                               Foreground="{Binding ThemeContext.TextPrimaryBrush, ElementName=Root}"
-                               LineHeight="14"
-                               LineStackingStrategy="BlockLineHeight"
+                               FontSize="{Binding MiniValueFontSize}"
+                               Foreground="{Binding PrimaryTextBrush}"
                                Style="{StaticResource MetricValueTextStyle}"
                                Text="{Binding CompactPrimaryValue}"
                                TextTrimming="CharacterEllipsis"
-                               Visibility="{Binding ShowValue, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                               Visibility="{Binding ShowValue, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock.RenderTransform>
+                            <TranslateTransform Y="-1"/>
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
 
                     <Grid Grid.Row="1"
                           Height="1"
                           VerticalAlignment="Bottom"
                           ClipToBounds="True">
+                        <Path Data="{Binding HistoryAreaGeometry}"
+                              Fill="{Binding HistoryFillBrush}"
+                              Stretch="Fill"
+                              Visibility="{Binding ShowSparkline, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <Path Data="{Binding HistoryGeometry}"
                               Opacity="0.58"
                               Stretch="Fill"
                               Stroke="{Binding AccentBrush}"
                               StrokeLineJoin="Round"
-                              StrokeThickness="0.7"
+                              StrokeThickness="{Binding MiniSparklineThickness}"
                               Visibility="{Binding ShowSparkline, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <ProgressBar Height="1"
                                      VerticalAlignment="Bottom"
@@ -638,7 +653,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Border Background="{Binding ThemeContext.TrackBrush, ElementName=Root}"
+                    <Border Background="{Binding TrackBrush}"
                             Visibility="{Binding ShowIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Border.Style>
                             <Style TargetType="{x:Type Border}">
@@ -779,7 +794,7 @@
                                  Margin="0,0,3,0"
                                  Fill="{Binding StateBrush}" />
                         <TextBlock VerticalAlignment="Center"
-                                   Foreground="{Binding ThemeContext.TextSecondaryBrush, ElementName=Root}"
+                                   Foreground="{Binding SecondaryTextBrush}"
                                    TextTrimming="CharacterEllipsis">
                             <TextBlock.Style>
                                 <Style BasedOn="{StaticResource MetricMetaTextStyle}"
@@ -820,7 +835,7 @@
                     </StackPanel>
                 </Grid>
 
-                <TextBlock Foreground="{Binding ThemeContext.TextPrimaryBrush, ElementName=Root}"
+                <TextBlock Foreground="{Binding PrimaryTextBrush}"
                            TextTrimming="CharacterEllipsis"
                            Visibility="{Binding ShowValue, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock.Style>
@@ -907,6 +922,10 @@
                             </Style.Triggers>
                         </Style>
                     </Grid.Style>
+                    <Path Data="{Binding HistoryAreaGeometry}"
+                          Fill="{Binding HistoryFillBrush}"
+                          Stretch="Fill"
+                          Visibility="{Binding ShowSparkline, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <Path Data="{Binding HistoryGeometry}"
                           Opacity="0.58"
                           Stretch="Fill"
@@ -956,12 +975,12 @@
                                     </Style>
                                 </Border.Style>
                                 <StackPanel>
-                                    <TextBlock Foreground="{Binding ThemeContext.TextSecondaryBrush, ElementName=Root}"
+                                    <TextBlock Foreground="{Binding DataContext.SecondaryTextBrush, RelativeSource={RelativeSource AncestorType={x:Type controls:MetricCard}}}"
                                                Style="{StaticResource MetricMetaTextStyle}"
                                                Text="{Binding Label}" />
                                     <TextBlock Margin="0,1,0,0"
                                                FontSize="13"
-                                               Foreground="{Binding ThemeContext.TextPrimaryBrush, ElementName=Root}"
+                                               Foreground="{Binding DataContext.PrimaryTextBrush, RelativeSource={RelativeSource AncestorType={x:Type controls:MetricCard}}}"
                                                Text="{Binding Value}">
                                         <TextBlock.Style>
                                             <Style BasedOn="{StaticResource MetricLabelTextStyle}"

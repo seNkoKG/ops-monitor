@@ -82,9 +82,9 @@ Publish produces a combined companion-app folder and ZIP:
 
 ```text
 artifacts\publish\framework-dependent\
-artifacts\publish\OPS-Monitor-v3.2.0-framework-dependent.zip
+artifacts\publish\OPS-Monitor-v3.3.0-framework-dependent.zip
 artifacts\publish\win-x64-self-contained\
-artifacts\publish\OPS-Monitor-v3.2.0-win-x64-self-contained.zip
+artifacts\publish\OPS-Monitor-v3.3.0-win-x64-self-contained.zip
 ```
 
 Widget and Studio intentionally live in the same folder. This lets each app open

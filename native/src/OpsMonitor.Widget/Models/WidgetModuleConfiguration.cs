@@ -116,6 +116,7 @@ public static class WidgetModuleCatalog
                     ModuleVisualization.Progress => WidgetModuleVisualization.Progress,
                     ModuleVisualization.Sparkline => WidgetModuleVisualization.Sparkline,
                     ModuleVisualization.Gauge => WidgetModuleVisualization.Gauge,
+                    ModuleVisualization.ValueAndProgress => WidgetModuleVisualization.ValueAndProgress,
                     _ => WidgetModuleVisualization.ValueAndSparkline
                 },
                 ShowLabel = module.ShowLabel,
@@ -124,17 +125,30 @@ public static class WidgetModuleCatalog
                 Title = module.Title,
                 Icon = module.Icon,
                 AccentColor = module.AccentColor,
+                CardColor = module.CardColor,
+                BorderColor = module.BorderColor,
+                PrimaryTextColor = module.PrimaryTextColor,
+                SecondaryTextColor = module.SecondaryTextColor,
+                TrackColor = module.TrackColor,
                 ShowIcon = module.ShowIcon,
                 ShowAccent = module.ShowAccent,
                 CardOpacity = Math.Clamp(module.CardOpacity, 0.2, 1),
                 BorderOpacity = Math.Clamp(module.BorderOpacity, 0, 1),
                 CardCornerRadiusOverride = NormalizeOverride(module.CardCornerRadiusOverride, 0, 40),
+                CardBorderWidthOverride = NormalizeOverride(module.CardBorderWidthOverride, 0, 4),
+                CardGapOverride = NormalizeOverride(module.CardGapOverride, 0, 20),
                 CardPaddingOverride = NormalizeOverride(module.CardPaddingOverride, 0, 28),
                 AccentWidthOverride = NormalizeOverride(module.AccentWidthOverride, 0, 10),
                 ProgressHeightOverride = NormalizeOverride(module.ProgressHeightOverride, 1, 12),
+                ProgressCornerRadiusOverride = NormalizeOverride(module.ProgressCornerRadiusOverride, 0, 6),
+                SparklineThicknessOverride = NormalizeOverride(module.SparklineThicknessOverride, 0.5, 5),
+                SparklineFillOpacityOverride = NormalizeOverride(module.SparklineFillOpacityOverride, 0, 0.5),
                 LabelSizeOverride = NormalizeOverride(module.LabelSizeOverride, 8, 26),
+                SecondarySizeOverride = NormalizeOverride(module.SecondarySizeOverride, 8, 24),
                 ValueSizeOverride = NormalizeOverride(module.ValueSizeOverride, 10, 42),
                 IconSizeOverride = NormalizeOverride(module.IconSizeOverride, 8, 32),
+                LabelWeightOverride = NormalizeOverride(module.LabelWeightOverride, 100, 900),
+                ValueWeightOverride = NormalizeOverride(module.ValueWeightOverride, 100, 900),
                 DecimalPlacesOverride = module.DecimalPlacesOverride is { } decimals
                     ? Math.Clamp(decimals, 0, 3)
                     : null
@@ -269,6 +283,7 @@ public static class WidgetModuleCatalog
                         WidgetModuleVisualization.Progress => ModuleVisualization.Progress,
                         WidgetModuleVisualization.Sparkline => ModuleVisualization.Sparkline,
                         WidgetModuleVisualization.Gauge => ModuleVisualization.Gauge,
+                        WidgetModuleVisualization.ValueAndProgress => ModuleVisualization.ValueAndProgress,
                         _ => ModuleVisualization.ValueAndSparkline
                     },
                     ShowLabel = options.ShowLabel,
@@ -277,17 +292,30 @@ public static class WidgetModuleCatalog
                     Title = string.IsNullOrWhiteSpace(options.Title) ? module.Title : options.Title.Trim(),
                     Icon = options.Icon ?? string.Empty,
                     AccentColor = options.AccentColor ?? string.Empty,
+                    CardColor = options.CardColor ?? string.Empty,
+                    BorderColor = options.BorderColor ?? string.Empty,
+                    PrimaryTextColor = options.PrimaryTextColor ?? string.Empty,
+                    SecondaryTextColor = options.SecondaryTextColor ?? string.Empty,
+                    TrackColor = options.TrackColor ?? string.Empty,
                     ShowIcon = options.ShowIcon,
                     ShowAccent = options.ShowAccent,
                     CardOpacity = Math.Clamp(options.CardOpacity, 0.2, 1),
                     BorderOpacity = Math.Clamp(options.BorderOpacity, 0, 1),
                     CardCornerRadiusOverride = NormalizeOverride(options.CardCornerRadiusOverride, 0, 40),
+                    CardBorderWidthOverride = NormalizeOverride(options.CardBorderWidthOverride, 0, 4),
+                    CardGapOverride = NormalizeOverride(options.CardGapOverride, 0, 20),
                     CardPaddingOverride = NormalizeOverride(options.CardPaddingOverride, 0, 28),
                     AccentWidthOverride = NormalizeOverride(options.AccentWidthOverride, 0, 10),
                     ProgressHeightOverride = NormalizeOverride(options.ProgressHeightOverride, 1, 12),
+                    ProgressCornerRadiusOverride = NormalizeOverride(options.ProgressCornerRadiusOverride, 0, 6),
+                    SparklineThicknessOverride = NormalizeOverride(options.SparklineThicknessOverride, 0.5, 5),
+                    SparklineFillOpacityOverride = NormalizeOverride(options.SparklineFillOpacityOverride, 0, 0.5),
                     LabelSizeOverride = NormalizeOverride(options.LabelSizeOverride, 8, 26),
+                    SecondarySizeOverride = NormalizeOverride(options.SecondarySizeOverride, 8, 24),
                     ValueSizeOverride = NormalizeOverride(options.ValueSizeOverride, 10, 42),
                     IconSizeOverride = NormalizeOverride(options.IconSizeOverride, 8, 32),
+                    LabelWeightOverride = NormalizeOverride(options.LabelWeightOverride, 100, 900),
+                    ValueWeightOverride = NormalizeOverride(options.ValueWeightOverride, 100, 900),
                     DecimalPlacesOverride = options.DecimalPlacesOverride
                 };
             }
@@ -446,6 +474,11 @@ public static class WidgetModuleCatalog
 
     private static double? NormalizeOverride(double? value, double minimum, double maximum) =>
         value is { } candidate && double.IsFinite(candidate)
+            ? Math.Clamp(candidate, minimum, maximum)
+            : null;
+
+    private static int? NormalizeOverride(int? value, int minimum, int maximum) =>
+        value is { } candidate
             ? Math.Clamp(candidate, minimum, maximum)
             : null;
 }

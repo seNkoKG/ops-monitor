@@ -6,7 +6,7 @@
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-38C9FF?style=flat-square">
   <img alt="Framework" src="https://img.shields.io/badge/.NET-10.0-7655D9?style=flat-square">
   <img alt="UI" src="https://img.shields.io/badge/UI-Native%20WPF-63F6D8?style=flat-square&labelColor=111827">
-  <img alt="Version" src="https://img.shields.io/badge/version-3.2.0-F24DE7?style=flat-square&labelColor=17111F">
+  <img alt="Version" src="https://img.shields.io/badge/version-3.3.0-F24DE7?style=flat-square&labelColor=17111F">
 </p>
 
 <p align="center">
@@ -17,7 +17,7 @@
 <p align="center">
   <a href="https://senkokg.github.io/ops-monitor/"><strong>Explore the website</strong></a>
   ·
-  <a href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.2.0"><strong>Download v3.2</strong></a>
+  <a href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.3.0"><strong>Download v3.3</strong></a>
 </p>
 
 ## The desktop, without the dashboard clutter
@@ -28,7 +28,7 @@ battery, and local weather. The separate Studio handles deep customization so
 the desktop overlay remains clean.
 
 <p align="center">
-  <img src="docs/assets/screenshots/studio-v3.2.png" width="100%" alt="OPS Monitor 3.2 Studio with the production-renderer Mini preview">
+  <img src="docs/assets/screenshots/studio-v3.3.png" width="100%" alt="OPS Monitor 3.3 Studio with the production-renderer Mini preview">
 </p>
 
 ### Built to disappear until you need it
@@ -39,14 +39,16 @@ the desktop overlay remains clean.
 - **Local weather intelligence** — current conditions, hourly and eight-day
   forecasts, official ARSO alerts, air quality, UV, pollen, and animated radar.
 - **A real customization surface** — eight presets plus independent palette,
-  surface, geometry, typography, motion, module, opacity, scale, density,
-  sensor, refresh, startup, lock, click-through, and window controls.
+  surface, geometry, graph, typography, motion, opacity, scale, density,
+  sensor, refresh, startup, lock, click-through, and window controls. Every
+  module can override its own colors, spacing, type, icon, and visualization.
 - **Portable designs** — export or import a versioned `.opsdesign` package;
   live apply, contrast checking, and atomic undo keep experiments recoverable.
 - **Desktop-native behavior** — draggable, resizable, per-monitor DPI aware,
   always-on-top, sign-in startup, and keyboard recovery for locked overlays.
-- **Honest sensor states** — unavailable or stale readings show as unavailable;
-  OPS Monitor never invents a temperature.
+- **Stable, honest sensor states** — brief provider gaps retain the last valid
+  temperature or network reading as stale; persistent outages become
+  unavailable. OPS Monitor never invents a value.
 
 ## One widget, multiple moods
 
@@ -57,7 +59,7 @@ persists its position and scale.
 <table>
   <tr>
     <td width="34%" align="center">
-      <img src="docs/assets/screenshots/widget-mini-v3.2.png" width="245" alt="OPS Monitor 3.2 Mini with hardware, network, packet loss, and weather rows">
+      <img src="docs/assets/screenshots/widget-mini-v3.3.png" width="245" alt="OPS Monitor 3.3 Mini with hardware, network, packet loss, and weather rows">
     </td>
     <td>
       <h3>Mini, but still useful</h3>
@@ -131,9 +133,9 @@ cd .\ops-monitor\native
 `Build.ps1` restores the solution, builds Release, and runs the deterministic
 behavioral test suites.
 
-Version 3.2 uses the same production card renderer in Studio and the live
-Widget, adds vendor-neutral GPU fallback, and pauses telemetry work while the
-Windows session is locked. See the [changelog](CHANGELOG.md) and
+Version 3.3 expands that shared renderer into a detailed design workbench,
+keeps the 80% Mini preview aligned with the live widget, and stabilizes brief
+temperature and network sampling gaps. See the [changelog](CHANGELOG.md) and
 [roadmap](ROADMAP.md) for the complete release contract.
 
 ### Install for the current user

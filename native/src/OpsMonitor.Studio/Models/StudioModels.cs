@@ -26,17 +26,35 @@ public sealed class ModuleItem : ObservableObject
     private string _customIcon;
     private string _accentHex;
     private bool _useCustomAccent;
+    private string _cardHex = "#FF0F1521";
+    private string _borderHex = "#FF364258";
+    private string _primaryTextHex = "#FFF6F9FF";
+    private string _secondaryTextHex = "#FFB8C4D6";
+    private string _trackHex = "#55364258";
+    private bool _useCustomCardColor;
+    private bool _useCustomBorderColor;
+    private bool _useCustomPrimaryTextColor;
+    private bool _useCustomSecondaryTextColor;
+    private bool _useCustomTrackColor;
     private bool _showIcon = true;
     private bool _showAccent = true;
     private double _cardOpacity = 1;
     private double _borderOpacity = 1;
     private double _cardCornerRadius = -1;
+    private double _cardBorderWidth = -1;
+    private double _cardGap = -1;
     private double _cardPadding = -1;
     private double _accentWidth = -1;
     private double _progressHeight = -1;
+    private double _progressCornerRadius = -1;
+    private double _sparklineThickness = -1;
+    private double _sparklineFillOpacity = -1;
     private double _labelSize = -1;
+    private double _secondarySize = -1;
     private double _valueSize = -1;
     private double _iconSize = -1;
+    private int _labelWeight = -1;
+    private int _valueWeight = -1;
     private Brush _previewCardBrush = Brushes.Transparent;
     private Brush _previewBorderBrush = Brushes.Transparent;
     private double _previewCardCornerRadius = 12;
@@ -227,17 +245,72 @@ public sealed class ModuleItem : ObservableObject
 
     public bool UseCustomAccent { get => _useCustomAccent; set => SetEditorProperty(ref _useCustomAccent, value); }
 
+    public string CardHex
+    {
+        get => _cardHex;
+        set => SetColorOverride(ref _cardHex, value, nameof(CardHex), nameof(CardSwatch));
+    }
+
+    public string BorderHex
+    {
+        get => _borderHex;
+        set => SetColorOverride(ref _borderHex, value, nameof(BorderHex), nameof(BorderSwatch));
+    }
+
+    public string PrimaryTextHex
+    {
+        get => _primaryTextHex;
+        set => SetColorOverride(ref _primaryTextHex, value, nameof(PrimaryTextHex), nameof(PrimaryTextSwatch));
+    }
+
+    public string SecondaryTextHex
+    {
+        get => _secondaryTextHex;
+        set => SetColorOverride(ref _secondaryTextHex, value, nameof(SecondaryTextHex), nameof(SecondaryTextSwatch));
+    }
+
+    public string TrackHex
+    {
+        get => _trackHex;
+        set => SetColorOverride(ref _trackHex, value, nameof(TrackHex), nameof(TrackSwatch));
+    }
+
+    public Brush CardSwatch => FrozenBrush(CardHex, Colors.Black);
+    public Brush BorderSwatch => FrozenBrush(BorderHex, Colors.DimGray);
+    public Brush PrimaryTextSwatch => FrozenBrush(PrimaryTextHex, Colors.White);
+    public Brush SecondaryTextSwatch => FrozenBrush(SecondaryTextHex, Colors.LightGray);
+    public Brush TrackSwatch => FrozenBrush(TrackHex, Colors.DimGray);
+
+    public bool UseCustomCardColor { get => _useCustomCardColor; set => SetEditorProperty(ref _useCustomCardColor, value); }
+    public bool UseCustomBorderColor { get => _useCustomBorderColor; set => SetEditorProperty(ref _useCustomBorderColor, value); }
+    public bool UseCustomPrimaryTextColor { get => _useCustomPrimaryTextColor; set => SetEditorProperty(ref _useCustomPrimaryTextColor, value); }
+    public bool UseCustomSecondaryTextColor { get => _useCustomSecondaryTextColor; set => SetEditorProperty(ref _useCustomSecondaryTextColor, value); }
+    public bool UseCustomTrackColor { get => _useCustomTrackColor; set => SetEditorProperty(ref _useCustomTrackColor, value); }
+
     public bool ShowIcon { get => _showIcon; set => SetEditorProperty(ref _showIcon, value); }
     public bool ShowAccent { get => _showAccent; set => SetEditorProperty(ref _showAccent, value); }
     public double CardOpacity { get => _cardOpacity; set => SetEditorProperty(ref _cardOpacity, Math.Clamp(value, 0.2, 1)); }
     public double BorderOpacity { get => _borderOpacity; set => SetEditorProperty(ref _borderOpacity, Math.Clamp(value, 0, 1)); }
     public double CardCornerRadius { get => _cardCornerRadius; set => SetOverride(ref _cardCornerRadius, value, 0, 40); }
+    public double CardBorderWidth { get => _cardBorderWidth; set => SetOverride(ref _cardBorderWidth, value, 0, 4); }
+    public double CardGap { get => _cardGap; set => SetOverride(ref _cardGap, value, 0, 20); }
     public double CardPadding { get => _cardPadding; set => SetOverride(ref _cardPadding, value, 0, 28); }
     public double AccentWidth { get => _accentWidth; set => SetOverride(ref _accentWidth, value, 0, 10); }
     public double ProgressHeight { get => _progressHeight; set => SetOverride(ref _progressHeight, value, 1, 12); }
+    public double ProgressCornerRadius { get => _progressCornerRadius; set => SetOverride(ref _progressCornerRadius, value, 0, 6); }
+    public double SparklineThickness { get => _sparklineThickness; set => SetOverride(ref _sparklineThickness, value, 0.5, 5); }
+    public double SparklineFillOpacity { get => _sparklineFillOpacity; set => SetOverride(ref _sparklineFillOpacity, value, 0, 0.5); }
     public double LabelSize { get => _labelSize; set => SetOverride(ref _labelSize, value, 8, 26); }
+    public double SecondarySize { get => _secondarySize; set => SetOverride(ref _secondarySize, value, 8, 24); }
     public double ValueSize { get => _valueSize; set => SetOverride(ref _valueSize, value, 10, 42); }
     public double IconSize { get => _iconSize; set => SetOverride(ref _iconSize, value, 8, 32); }
+    public int LabelWeight { get => _labelWeight; set => SetOverride(ref _labelWeight, value, 100, 900); }
+    public int ValueWeight { get => _valueWeight; set => SetOverride(ref _valueWeight, value, 100, 900); }
+
+    public bool HasOverrides => OverrideCount > 0;
+    public string OverrideSummary => OverrideCount == 0
+        ? "Inheriting the global design system"
+        : $"{OverrideCount} custom module setting{(OverrideCount == 1 ? string.Empty : "s")}";
 
     public string PreviewPrimaryValue => ApplyPrecision(PrimaryValue, Precision);
 
@@ -318,13 +391,16 @@ public sealed class ModuleItem : ObservableObject
             CardOpacity = designer.CardOpacity,
             AccentWidth = designer.AccentWidth,
             ProgressHeight = designer.ProgressHeight,
+            ProgressCornerRadius = designer.ProgressCornerRadius,
             SparklineThickness = designer.SparklineThickness,
+            SparklineFillOpacity = designer.SparklineFillOpacity,
             HeaderVisible = designer.HeaderVisible,
             StatusIndicatorVisible = designer.StatusIndicatorVisible,
             SettingsButtonVisible = designer.SettingsButtonVisible,
             HeaderHeight = designer.HeaderHeight,
             HeaderSize = designer.HeaderSize,
             SecondarySize = designer.SecondarySize,
+            IconSize = designer.IconSize,
             HeaderWeight = designer.HeaderWeight,
             SecondaryWeight = designer.SecondaryWeight,
             MotionEnabled = designer.MotionEnabled,
@@ -344,9 +420,10 @@ public sealed class ModuleItem : ObservableObject
             },
             Visualization = Visualization switch
             {
-                "Number only" => WidgetModuleVisualization.Value,
-                "Bar" => WidgetModuleVisualization.Gauge,
-                "Sparkline" => WidgetModuleVisualization.Sparkline,
+                "Value only" or "Number only" => WidgetModuleVisualization.Value,
+                "Bar only" or "Bar" => WidgetModuleVisualization.Progress,
+                "Value + bar" or "Dial" => WidgetModuleVisualization.ValueAndProgress,
+                "Sparkline only" or "Sparkline" => WidgetModuleVisualization.Sparkline,
                 _ => WidgetModuleVisualization.ValueAndSparkline
             },
             ShowLabel = ShowLabel,
@@ -362,19 +439,32 @@ public sealed class ModuleItem : ObservableObject
             Title = CustomTitle,
             Icon = CustomIcon,
             AccentColor = UseCustomAccent ? AccentHex : string.Empty,
+            CardColor = UseCustomCardColor ? CardHex : string.Empty,
+            BorderColor = UseCustomBorderColor ? BorderHex : string.Empty,
+            PrimaryTextColor = UseCustomPrimaryTextColor ? PrimaryTextHex : string.Empty,
+            SecondaryTextColor = UseCustomSecondaryTextColor ? SecondaryTextHex : string.Empty,
+            TrackColor = UseCustomTrackColor ? TrackHex : string.Empty,
             ShowIcon = ShowIcon,
             ShowAccent = ShowAccent,
             CardOpacity = CardOpacity,
             BorderOpacity = BorderOpacity,
             CardCornerRadiusOverride = CardCornerRadius < 0 ? null : CardCornerRadius,
+            CardBorderWidthOverride = CardBorderWidth < 0 ? null : CardBorderWidth,
+            CardGapOverride = CardGap < 0 ? null : CardGap,
             CardPaddingOverride = CardPadding < 0
                 ? null
                 : Math.Min(CardPadding, maximumCardPadding),
             AccentWidthOverride = AccentWidth < 0 ? null : AccentWidth,
             ProgressHeightOverride = ProgressHeight < 0 ? null : ProgressHeight,
+            ProgressCornerRadiusOverride = ProgressCornerRadius < 0 ? null : ProgressCornerRadius,
+            SparklineThicknessOverride = SparklineThickness < 0 ? null : SparklineThickness,
+            SparklineFillOpacityOverride = SparklineFillOpacity < 0 ? null : SparklineFillOpacity,
             LabelSizeOverride = LabelSize < 0 ? null : LabelSize,
+            SecondarySizeOverride = SecondarySize < 0 ? null : SecondarySize,
             ValueSizeOverride = ValueSize < 0 ? null : ValueSize,
-            IconSizeOverride = IconSize < 0 ? null : IconSize
+            IconSizeOverride = IconSize < 0 ? null : IconSize,
+            LabelWeightOverride = LabelWeight < 0 ? null : LabelWeight,
+            ValueWeightOverride = ValueWeight < 0 ? null : ValueWeight
         });
         ProductionCard.ApplyTheme(theme);
         SyncProductionValues();
@@ -425,13 +515,86 @@ public sealed class ModuleItem : ObservableObject
             OnPropertyChanged(nameof(PreviewPrimaryValue));
             OnPropertyChanged(nameof(PreviewSecondaryValue));
         }
+        OnPropertyChanged(nameof(HasOverrides));
+        OnPropertyChanged(nameof(OverrideSummary));
         return true;
+    }
+
+    private void SetColorOverride(
+        ref string field,
+        string? value,
+        string propertyName,
+        string swatchPropertyName)
+    {
+        var normalized = ColorText.Normalize(value, field);
+        if (SetEditorProperty(ref field, normalized, propertyName))
+        {
+            OnPropertyChanged(swatchPropertyName);
+        }
     }
 
     private void SetOverride(ref double field, double value, double minimum, double maximum)
     {
         var normalized = value < 0 ? -1 : Math.Clamp(value, minimum, maximum);
         _ = SetEditorProperty(ref field, normalized);
+    }
+
+    private void SetOverride(ref int field, int value, int minimum, int maximum)
+    {
+        var normalized = value < 0 ? -1 : Math.Clamp(value, minimum, maximum);
+        _ = SetEditorProperty(ref field, normalized);
+    }
+
+    private int OverrideCount =>
+        (UseCustomAccent ? 1 : 0) +
+        (UseCustomCardColor ? 1 : 0) +
+        (UseCustomBorderColor ? 1 : 0) +
+        (UseCustomPrimaryTextColor ? 1 : 0) +
+        (UseCustomSecondaryTextColor ? 1 : 0) +
+        (UseCustomTrackColor ? 1 : 0) +
+        (Math.Abs(CardOpacity - 1) > 0.0001 ? 1 : 0) +
+        (Math.Abs(BorderOpacity - 1) > 0.0001 ? 1 : 0) +
+        (CardCornerRadius >= 0 ? 1 : 0) +
+        (CardBorderWidth >= 0 ? 1 : 0) +
+        (CardGap >= 0 ? 1 : 0) +
+        (CardPadding >= 0 ? 1 : 0) +
+        (AccentWidth >= 0 ? 1 : 0) +
+        (ProgressHeight >= 0 ? 1 : 0) +
+        (ProgressCornerRadius >= 0 ? 1 : 0) +
+        (SparklineThickness >= 0 ? 1 : 0) +
+        (SparklineFillOpacity >= 0 ? 1 : 0) +
+        (LabelSize >= 0 ? 1 : 0) +
+        (SecondarySize >= 0 ? 1 : 0) +
+        (ValueSize >= 0 ? 1 : 0) +
+        (IconSize >= 0 ? 1 : 0) +
+        (LabelWeight >= 0 ? 1 : 0) +
+        (ValueWeight >= 0 ? 1 : 0);
+
+    public void ResetVisualOverrides()
+    {
+        UseCustomAccent = false;
+        UseCustomCardColor = false;
+        UseCustomBorderColor = false;
+        UseCustomPrimaryTextColor = false;
+        UseCustomSecondaryTextColor = false;
+        UseCustomTrackColor = false;
+        CardOpacity = 1;
+        BorderOpacity = 1;
+        CardCornerRadius = -1;
+        CardBorderWidth = -1;
+        CardGap = -1;
+        CardPadding = -1;
+        AccentWidth = -1;
+        ProgressHeight = -1;
+        ProgressCornerRadius = -1;
+        SparklineThickness = -1;
+        SparklineFillOpacity = -1;
+        LabelSize = -1;
+        SecondarySize = -1;
+        ValueSize = -1;
+        IconSize = -1;
+        LabelWeight = -1;
+        ValueWeight = -1;
     }
 
     private static string ApplyPrecision(string value, string precision)
@@ -471,6 +634,13 @@ public sealed class ModuleItem : ObservableObject
         return brush;
     }
 
+    private static SolidColorBrush FrozenBrush(string colorText, Color fallback)
+    {
+        var brush = new SolidColorBrush(ColorText.Parse(colorText, fallback));
+        brush.Freeze();
+        return brush;
+    }
+
     public ModuleItem Clone(string suffix)
         => new(
             $"{Id}-{suffix}",
@@ -495,17 +665,35 @@ public sealed class ModuleItem : ObservableObject
             CustomIcon = CustomIcon,
             AccentHex = AccentHex,
             UseCustomAccent = UseCustomAccent,
+            CardHex = CardHex,
+            BorderHex = BorderHex,
+            PrimaryTextHex = PrimaryTextHex,
+            SecondaryTextHex = SecondaryTextHex,
+            TrackHex = TrackHex,
+            UseCustomCardColor = UseCustomCardColor,
+            UseCustomBorderColor = UseCustomBorderColor,
+            UseCustomPrimaryTextColor = UseCustomPrimaryTextColor,
+            UseCustomSecondaryTextColor = UseCustomSecondaryTextColor,
+            UseCustomTrackColor = UseCustomTrackColor,
             ShowIcon = ShowIcon,
             ShowAccent = ShowAccent,
             CardOpacity = CardOpacity,
             BorderOpacity = BorderOpacity,
             CardCornerRadius = CardCornerRadius,
+            CardBorderWidth = CardBorderWidth,
+            CardGap = CardGap,
             CardPadding = CardPadding,
             AccentWidth = AccentWidth,
             ProgressHeight = ProgressHeight,
+            ProgressCornerRadius = ProgressCornerRadius,
+            SparklineThickness = SparklineThickness,
+            SparklineFillOpacity = SparklineFillOpacity,
             LabelSize = LabelSize,
+            SecondarySize = SecondarySize,
             ValueSize = ValueSize,
             IconSize = IconSize,
+            LabelWeight = LabelWeight,
+            ValueWeight = ValueWeight,
         };
 }
 
@@ -771,17 +959,30 @@ public sealed record StudioModuleSnapshot(
     string Accent)
 {
     public bool UseCustomAccent { get; init; }
+    public string CardColor { get; init; } = string.Empty;
+    public string BorderColor { get; init; } = string.Empty;
+    public string PrimaryTextColor { get; init; } = string.Empty;
+    public string SecondaryTextColor { get; init; } = string.Empty;
+    public string TrackColor { get; init; } = string.Empty;
     public bool ShowIcon { get; init; } = true;
     public bool ShowAccent { get; init; } = true;
     public double CardOpacity { get; init; } = 1;
     public double BorderOpacity { get; init; } = 1;
     public double? CardCornerRadiusOverride { get; init; }
+    public double? CardBorderWidthOverride { get; init; }
+    public double? CardGapOverride { get; init; }
     public double? CardPaddingOverride { get; init; }
     public double? AccentWidthOverride { get; init; }
     public double? ProgressHeightOverride { get; init; }
+    public double? ProgressCornerRadiusOverride { get; init; }
+    public double? SparklineThicknessOverride { get; init; }
+    public double? SparklineFillOpacityOverride { get; init; }
     public double? LabelSizeOverride { get; init; }
+    public double? SecondarySizeOverride { get; init; }
     public double? ValueSizeOverride { get; init; }
     public double? IconSizeOverride { get; init; }
+    public int? LabelWeightOverride { get; init; }
+    public int? ValueWeightOverride { get; init; }
 }
 
 public sealed record StudioThemeSnapshot(
@@ -820,7 +1021,9 @@ public sealed record StudioThemeSnapshot(
     public double CardOpacity { get; init; } = 0.72;
     public double AccentWidth { get; init; } = 3;
     public double ProgressHeight { get; init; } = 4;
+    public double ProgressCornerRadius { get; init; } = 2;
     public double SparklineThickness { get; init; } = 1.5;
+    public double SparklineFillOpacity { get; init; } = 0.16;
     public bool HeaderVisible { get; init; } = true;
     public bool StatusIndicatorVisible { get; init; } = true;
     public bool SettingsButtonVisible { get; init; } = true;
@@ -830,6 +1033,7 @@ public sealed record StudioThemeSnapshot(
     public double LabelSize { get; init; } = 11;
     public double SecondarySize { get; init; } = 10;
     public double ValueSize { get; init; } = 18;
+    public double IconSize { get; init; } = 14;
     public double MinimumReadableSize { get; init; } = 10;
     public int HeaderWeight { get; init; } = 650;
     public int LabelWeight { get; init; } = 600;
@@ -892,7 +1096,7 @@ public sealed record StudioSettingsSnapshot(
     IReadOnlyList<StudioSceneSnapshot>? Scenes = null,
     IReadOnlyList<StudioAlertSnapshot>? Alerts = null,
     bool DemoMetrics = true,
-    int SchemaVersion = 4,
+    int SchemaVersion = 5,
     IReadOnlyList<StudioSensorPinSnapshot>? SensorPins = null);
 
 public sealed record StudioDesignPackage(

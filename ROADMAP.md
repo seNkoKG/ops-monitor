@@ -17,7 +17,18 @@ together.
 - Versioned self-contained and framework-dependent packages, local upgrade
   path, refreshed documentation, Pages site, and installed desktop build.
 
-## 3.3 — Profiles and automation
+## 3.3 — Designer workbench
+
+- Complete global token editing for palette, surfaces, geometry, typography,
+  graphs, header chrome, and motion.
+- Per-module colors, opacity, geometry, graph, typography, icon, title,
+  precision, size, visualization, and visibility overrides.
+- Production-renderer Mini parity at 80%, compact alignment fixes, plain
+  weather labeling, and brief-gap stabilization for temperatures and ping.
+- Schema-5 portable designs, safe migration, atomic reset/undo, contrast-aware
+  compositing, and malformed-package recovery.
+
+## 3.4 — Profiles and automation
 
 - User-editable hotkeys with conflict detection.
 - Scene triggers for process, full-screen app, AC/battery state, schedule, and
@@ -25,7 +36,7 @@ together.
 - Import/export for complete profiles, not only visual design tokens.
 - Per-monitor placement profiles and safer recovery when displays change.
 
-## 3.4 — Telemetry depth
+## 3.5 — Telemetry depth
 
 - Multi-GPU selection and per-device cards.
 - Per-core CPU, disk volume, fan curve, motherboard, and process telemetry.

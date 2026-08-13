@@ -20,7 +20,7 @@ public interface IStudioSettingsSink : IDisposable
 
 public sealed class LocalStudioSettingsSink : IStudioSettingsSink
 {
-    internal const int CurrentSchemaVersion = 4;
+    internal const int CurrentSchemaVersion = 5;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -224,7 +224,7 @@ internal static class StudioSettingsMigration
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var normalized = new List<StudioModuleSnapshot>(modules.Count);
-        foreach (var module in modules.OrderBy(item => item.Order))
+        foreach (var module in modules.OfType<StudioModuleSnapshot>().OrderBy(item => item.Order))
         {
             if (string.IsNullOrWhiteSpace(module.Id) || !seen.Add(module.Id))
             {
@@ -235,28 +235,38 @@ internal static class StudioSettingsMigration
             {
                 Order = normalized.Count,
                 Name = string.IsNullOrWhiteSpace(module.Name) ? module.Id : module.Name.Trim(),
-                Size = module.Size is "Small" or "Medium" or "Large"
+                Size = module.Size is "Small" or "Medium" or "Large" or "Wide"
                     ? module.Size
                     : "Medium",
-                Visualization = module.Visualization is
-                    "Number only" or "Bar" or "Sparkline" or "Bar + sparkline"
-                    ? module.Visualization
-                    : "Bar + sparkline",
+                Visualization = NormalizeVisualization(module.Visualization),
                 Precision = module.Precision is
                     "Whole numbers" or "1 decimal" or "2 decimals" or "Adaptive"
                     ? module.Precision
                     : "Adaptive",
                 Icon = (module.Icon ?? string.Empty).Trim()[..Math.Min((module.Icon ?? string.Empty).Trim().Length, 8)],
                 Accent = ColorText.Normalize(module.Accent, "#FF48DCF9"),
+                CardColor = NormalizeOptionalColor(module.CardColor),
+                BorderColor = NormalizeOptionalColor(module.BorderColor),
+                PrimaryTextColor = NormalizeOptionalColor(module.PrimaryTextColor),
+                SecondaryTextColor = NormalizeOptionalColor(module.SecondaryTextColor),
+                TrackColor = NormalizeOptionalColor(module.TrackColor),
                 CardOpacity = ClampFinite(module.CardOpacity, 0.2, 1, 1),
                 BorderOpacity = ClampFinite(module.BorderOpacity, 0, 1, 1),
                 CardCornerRadiusOverride = NormalizeOverride(module.CardCornerRadiusOverride, 0, 40),
+                CardBorderWidthOverride = NormalizeOverride(module.CardBorderWidthOverride, 0, 4),
+                CardGapOverride = NormalizeOverride(module.CardGapOverride, 0, 20),
                 CardPaddingOverride = NormalizeOverride(module.CardPaddingOverride, 0, 28),
                 AccentWidthOverride = NormalizeOverride(module.AccentWidthOverride, 0, 10),
                 ProgressHeightOverride = NormalizeOverride(module.ProgressHeightOverride, 1, 12),
+                ProgressCornerRadiusOverride = NormalizeOverride(module.ProgressCornerRadiusOverride, 0, 6),
+                SparklineThicknessOverride = NormalizeOverride(module.SparklineThicknessOverride, 0.5, 5),
+                SparklineFillOpacityOverride = NormalizeOverride(module.SparklineFillOpacityOverride, 0, 0.5),
                 LabelSizeOverride = NormalizeOverride(module.LabelSizeOverride, 8, 26),
+                SecondarySizeOverride = NormalizeOverride(module.SecondarySizeOverride, 8, 24),
                 ValueSizeOverride = NormalizeOverride(module.ValueSizeOverride, 10, 42),
                 IconSizeOverride = NormalizeOverride(module.IconSizeOverride, 8, 32),
+                LabelWeightOverride = NormalizeOverride(module.LabelWeightOverride, 100, 900),
+                ValueWeightOverride = NormalizeOverride(module.ValueWeightOverride, 100, 900),
             });
         }
 
@@ -329,13 +339,16 @@ internal static class StudioSettingsMigration
             CardOpacity = ClampFinite(theme.CardOpacity, 0, 1, 0.72),
             AccentWidth = ClampFinite(theme.AccentWidth, 0, 10, 3),
             ProgressHeight = ClampFinite(theme.ProgressHeight, 1, 12, 4),
+            ProgressCornerRadius = ClampFinite(theme.ProgressCornerRadius, 0, 6, 2),
             SparklineThickness = ClampFinite(theme.SparklineThickness, 0.5, 5, 1.5),
+            SparklineFillOpacity = ClampFinite(theme.SparklineFillOpacity, 0, 0.5, 0.16),
             HeaderHeight = ClampFinite(theme.HeaderHeight, 18, 64, 36),
             FontFamily = string.IsNullOrWhiteSpace(theme.FontFamily) ? "Segoe UI Variable" : theme.FontFamily.Trim(),
             HeaderSize = ClampFinite(theme.HeaderSize, 8, 24, 11),
             LabelSize = ClampFinite(theme.LabelSize, 8, 26, 11),
             SecondarySize = ClampFinite(theme.SecondarySize, 8, 24, 10),
             ValueSize = ClampFinite(theme.ValueSize, 10, 42, 18),
+            IconSize = ClampFinite(theme.IconSize, 8, 32, 14),
             MinimumReadableSize = ClampFinite(theme.MinimumReadableSize, 8, 18, 10),
             HeaderWeight = Math.Clamp(theme.HeaderWeight, 100, 900),
             LabelWeight = Math.Clamp(theme.LabelWeight, 100, 900),
@@ -349,6 +362,27 @@ internal static class StudioSettingsMigration
         value is { } candidate && double.IsFinite(candidate)
             ? Math.Clamp(candidate, minimum, maximum)
             : null;
+
+    private static int? NormalizeOverride(int? value, int minimum, int maximum) =>
+        value is { } candidate
+            ? Math.Clamp(candidate, minimum, maximum)
+            : null;
+
+    private static string NormalizeOptionalColor(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : ColorText.Normalize(value, string.Empty);
+
+    private static string NormalizeVisualization(string? value) =>
+        value switch
+        {
+            "Number only" or "Value only" => "Value only",
+            "Bar" or "Bar only" => "Bar only",
+            "Dial" or "Value + bar" => "Value + bar",
+            "Sparkline" or "Sparkline only" => "Sparkline only",
+            "Bar + sparkline" or "Value + sparkline" => "Value + sparkline",
+            _ => "Value + sparkline",
+        };
 
     private static double ClampFinite(
         double value,

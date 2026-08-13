@@ -41,7 +41,9 @@ public sealed class WidgetDesignerState : ObservableObject
     private double _cardOpacity = 0.72;
     private double _accentWidth = 3;
     private double _progressHeight = 4;
+    private double _progressCornerRadius = 2;
     private double _sparklineThickness = 1.5;
+    private double _sparklineFillOpacity = 0.16;
     private bool _headerVisible = true;
     private bool _statusIndicatorVisible = true;
     private bool _settingsButtonVisible = true;
@@ -51,6 +53,7 @@ public sealed class WidgetDesignerState : ObservableObject
     private double _labelSize = 11;
     private double _secondarySize = 10;
     private double _valueSize = 18;
+    private double _iconSize = 14;
     private double _minimumReadableSize = 10;
     private int _headerWeight = 650;
     private int _labelWeight = 600;
@@ -99,7 +102,9 @@ public sealed class WidgetDesignerState : ObservableObject
     public double CardOpacity { get => _cardOpacity; set => SetNumber(ref _cardOpacity, value, 0, 1); }
     public double AccentWidth { get => _accentWidth; set => SetNumber(ref _accentWidth, value, 0, 10); }
     public double ProgressHeight { get => _progressHeight; set => SetNumber(ref _progressHeight, value, 1, 12); }
+    public double ProgressCornerRadius { get => _progressCornerRadius; set => SetNumber(ref _progressCornerRadius, value, 0, 6); }
     public double SparklineThickness { get => _sparklineThickness; set => SetNumber(ref _sparklineThickness, value, 0.5, 5); }
+    public double SparklineFillOpacity { get => _sparklineFillOpacity; set => SetNumber(ref _sparklineFillOpacity, value, 0, 0.5); }
     public bool HeaderVisible { get => _headerVisible; set => SetValue(ref _headerVisible, value); }
     public bool StatusIndicatorVisible { get => _statusIndicatorVisible; set => SetValue(ref _statusIndicatorVisible, value); }
     public bool SettingsButtonVisible { get => _settingsButtonVisible; set => SetValue(ref _settingsButtonVisible, value); }
@@ -115,6 +120,7 @@ public sealed class WidgetDesignerState : ObservableObject
     public double LabelSize { get => _labelSize; set => SetNumber(ref _labelSize, value, 8, 26); }
     public double SecondarySize { get => _secondarySize; set => SetNumber(ref _secondarySize, value, 8, 24); }
     public double ValueSize { get => _valueSize; set => SetNumber(ref _valueSize, value, 10, 42); }
+    public double IconSize { get => _iconSize; set => SetNumber(ref _iconSize, value, 8, 32); }
     public double MinimumReadableSize { get => _minimumReadableSize; set => SetNumber(ref _minimumReadableSize, value, 8, 18); }
     public int HeaderWeight { get => _headerWeight; set => SetNumber(ref _headerWeight, value, 100, 900); }
     public int LabelWeight { get => _labelWeight; set => SetNumber(ref _labelWeight, value, 100, 900); }
@@ -137,6 +143,11 @@ public sealed class WidgetDesignerState : ObservableObject
     public Brush MemoryAccentBrush => FrozenBrush(MemoryAccent);
     public Brush NetworkAccentBrush => FrozenBrush(NetworkAccent);
     public Brush LatencyAccentBrush => FrozenBrush(LatencyAccent);
+    public Brush WeatherAccentBrush => FrozenBrush(WeatherAccent);
+    public Brush TrackBrush => FrozenBrush(Track);
+    public Brush WarningBrush => FrozenBrush(Warning);
+    public Brush CriticalBrush => FrozenBrush(Critical);
+    public Brush SuccessBrush => FrozenBrush(Success);
 
     public double PrimaryContrastRatio => Contrast(ColorText.Parse(PrimaryText, Colors.White), EffectiveCardColor());
     public double SecondaryContrastRatio => Contrast(ColorText.Parse(SecondaryText, Colors.White), EffectiveCardColor());
@@ -176,7 +187,9 @@ public sealed class WidgetDesignerState : ObservableObject
             CardOpacity = CardOpacity,
             AccentWidth = AccentWidth,
             ProgressHeight = ProgressHeight,
+            ProgressCornerRadius = ProgressCornerRadius,
             SparklineThickness = SparklineThickness,
+            SparklineFillOpacity = SparklineFillOpacity,
             HeaderVisible = HeaderVisible,
             StatusIndicatorVisible = StatusIndicatorVisible,
             SettingsButtonVisible = SettingsButtonVisible,
@@ -186,6 +199,7 @@ public sealed class WidgetDesignerState : ObservableObject
             LabelSize = LabelSize,
             SecondarySize = SecondarySize,
             ValueSize = ValueSize,
+            IconSize = IconSize,
             MinimumReadableSize = MinimumReadableSize,
             HeaderWeight = HeaderWeight,
             LabelWeight = LabelWeight,
@@ -236,7 +250,9 @@ public sealed class WidgetDesignerState : ObservableObject
             CardOpacity = source.CardOpacity;
             AccentWidth = source.AccentWidth;
             ProgressHeight = source.ProgressHeight;
+            ProgressCornerRadius = source.ProgressCornerRadius;
             SparklineThickness = source.SparklineThickness;
+            SparklineFillOpacity = source.SparklineFillOpacity;
             HeaderVisible = source.HeaderVisible;
             StatusIndicatorVisible = source.StatusIndicatorVisible;
             SettingsButtonVisible = source.SettingsButtonVisible;
@@ -246,6 +262,7 @@ public sealed class WidgetDesignerState : ObservableObject
             LabelSize = source.LabelSize;
             SecondarySize = source.SecondarySize;
             ValueSize = source.ValueSize;
+            IconSize = source.IconSize;
             MinimumReadableSize = source.MinimumReadableSize;
             HeaderWeight = source.HeaderWeight;
             LabelWeight = source.LabelWeight;
@@ -441,7 +458,9 @@ public sealed class WidgetDesignerState : ObservableObject
         if (propertyName is nameof(Surface) or nameof(Card) or nameof(Border) or
             nameof(PrimaryText) or nameof(SecondaryText) or nameof(CpuAccent) or
             nameof(GpuAccent) or nameof(MemoryAccent) or nameof(NetworkAccent) or
-            nameof(LatencyAccent) or nameof(CardOpacity))
+            nameof(LatencyAccent) or nameof(WeatherAccent) or nameof(Track) or
+            nameof(Warning) or nameof(Critical) or nameof(Success) or
+            nameof(CardOpacity))
         {
             RaiseDerivedProperties();
         }
@@ -464,6 +483,11 @@ public sealed class WidgetDesignerState : ObservableObject
         OnPropertyChanged(nameof(MemoryAccentBrush));
         OnPropertyChanged(nameof(NetworkAccentBrush));
         OnPropertyChanged(nameof(LatencyAccentBrush));
+        OnPropertyChanged(nameof(WeatherAccentBrush));
+        OnPropertyChanged(nameof(TrackBrush));
+        OnPropertyChanged(nameof(WarningBrush));
+        OnPropertyChanged(nameof(CriticalBrush));
+        OnPropertyChanged(nameof(SuccessBrush));
         OnPropertyChanged(nameof(PrimaryContrastRatio));
         OnPropertyChanged(nameof(SecondaryContrastRatio));
         OnPropertyChanged(nameof(HasReadableContrast));

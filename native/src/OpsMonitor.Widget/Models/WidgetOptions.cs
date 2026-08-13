@@ -38,7 +38,8 @@ public enum WidgetModuleVisualization
     Progress,
     Sparkline,
     Gauge,
-    ValueAndSparkline
+    ValueAndSparkline,
+    ValueAndProgress
 }
 
 public enum SemanticAccent
@@ -147,6 +148,16 @@ public sealed record WidgetModulePresentation
 
     public string AccentColor { get; init; } = string.Empty;
 
+    public string CardColor { get; init; } = string.Empty;
+
+    public string BorderColor { get; init; } = string.Empty;
+
+    public string PrimaryTextColor { get; init; } = string.Empty;
+
+    public string SecondaryTextColor { get; init; } = string.Empty;
+
+    public string TrackColor { get; init; } = string.Empty;
+
     public bool ShowIcon { get; init; } = true;
 
     public bool ShowAccent { get; init; } = true;
@@ -157,17 +168,33 @@ public sealed record WidgetModulePresentation
 
     public double? CardCornerRadiusOverride { get; init; }
 
+    public double? CardBorderWidthOverride { get; init; }
+
+    public double? CardGapOverride { get; init; }
+
     public double? CardPaddingOverride { get; init; }
 
     public double? AccentWidthOverride { get; init; }
 
     public double? ProgressHeightOverride { get; init; }
 
+    public double? ProgressCornerRadiusOverride { get; init; }
+
+    public double? SparklineThicknessOverride { get; init; }
+
+    public double? SparklineFillOpacityOverride { get; init; }
+
     public double? LabelSizeOverride { get; init; }
+
+    public double? SecondarySizeOverride { get; init; }
 
     public double? ValueSizeOverride { get; init; }
 
     public double? IconSizeOverride { get; init; }
+
+    public int? LabelWeightOverride { get; init; }
+
+    public int? ValueWeightOverride { get; init; }
 }
 
 public sealed record WidgetRuntimeTheme
@@ -216,6 +243,8 @@ public sealed record WidgetRuntimeTheme
 
     public double ValueSize { get; init; } = 18;
 
+    public double IconSize { get; init; } = 14;
+
     public double MinimumReadableSize { get; init; } = 12;
 
     public int LabelWeight { get; init; } = 600;
@@ -244,7 +273,9 @@ public sealed record WidgetRuntimeTheme
     public double CardOpacity { get; init; } = 0.72;
     public double AccentWidth { get; init; } = 3;
     public double ProgressHeight { get; init; } = 4;
+    public double ProgressCornerRadius { get; init; } = 2;
     public double SparklineThickness { get; init; } = 1.5;
+    public double SparklineFillOpacity { get; init; } = 0.16;
     public bool HeaderVisible { get; init; } = true;
     public bool StatusIndicatorVisible { get; init; } = true;
     public bool SettingsButtonVisible { get; init; } = true;

@@ -16,6 +16,8 @@ namespace OpsMonitor.Widget.ViewModels;
 
 internal sealed class MainWindowViewModel : ObservableObject, IDisposable
 {
+    private static readonly TimeSpan TemperatureGapGrace = TimeSpan.FromSeconds(45);
+    private static readonly TimeSpan ConnectivityGapGrace = TimeSpan.FromSeconds(20);
     private static readonly IReadOnlyList<ThemeDefinition> BuiltInThemes =
     [
         CreateBuiltInTheme(
@@ -144,6 +146,11 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     private bool _respectReducedMotion = true;
     private int _transitionMilliseconds = 160;
     private bool _disposed;
+    private LastKnownValue? _lastCpuTemperature;
+    private LastKnownValue? _lastGpuTemperature;
+    private LastKnownValue? _lastPing;
+    private LastKnownValue? _lastPacketLoss;
+    private LastKnownValue? _lastJitter;
 
     public MainWindowViewModel(ITelemetrySource telemetrySource, WidgetSettings settings)
     {
@@ -935,7 +942,11 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         var metric = _metricIndex["cpu"];
         var load = FiniteValue(sample.LoadPercent);
-        var temperature = FiniteValue(sample.TemperatureCelsius);
+        var temperature = StabilizeBriefGap(
+            FiniteValue(sample.TemperatureCelsius),
+            ref _lastCpuTemperature,
+            TemperatureGapGrace,
+            out var temperatureHeld);
         var clock = FiniteValue(sample.ClockGhz);
         var power = FiniteValue(sample.PackagePowerWatts);
         metric.PrimaryValue = load is { } loadValue
@@ -945,12 +956,10 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
             : TelemetryTextFormatter.Unavailable;
         metric.Progress = load ?? 0;
         metric.IsProgressAvailable = load is not null;
-        metric.State = sample.State;
+        metric.State = temperatureHeld ? SensorState.Stale : sample.State;
         metric.Status = temperature is null
             ? "TEMP N/A"
-            : sample.State == SensorState.Stale
-                ? $"TEMP {TelemetryTextFormatter.Temperature(temperature)} · STALE"
-                : $"TEMP {TelemetryTextFormatter.Temperature(temperature)}";
+            : $"TEMP {TelemetryTextFormatter.Temperature(temperature)}";
         metric.SetDetailValues(
             (
                 TelemetryTextFormatter.Temperature(temperature),
@@ -972,7 +981,11 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         var metric = _metricIndex["gpu"];
         var load = FiniteValue(sample.LoadPercent);
-        var temperature = FiniteValue(sample.TemperatureCelsius);
+        var temperature = StabilizeBriefGap(
+            FiniteValue(sample.TemperatureCelsius),
+            ref _lastGpuTemperature,
+            TemperatureGapGrace,
+            out var temperatureHeld);
         var clock = FiniteValue(sample.ClockGhz);
         var usedVram = FiniteValue(sample.UsedVramGigabytes);
         var totalVram = FiniteValue(sample.TotalVramGigabytes);
@@ -986,7 +999,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
             : TelemetryTextFormatter.Unavailable;
         metric.Progress = load ?? 0;
         metric.IsProgressAvailable = load is not null;
-        metric.State = sample.State;
+        metric.State = temperatureHeld ? SensorState.Stale : sample.State;
         metric.Status = temperature is null
             ? "TEMP N/A"
             : $"TEMP {TelemetryTextFormatter.Temperature(temperature)}";
@@ -1084,9 +1097,22 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
             100);
 
         var latency = _metricIndex["latency"];
-        var ping = FiniteValue(sample.PingMilliseconds);
-        var packetLoss = FiniteValue(sample.PacketLossPercent);
-        var jitter = FiniteValue(sample.JitterMilliseconds);
+        var ping = StabilizeBriefGap(
+            FiniteValue(sample.PingMilliseconds),
+            ref _lastPing,
+            ConnectivityGapGrace,
+            out var pingHeld);
+        var packetLoss = StabilizeBriefGap(
+            FiniteValue(sample.PacketLossPercent),
+            ref _lastPacketLoss,
+            ConnectivityGapGrace,
+            out var packetLossHeld);
+        var jitter = StabilizeBriefGap(
+            FiniteValue(sample.JitterMilliseconds),
+            ref _lastJitter,
+            ConnectivityGapGrace,
+            out var jitterHeld);
+        var connectivityHeld = pingHeld || packetLossHeld || jitterHeld;
         latency.PrimaryValue = ping is { } pingValue
             ? TelemetryTextFormatter.Latency(
                 pingValue,
@@ -1100,6 +1126,7 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             >= 5 => SensorState.Critical,
             >= 1 => SensorState.Warning,
+            _ when connectivityHeld => SensorState.Stale,
             _ => sample.ConnectivityState
         };
         latency.Status = packetLoss is null
@@ -1297,6 +1324,33 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
         value is { } candidate && double.IsFinite(candidate)
             ? candidate
             : null;
+
+    private static double? StabilizeBriefGap(
+        double? current,
+        ref LastKnownValue? lastKnown,
+        TimeSpan grace,
+        out bool held)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (current is { } value)
+        {
+            lastKnown = new LastKnownValue(value, now);
+            held = false;
+            return value;
+        }
+
+        if (lastKnown is { } cached && now - cached.CapturedAt <= grace)
+        {
+            held = true;
+            return cached.Value;
+        }
+
+        held = false;
+        lastKnown = null;
+        return null;
+    }
+
+    private readonly record struct LastKnownValue(double Value, DateTimeOffset CapturedAt);
 
     private static WidgetDensity NormalizeDensity(
         WidgetLayout layout,
@@ -1507,13 +1561,16 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
             CardOpacity = source.CardOpacity,
             AccentWidth = source.AccentWidth,
             ProgressHeight = source.ProgressHeight,
+            ProgressCornerRadius = source.ProgressCornerRadius,
             SparklineThickness = source.SparklineThickness,
+            SparklineFillOpacity = source.SparklineFillOpacity,
             HeaderVisible = source.HeaderVisible,
             StatusIndicatorVisible = source.StatusIndicatorVisible,
             SettingsButtonVisible = source.SettingsButtonVisible,
             HeaderHeight = source.HeaderHeight,
             HeaderSize = source.HeaderSize,
             SecondarySize = source.SecondarySize,
+            IconSize = source.IconSize,
             HeaderWeight = source.HeaderWeight,
             SecondaryWeight = source.SecondaryWeight,
             MotionEnabled = source.MotionEnabled,

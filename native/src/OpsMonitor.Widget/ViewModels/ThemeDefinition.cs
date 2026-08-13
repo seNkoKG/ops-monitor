@@ -45,13 +45,16 @@ public sealed record ThemeDefinition(
     public double CardOpacity { get; init; } = 0.72;
     public double AccentWidth { get; init; } = 3;
     public double ProgressHeight { get; init; } = 4;
+    public double ProgressCornerRadius { get; init; } = 2;
     public double SparklineThickness { get; init; } = 1.5;
+    public double SparklineFillOpacity { get; init; } = 0.16;
     public bool HeaderVisible { get; init; } = true;
     public bool StatusIndicatorVisible { get; init; } = true;
     public bool SettingsButtonVisible { get; init; } = true;
     public double HeaderHeight { get; init; } = 36;
     public double HeaderSize { get; init; } = 11;
     public double SecondarySize { get; init; } = 10;
+    public double IconSize { get; init; } = 14;
     public int HeaderWeight { get; init; } = 650;
     public int SecondaryWeight { get; init; } = 450;
     public bool MotionEnabled { get; init; } = true;

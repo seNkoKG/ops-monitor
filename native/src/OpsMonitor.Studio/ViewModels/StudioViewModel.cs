@@ -129,14 +129,14 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
         Modules = new ObservableCollection<ModuleItem>
         {
-            NewModule("cpu", "CPU", "▦", "Compute", "Load, package temperature and clock", "Windows + hardware sensor", "#43E7F5", "42%", "68° · 4.8 GHz", 42, true, "Large"),
-            NewModule("gpu", "GPU", "▣", "Compute", "3D load, temperature and VRAM", "NVIDIA NVML with bounded fallback", "#F05AD6", "17%", "41° · 2.1/12 GB", 17, true, "Large"),
-            NewModule("ram", "Memory", "▤", "System", "Physical memory pressure", "Windows memory status", "#43E7D2", "15.4 / 30.9 GB", "50% used", 50),
-            NewModule("net", "Network", "↕", "Network", "Download and upload throughput", "Active network adapter", "#62A7FF", "937K / 27K", "KB/s  ↓ / ↑", 36),
-            NewModule("latency", "Latency", "⌁", "Network", "Ping, jitter and packet loss", "ICMP health probe", "#FFC95C", "26 ms", "0% loss · 3 ms jitter", 22),
-            NewModule("disk", "Storage", "◫", "Storage", "System capacity, activity, temperature and health", "Windows + protected hardware broker", "#63E6A6", "68%", "42° · SMART", 68, false),
-            NewModule("battery", "Power", "▥", "Power", "Battery, draw and remaining time", "Windows power API", "#8EEA78", "86%", "2h 48m · 17 W", 86, false),
-            NewModule("weather", "Weather", "☀", "Environment", "Local conditions, forecast and radar launcher", "Open-Meteo + ARSO", "#62A7FF", "23°", "Celje · partly cloudy", 46, true),
+            NewModule("cpu", "CPU", "▦", "Compute", "Load, package temperature and clock", "Windows + hardware sensor", "#43E7F5", "42%", "TEMP 68°C", 42, true, "Large"),
+            NewModule("gpu", "GPU", "▣", "Compute", "3D load, temperature and VRAM", "NVIDIA NVML with bounded fallback", "#F05AD6", "17%", "TEMP 41°C", 17, true, "Large"),
+            NewModule("ram", "Memory", "▤", "System", "Physical memory pressure", "Windows memory status", "#43E7D2", "15.4 / 30.9 GB", "50% USED", 50),
+            NewModule("net", "Network", "↕", "Network", "Download and upload throughput", "Active network adapter", "#62A7FF", "937K / 27K", "BYTES / SEC", 36),
+            NewModule("latency", "Latency", "⌁", "Network", "Ping, jitter and packet loss", "ICMP health probe", "#FFC95C", "26 ms", "LOSS 0%", 22),
+            NewModule("disk", "Storage", "◫", "Storage", "System capacity, activity, temperature and health", "Windows + protected hardware broker", "#63E6A6", "68%", "TEMP 42°C", 68, false),
+            NewModule("battery", "Power", "▥", "Power", "Battery, draw and remaining time", "Windows power API", "#8EEA78", "86%", "2h 48m", 86, false),
+            NewModule("weather", "Weather", "☀", "Environment", "Local conditions, forecast and radar launcher", "Open-Meteo + ARSO", "#62A7FF", "23°", "CELJE", 46, true),
         };
 
         VisibleModulesView = new ListCollectionView(Modules)
@@ -212,6 +212,9 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         MoveModuleDownCommand = new RelayCommand(
             parameter => MoveModule(parameter as ModuleItem, 1),
             parameter => CanMoveModule(parameter as ModuleItem, 1));
+        ResetModuleOverridesCommand = new RelayCommand(
+            parameter => ResetModuleOverrides(parameter as ModuleItem),
+            parameter => parameter is ModuleItem module && module.HasOverrides);
         AddModuleCommand = new RelayCommand(AddModule);
         UndoCommand = new RelayCommand(_ => Undo(), _ => _undo.Count > 0);
         RedoCommand = new RelayCommand(_ => Redo(), _ => _redo.Count > 0);
@@ -279,7 +282,15 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     public ListCollectionView SensorCatalogView { get; }
     public ObservableCollection<ActivityItem> Activities { get; }
     public IReadOnlyList<string> Visualizations { get; } =
-        ["Number only", "Bar", "Sparkline", "Bar + sparkline"];
+        ["Value only", "Value + bar", "Bar only", "Sparkline only", "Value + sparkline"];
+    public IReadOnlyList<string> ModuleSizes { get; } = ["Small", "Medium", "Large"];
+    public IReadOnlyList<string> InstalledFontFamilies { get; } =
+        Fonts.SystemFontFamilies
+            .Select(font => font.Source)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
     public IReadOnlyList<string> PrecisionOptions { get; } =
         ["Whole numbers", "1 decimal", "2 decimals", "Adaptive"];
     public IReadOnlyList<string> DensityOptions { get; } = ["Compact", "Comfortable", "Airy"];
@@ -303,6 +314,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     public ICommand ActivateSceneCommand { get; }
     public ICommand MoveModuleUpCommand { get; }
     public ICommand MoveModuleDownCommand { get; }
+    public ICommand ResetModuleOverridesCommand { get; }
     public ICommand AddModuleCommand { get; }
     public ICommand UndoCommand { get; }
     public ICommand RedoCommand { get; }
@@ -640,8 +652,8 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     public Brush TextSecondaryBrush => Designer.SecondaryTextBrush;
     public Brush TrackBrush => FrozenBrush(Designer.Track, Colors.DimGray);
     public FontFamily WidgetFontFamily => new(Designer.FontFamily);
-    public double LabelFontSize => Designer.LabelSize * FontScale;
-    public double ValueFontSize => Designer.ValueSize * FontScale;
+    public double LabelFontSize => Designer.LabelSize;
+    public double ValueFontSize => Designer.ValueSize;
     public FontWeight LabelFontWeight => FontWeight.FromOpenTypeWeight(Designer.LabelWeight);
     public FontWeight ValueFontWeight => FontWeight.FromOpenTypeWeight(Designer.ValueWeight);
     public bool UseTabularNumbers => Designer.UseTabularNumbers;
@@ -714,7 +726,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
 
     public string ResourceWakeups { get; } = "Adaptive";
     public string AppVersion { get; } =
-        $"OPS Monitor Studio · v{typeof(StudioViewModel).Assembly.GetName().Version?.ToString(3) ?? "3.2.0"}";
+        $"OPS Monitor Studio · v{typeof(StudioViewModel).Assembly.GetName().Version?.ToString(3) ?? "3.3.0"}";
     public string WidgetActionLabel
     {
         get => _widgetActionLabel;
@@ -730,13 +742,13 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         }
 
         _telemetryPhase += 0.34;
-        UpdateModule("cpu", 43 + Math.Sin(_telemetryPhase) * 9, value => $"{value:0}%", value => $"{62 + value * 0.13:0}° · 4.8 GHz");
-        UpdateModule("gpu", 24 + Math.Sin(_telemetryPhase * 0.72 + 1.1) * 15, value => $"{value:0}%", value => $"{39 + value * 0.18:0}° · 2.1/12 GB");
-        UpdateModule("ram", 50 + Math.Sin(_telemetryPhase * 0.23) * 2, value => $"{30.9 * value / 100:0.0} / 30.9 GB", value => $"{value:0}% used");
-        UpdateModule("net", 38 + Math.Sin(_telemetryPhase * 1.42) * 27, value => $"{Math.Max(44, 980 + Math.Sin(_telemetryPhase) * 420):0}K / {Math.Max(8, 31 + Math.Cos(_telemetryPhase * 1.4) * 14):0}K", _ => "KB/s  ↓ / ↑");
-        UpdateModule("latency", 22 + Math.Sin(_telemetryPhase * 0.87) * 6, value => $"{value:0} ms", _ => "0% loss · 3 ms jitter");
-        UpdateModule("disk", 12 + Math.Sin(_telemetryPhase * 1.9) * 8, value => $"{value:0}%", _ => "1.2 TB free");
-        UpdateModule("battery", 86 - (_telemetryPhase % 8) * 0.05, value => $"{value:0}%", _ => "2h 48m · 17 W");
+        UpdateModule("cpu", 43 + Math.Sin(_telemetryPhase) * 9, value => $"{value:0}%", value => $"TEMP {62 + value * 0.13:0}°C");
+        UpdateModule("gpu", 24 + Math.Sin(_telemetryPhase * 0.72 + 1.1) * 15, value => $"{value:0}%", value => $"TEMP {39 + value * 0.18:0}°C");
+        UpdateModule("ram", 50 + Math.Sin(_telemetryPhase * 0.23) * 2, value => $"{30.9 * value / 100:0.0} / 30.9 GB", value => $"{value:0}% USED");
+        UpdateModule("net", 38 + Math.Sin(_telemetryPhase * 1.42) * 27, value => $"{Math.Max(44, 980 + Math.Sin(_telemetryPhase) * 420):0}K / {Math.Max(8, 31 + Math.Cos(_telemetryPhase * 1.4) * 14):0}K", _ => "BYTES / SEC");
+        UpdateModule("latency", 22 + Math.Sin(_telemetryPhase * 0.87) * 6, value => $"{value:0} ms", _ => "LOSS 0%");
+        UpdateModule("disk", 12 + Math.Sin(_telemetryPhase * 1.9) * 8, value => $"{value:0}%", _ => "TEMP 42°C");
+        UpdateModule("battery", 86 - (_telemetryPhase % 8) * 0.05, value => $"{value:0}%", _ => "2h 48m");
     }
 
     private void RefreshResourceImpact()
@@ -1285,6 +1297,30 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         return current >= 0 && target >= 0 && target < Modules.Count;
     }
 
+    private void ResetModuleOverrides(ModuleItem? module)
+    {
+        if (module is null || !module.HasOverrides)
+        {
+            return;
+        }
+
+        PushUndo();
+        _isRestoring = true;
+        try
+        {
+            module.ResetVisualOverrides();
+        }
+        finally
+        {
+            _isRestoring = false;
+        }
+
+        ApplyModulePreviewDesign(module);
+        QueueLiveApply();
+        StatusMessage = $"{module.Name} visual overrides cleared";
+        RaiseEditorCommandState();
+    }
+
     private void TestProvider(object? parameter)
     {
         if (parameter is not ProviderItem provider)
@@ -1732,7 +1768,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         {
             module.IsVisible = module.Id is "cpu" or "gpu" or "ram" or "net" or "latency" or "weather";
             module.Size = module.Id is "cpu" or "gpu" ? "Large" : "Medium";
-            module.Visualization = "Bar + sparkline";
+            module.Visualization = "Value + sparkline";
             module.ShowLabel = true;
             module.ShowSparkline = true;
             module.ShowTemperature = true;
@@ -1740,17 +1776,30 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             module.CustomTitle = module.Name;
             module.CustomIcon = module.Icon;
             module.UseCustomAccent = false;
+            module.UseCustomCardColor = false;
+            module.UseCustomBorderColor = false;
+            module.UseCustomPrimaryTextColor = false;
+            module.UseCustomSecondaryTextColor = false;
+            module.UseCustomTrackColor = false;
             module.ShowIcon = true;
             module.ShowAccent = true;
             module.CardOpacity = 1;
             module.BorderOpacity = 1;
             module.CardCornerRadius = -1;
+            module.CardBorderWidth = -1;
+            module.CardGap = -1;
             module.CardPadding = -1;
             module.AccentWidth = -1;
             module.ProgressHeight = -1;
+            module.ProgressCornerRadius = -1;
+            module.SparklineThickness = -1;
+            module.SparklineFillOpacity = -1;
             module.LabelSize = -1;
+            module.SecondarySize = -1;
             module.ValueSize = -1;
             module.IconSize = -1;
+            module.LabelWeight = -1;
+            module.ValueWeight = -1;
         }
 
         foreach (var scene in Scenes)
@@ -1801,6 +1850,16 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 module.AccentHex = snapshot.Accent;
             }
             module.UseCustomAccent = snapshot.UseCustomAccent && !string.IsNullOrWhiteSpace(snapshot.Accent);
+            ApplyOptionalModuleColor(snapshot.CardColor, value => module.CardHex = value);
+            ApplyOptionalModuleColor(snapshot.BorderColor, value => module.BorderHex = value);
+            ApplyOptionalModuleColor(snapshot.PrimaryTextColor, value => module.PrimaryTextHex = value);
+            ApplyOptionalModuleColor(snapshot.SecondaryTextColor, value => module.SecondaryTextHex = value);
+            ApplyOptionalModuleColor(snapshot.TrackColor, value => module.TrackHex = value);
+            module.UseCustomCardColor = !string.IsNullOrWhiteSpace(snapshot.CardColor);
+            module.UseCustomBorderColor = !string.IsNullOrWhiteSpace(snapshot.BorderColor);
+            module.UseCustomPrimaryTextColor = !string.IsNullOrWhiteSpace(snapshot.PrimaryTextColor);
+            module.UseCustomSecondaryTextColor = !string.IsNullOrWhiteSpace(snapshot.SecondaryTextColor);
+            module.UseCustomTrackColor = !string.IsNullOrWhiteSpace(snapshot.TrackColor);
             module.IsVisible = snapshot.Enabled;
             module.Size = snapshot.Size;
             module.Visualization = snapshot.Visualization;
@@ -1813,12 +1872,20 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             module.CardOpacity = snapshot.CardOpacity;
             module.BorderOpacity = snapshot.BorderOpacity;
             module.CardCornerRadius = snapshot.CardCornerRadiusOverride ?? -1;
+            module.CardBorderWidth = snapshot.CardBorderWidthOverride ?? -1;
+            module.CardGap = snapshot.CardGapOverride ?? -1;
             module.CardPadding = snapshot.CardPaddingOverride ?? -1;
             module.AccentWidth = snapshot.AccentWidthOverride ?? -1;
             module.ProgressHeight = snapshot.ProgressHeightOverride ?? -1;
+            module.ProgressCornerRadius = snapshot.ProgressCornerRadiusOverride ?? -1;
+            module.SparklineThickness = snapshot.SparklineThicknessOverride ?? -1;
+            module.SparklineFillOpacity = snapshot.SparklineFillOpacityOverride ?? -1;
             module.LabelSize = snapshot.LabelSizeOverride ?? -1;
+            module.SecondarySize = snapshot.SecondarySizeOverride ?? -1;
             module.ValueSize = snapshot.ValueSizeOverride ?? -1;
             module.IconSize = snapshot.IconSizeOverride ?? -1;
+            module.LabelWeight = snapshot.LabelWeightOverride ?? -1;
+            module.ValueWeight = snapshot.ValueWeightOverride ?? -1;
         }
 
         var ordered = applicable
@@ -1836,6 +1903,14 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         }
 
         VisibleModulesView.Refresh();
+    }
+
+    private static void ApplyOptionalModuleColor(string? color, Action<string> apply)
+    {
+        if (!string.IsNullOrWhiteSpace(color))
+        {
+            apply(color);
+        }
     }
 
     private static double RateSeconds(string rate)
@@ -1908,6 +1983,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
             ApplyModulePreviewDesign(module);
         }
 
+        (ResetModuleOverridesCommand as RelayCommand)?.RaiseCanExecuteChanged();
         QueueLiveApply();
     }
 
@@ -1996,17 +2072,30 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 item.UseCustomAccent ? item.AccentHex : string.Empty)
             {
                 UseCustomAccent = item.UseCustomAccent,
+                CardColor = item.UseCustomCardColor ? item.CardHex : string.Empty,
+                BorderColor = item.UseCustomBorderColor ? item.BorderHex : string.Empty,
+                PrimaryTextColor = item.UseCustomPrimaryTextColor ? item.PrimaryTextHex : string.Empty,
+                SecondaryTextColor = item.UseCustomSecondaryTextColor ? item.SecondaryTextHex : string.Empty,
+                TrackColor = item.UseCustomTrackColor ? item.TrackHex : string.Empty,
                 ShowIcon = item.ShowIcon,
                 ShowAccent = item.ShowAccent,
                 CardOpacity = item.CardOpacity,
                 BorderOpacity = item.BorderOpacity,
                 CardCornerRadiusOverride = OverrideValue(item.CardCornerRadius),
+                CardBorderWidthOverride = OverrideValue(item.CardBorderWidth),
+                CardGapOverride = OverrideValue(item.CardGap),
                 CardPaddingOverride = OverrideValue(item.CardPadding),
                 AccentWidthOverride = OverrideValue(item.AccentWidth),
                 ProgressHeightOverride = OverrideValue(item.ProgressHeight),
+                ProgressCornerRadiusOverride = OverrideValue(item.ProgressCornerRadius),
+                SparklineThicknessOverride = OverrideValue(item.SparklineThickness),
+                SparklineFillOpacityOverride = OverrideValue(item.SparklineFillOpacity),
                 LabelSizeOverride = OverrideValue(item.LabelSize),
+                SecondarySizeOverride = OverrideValue(item.SecondarySize),
                 ValueSizeOverride = OverrideValue(item.ValueSize),
-                IconSizeOverride = OverrideValue(item.IconSize)
+                IconSizeOverride = OverrideValue(item.IconSize),
+                LabelWeightOverride = OverrideValue(item.LabelWeight),
+                ValueWeightOverride = OverrideValue(item.ValueWeight)
             }).ToArray(),
             Designer.Capture(_designId, _designName),
             Scenes.Select(item => new StudioSceneSnapshot(
@@ -2027,6 +2116,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
     }
 
     private static double? OverrideValue(double value) => value < 0 ? null : value;
+    private static int? OverrideValue(int value) => value < 0 ? null : value;
 
     private void RefreshPreviewBrushes()
     {
@@ -2204,7 +2294,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         try
         {
             var previewModuleHeight = SelectedLayout == "Mini"
-                ? Math.Max(30, moduleHeight * footprintScale)
+                ? Math.Max(29, moduleHeight * footprintScale)
                 : moduleHeight * footprintScale;
             (WidgetWidth, WidgetHeight, PreviewModuleWidth, PreviewModuleHeight, PreviewCornerRadius) =
                 (recommendation.SuggestedWidth,
@@ -2313,17 +2403,35 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                 item.CustomIcon,
                 item.AccentHex,
                 item.UseCustomAccent,
+                item.CardHex,
+                item.BorderHex,
+                item.PrimaryTextHex,
+                item.SecondaryTextHex,
+                item.TrackHex,
+                item.UseCustomCardColor,
+                item.UseCustomBorderColor,
+                item.UseCustomPrimaryTextColor,
+                item.UseCustomSecondaryTextColor,
+                item.UseCustomTrackColor,
                 item.ShowIcon,
                 item.ShowAccent,
                 item.CardOpacity,
                 item.BorderOpacity,
                 item.CardCornerRadius,
+                item.CardBorderWidth,
+                item.CardGap,
                 item.CardPadding,
                 item.AccentWidth,
                 item.ProgressHeight,
+                item.ProgressCornerRadius,
+                item.SparklineThickness,
+                item.SparklineFillOpacity,
                 item.LabelSize,
+                item.SecondarySize,
                 item.ValueSize,
-                item.IconSize)).ToArray());
+                item.IconSize,
+                item.LabelWeight,
+                item.ValueWeight)).ToArray());
 
     private void RestoreEditorState(EditorState state)
     {
@@ -2381,17 +2489,35 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
                     module.CustomIcon = moduleState.CustomIcon;
                     module.AccentHex = moduleState.AccentHex;
                     module.UseCustomAccent = moduleState.UseCustomAccent;
+                    module.CardHex = moduleState.CardHex;
+                    module.BorderHex = moduleState.BorderHex;
+                    module.PrimaryTextHex = moduleState.PrimaryTextHex;
+                    module.SecondaryTextHex = moduleState.SecondaryTextHex;
+                    module.TrackHex = moduleState.TrackHex;
+                    module.UseCustomCardColor = moduleState.UseCustomCardColor;
+                    module.UseCustomBorderColor = moduleState.UseCustomBorderColor;
+                    module.UseCustomPrimaryTextColor = moduleState.UseCustomPrimaryTextColor;
+                    module.UseCustomSecondaryTextColor = moduleState.UseCustomSecondaryTextColor;
+                    module.UseCustomTrackColor = moduleState.UseCustomTrackColor;
                     module.ShowIcon = moduleState.ShowIcon;
                     module.ShowAccent = moduleState.ShowAccent;
                     module.CardOpacity = moduleState.CardOpacity;
                     module.BorderOpacity = moduleState.BorderOpacity;
                     module.CardCornerRadius = moduleState.CardCornerRadius;
+                    module.CardBorderWidth = moduleState.CardBorderWidth;
+                    module.CardGap = moduleState.CardGap;
                     module.CardPadding = moduleState.CardPadding;
                     module.AccentWidth = moduleState.AccentWidth;
                     module.ProgressHeight = moduleState.ProgressHeight;
+                    module.ProgressCornerRadius = moduleState.ProgressCornerRadius;
+                    module.SparklineThickness = moduleState.SparklineThickness;
+                    module.SparklineFillOpacity = moduleState.SparklineFillOpacity;
                     module.LabelSize = moduleState.LabelSize;
+                    module.SecondarySize = moduleState.SecondarySize;
                     module.ValueSize = moduleState.ValueSize;
                     module.IconSize = moduleState.IconSize;
+                    module.LabelWeight = moduleState.LabelWeight;
+                    module.ValueWeight = moduleState.ValueWeight;
                 }
             }
 
@@ -2459,6 +2585,7 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         (ActivateSceneCommand as RelayCommand)?.RaiseCanExecuteChanged();
         (MoveModuleUpCommand as RelayCommand)?.RaiseCanExecuteChanged();
         (MoveModuleDownCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (ResetModuleOverridesCommand as RelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private sealed record ModuleState(
@@ -2474,17 +2601,35 @@ public sealed class StudioViewModel : ObservableObject, IDisposable
         string CustomIcon,
         string AccentHex,
         bool UseCustomAccent,
+        string CardHex,
+        string BorderHex,
+        string PrimaryTextHex,
+        string SecondaryTextHex,
+        string TrackHex,
+        bool UseCustomCardColor,
+        bool UseCustomBorderColor,
+        bool UseCustomPrimaryTextColor,
+        bool UseCustomSecondaryTextColor,
+        bool UseCustomTrackColor,
         bool ShowIcon,
         bool ShowAccent,
         double CardOpacity,
         double BorderOpacity,
         double CardCornerRadius,
+        double CardBorderWidth,
+        double CardGap,
         double CardPadding,
         double AccentWidth,
         double ProgressHeight,
+        double ProgressCornerRadius,
+        double SparklineThickness,
+        double SparklineFillOpacity,
         double LabelSize,
+        double SecondarySize,
         double ValueSize,
-        double IconSize);
+        double IconSize,
+        int LabelWeight,
+        int ValueWeight);
 
     private sealed record EditorState(
         string Layout,

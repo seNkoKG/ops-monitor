@@ -210,13 +210,27 @@
 
                     <Border Grid.Column="1" Style="{StaticResource CardBorder}" DataContext="{Binding SelectedModule}">
                         <StackPanel>
-                            <Grid Margin="0,0,0,15"><StackPanel><TextBlock Text="Module inspector" Style="{StaticResource SectionTitleText}"/><TextBlock Margin="0,4,0,0" Text="{Binding Name, StringFormat=Editing {0}}" Foreground="{Binding Accent}"/></StackPanel><TextBlock HorizontalAlignment="Right" Text="{Binding Source}" MaxWidth="180" TextAlignment="Right" Style="{StaticResource CaptionText}" TextWrapping="Wrap"/></Grid>
+                            <Grid Margin="0,0,0,15">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Module inspector" Style="{StaticResource SectionTitleText}"/>
+                                    <TextBlock Margin="0,4,0,0" Text="{Binding OverrideSummary}" Foreground="{Binding Accent}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                    <Button Content="Reset visual overrides"
+                                            Command="{Binding DataContext.ResetModuleOverridesCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource StudioButton}"/>
+                                    <TextBlock Margin="0,5,0,0" Text="{Binding Source}" MaxWidth="180" TextAlignment="Right" Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Grid>
                             <UniformGrid Columns="2">
                                 <controls:StudioSettingField Margin="0,0,8,12" Header="Display title" Description="24 chars" MaxLength="24" Text="{Binding CustomTitle}"/>
                                 <controls:StudioSettingField Margin="8,0,0,12" Header="Icon or glyph" Description="8 chars" MaxLength="8" Text="{Binding CustomIcon}"/>
-                                <controls:StudioSettingField Margin="0,0,8,12" Header="Accent color" Description="ARGB hex" Text="{Binding AccentHex}"/>
+                                <controls:StudioSettingField Margin="0,0,8,12" Header="Accent color" Description="ARGB hex" Text="{Binding AccentHex}" ShowSwatch="True" SwatchBrush="{Binding Accent}"/>
                                 <StackPanel Margin="8,0,0,12"><TextBlock Text="Visualization" FontWeight="SemiBold"/><ComboBox Margin="0,7,0,0" ItemsSource="{Binding DataContext.Visualizations, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Visualization}" AutomationProperties.Name="Visualization"/></StackPanel>
                                 <StackPanel Margin="0,0,8,12"><TextBlock Text="Number precision" FontWeight="SemiBold"/><ComboBox Margin="0,7,0,0" ItemsSource="{Binding DataContext.PrecisionOptions, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Precision}" AutomationProperties.Name="Number precision"/></StackPanel>
+                                <StackPanel Margin="8,0,0,12"><TextBlock Text="Card size" FontWeight="SemiBold"/><ComboBox Margin="0,7,0,0" ItemsSource="{Binding DataContext.ModuleSizes, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Size}" AutomationProperties.Name="Card size"/></StackPanel>
                             </UniformGrid>
                             <UniformGrid Columns="2">
                                 <controls:StudioSettingToggle Margin="0,0,6,7" Header="Custom accent" Description="Override semantic color" IsChecked="{Binding UseCustomAccent}"/>
@@ -228,16 +242,41 @@
                             </UniformGrid>
                             <Expander Margin="0,12,0,0" Header="Advanced module overrides" IsExpanded="False">
                                 <StackPanel Margin="0,14,0,0">
-                                    <TextBlock Margin="0,0,0,12" Text="INHERIT means this card follows the global design token." Style="{StaticResource CaptionText}"/>
+                                    <TextBlock Margin="0,0,0,12" Text="INHERIT follows the global design system. Overrides affect only this module and remain safe in Mini and Pill." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
+                                    <TextBlock Margin="0,0,0,9" Text="COLOR IDENTITY" Style="{StaticResource SectionLabel}"/>
+                                    <UniformGrid Columns="2">
+                                        <controls:StudioSettingToggle Margin="0,0,6,7" Header="Custom card" Description="Own surface color" IsChecked="{Binding UseCustomCardColor}"/>
+                                        <controls:StudioSettingField Margin="6,0,0,7" Header="Card color" Description="ARGB" Text="{Binding CardHex}" IsEnabled="{Binding UseCustomCardColor}" ShowSwatch="True" SwatchBrush="{Binding CardSwatch}"/>
+                                        <controls:StudioSettingToggle Margin="0,0,6,7" Header="Custom border" Description="Own outline color" IsChecked="{Binding UseCustomBorderColor}"/>
+                                        <controls:StudioSettingField Margin="6,0,0,7" Header="Border color" Description="ARGB" Text="{Binding BorderHex}" IsEnabled="{Binding UseCustomBorderColor}" ShowSwatch="True" SwatchBrush="{Binding BorderSwatch}"/>
+                                        <controls:StudioSettingToggle Margin="0,0,6,7" Header="Custom primary text" Description="Metric value color" IsChecked="{Binding UseCustomPrimaryTextColor}"/>
+                                        <controls:StudioSettingField Margin="6,0,0,7" Header="Primary text" Description="ARGB" Text="{Binding PrimaryTextHex}" IsEnabled="{Binding UseCustomPrimaryTextColor}" ShowSwatch="True" SwatchBrush="{Binding PrimaryTextSwatch}"/>
+                                        <controls:StudioSettingToggle Margin="0,0,6,7" Header="Custom secondary text" Description="Status and metadata" IsChecked="{Binding UseCustomSecondaryTextColor}"/>
+                                        <controls:StudioSettingField Margin="6,0,0,7" Header="Secondary text" Description="ARGB" Text="{Binding SecondaryTextHex}" IsEnabled="{Binding UseCustomSecondaryTextColor}" ShowSwatch="True" SwatchBrush="{Binding SecondaryTextSwatch}"/>
+                                        <controls:StudioSettingToggle Margin="0,0,6,7" Header="Custom track" Description="Graph and bar base" IsChecked="{Binding UseCustomTrackColor}"/>
+                                        <controls:StudioSettingField Margin="6,0,0,7" Header="Track color" Description="ARGB" Text="{Binding TrackHex}" IsEnabled="{Binding UseCustomTrackColor}" ShowSwatch="True" SwatchBrush="{Binding TrackSwatch}"/>
+                                    </UniformGrid>
+
+                                    <TextBlock Margin="0,16,0,9" Text="SURFACE AND GRAPH" Style="{StaticResource SectionLabel}"/>
                                     <controls:StudioSettingSlider Header="Card opacity" Description="Module surface only" Minimum="0.2" Maximum="1" SmallChange="0.02" ValueFormat="0%" Value="{Binding CardOpacity}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Border opacity" Description="Module outline only" Minimum="0" Maximum="1" SmallChange="0.02" ValueFormat="0%" Value="{Binding BorderOpacity}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Card radius" Description="Override global corner radius" Minimum="-1" Maximum="40" SmallChange="1" Unit=" px" InheritAtMinimum="True" Value="{Binding CardCornerRadius}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Border width" Description="Override global card outline" Minimum="-1" Maximum="4" SmallChange="0.25" ValueFormat="0.00" Unit=" px" InheritAtMinimum="True" Value="{Binding CardBorderWidth}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Card gap" Description="Space after this module" Minimum="-1" Maximum="20" SmallChange="1" Unit=" px" InheritAtMinimum="True" Value="{Binding CardGap}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Card padding" Description="Override global inner spacing" Minimum="-1" Maximum="28" SmallChange="1" Unit=" px" InheritAtMinimum="True" Value="{Binding CardPadding}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Accent width" Description="Override colored rail thickness" Minimum="-1" Maximum="10" SmallChange="0.5" ValueFormat="0.0" Unit=" px" InheritAtMinimum="True" Value="{Binding AccentWidth}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Progress height" Description="Override progress or graph height" Minimum="-1" Maximum="12" SmallChange="0.5" ValueFormat="0.0" Unit=" px" InheritAtMinimum="True" Value="{Binding ProgressHeight}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Progress radius" Description="Bar corner curve" Minimum="-1" Maximum="6" SmallChange="0.5" ValueFormat="0.0" Unit=" px" InheritAtMinimum="True" Value="{Binding ProgressCornerRadius}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Sparkline stroke" Description="Trend line thickness" Minimum="-1" Maximum="5" SmallChange="0.25" ValueFormat="0.00" Unit=" px" InheritAtMinimum="True" Value="{Binding SparklineThickness}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Sparkline fill" Description="Area tint below the line" Minimum="-1" Maximum="0.5" SmallChange="0.02" ValueFormat="0%" InheritAtMinimum="True" Value="{Binding SparklineFillOpacity}"/>
+
+                                    <TextBlock Margin="0,16,0,9" Text="TYPE OVERRIDES" Style="{StaticResource SectionLabel}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Label size" Description="Override module label type" Minimum="-1" Maximum="26" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding LabelSize}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Secondary size" Description="Override status and metadata" Minimum="-1" Maximum="24" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding SecondarySize}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Value size" Description="Override primary value type" Minimum="-1" Maximum="42" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding ValueSize}"/>
                                     <controls:StudioSettingSlider Margin="0,10,0,0" Header="Icon size" Description="Override the module glyph" Minimum="-1" Maximum="32" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" InheritAtMinimum="True" Value="{Binding IconSize}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Label weight" Description="100 thin to 900 black" Minimum="-1" Maximum="900" SmallChange="50" TickFrequency="50" ValueFormat="0" InheritAtMinimum="True" Value="{Binding LabelWeight}"/>
+                                    <controls:StudioSettingSlider Margin="0,10,0,0" Header="Value weight" Description="Primary value emphasis" Minimum="-1" Maximum="900" SmallChange="50" TickFrequency="50" ValueFormat="0" InheritAtMinimum="True" Value="{Binding ValueWeight}"/>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>
@@ -308,21 +347,21 @@
                     <StackPanel>
                         <Grid><StackPanel><TextBlock Text="Palette" Style="{StaticResource SectionTitleText}"/><TextBlock Margin="0,5,0,0" Text="Enter RGB or ARGB hex. Invalid values retain the last valid color." Style="{StaticResource CaptionText}"/></StackPanel><Border HorizontalAlignment="Right" Padding="9,5" Background="{Binding CardBrush}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" CornerRadius="8"><TextBlock Text="LIVE TOKENS" FontFamily="{StaticResource Font.Mono}" FontSize="9" Foreground="{Binding CpuAccentBrush}"/></Border></Grid>
                         <UniformGrid Columns="3" Margin="0,16,0,0">
-                            <controls:StudioSettingField Margin="0,0,8,12" Header="Shell" Description="Background" Text="{Binding Surface}"/>
-                            <controls:StudioSettingField Margin="8,0,8,12" Header="Cards" Description="Module surface" Text="{Binding Card}"/>
-                            <controls:StudioSettingField Margin="8,0,0,12" Header="Borders" Description="All outlines" Text="{Binding Border}"/>
-                            <controls:StudioSettingField Margin="0,0,8,12" Header="Primary text" Description="Values" Text="{Binding PrimaryText}"/>
-                            <controls:StudioSettingField Margin="8,0,8,12" Header="Secondary text" Description="Metadata" Text="{Binding SecondaryText}"/>
-                            <controls:StudioSettingField Margin="8,0,0,12" Header="Tracks" Description="Graph base" Text="{Binding Track}"/>
-                            <controls:StudioSettingField Margin="0,0,8,12" Header="CPU" Description="Processor" Text="{Binding CpuAccent}"/>
-                            <controls:StudioSettingField Margin="8,0,8,12" Header="GPU" Description="Graphics" Text="{Binding GpuAccent}"/>
-                            <controls:StudioSettingField Margin="8,0,0,12" Header="Memory" Description="RAM and disks" Text="{Binding MemoryAccent}"/>
-                            <controls:StudioSettingField Margin="0,0,8,12" Header="Network" Description="Throughput" Text="{Binding NetworkAccent}"/>
-                            <controls:StudioSettingField Margin="8,0,8,12" Header="Latency" Description="Ping and loss" Text="{Binding LatencyAccent}"/>
-                            <controls:StudioSettingField Margin="8,0,0,12" Header="Weather" Description="Forecast" Text="{Binding WeatherAccent}"/>
-                            <controls:StudioSettingField Margin="0,0,8,0" Header="Warning" Description="Caution" Text="{Binding Warning}"/>
-                            <controls:StudioSettingField Margin="8,0,8,0" Header="Critical" Description="Danger" Text="{Binding Critical}"/>
-                            <controls:StudioSettingField Margin="8,0,0,0" Header="Success" Description="Healthy" Text="{Binding Success}"/>
+                            <controls:StudioSettingField Margin="0,0,8,12" Header="Shell" Description="Background" Text="{Binding Surface}" ShowSwatch="True" SwatchBrush="{Binding SurfaceBrush}"/>
+                            <controls:StudioSettingField Margin="8,0,8,12" Header="Cards" Description="Module surface" Text="{Binding Card}" ShowSwatch="True" SwatchBrush="{Binding CardBrush}"/>
+                            <controls:StudioSettingField Margin="8,0,0,12" Header="Borders" Description="All outlines" Text="{Binding Border}" ShowSwatch="True" SwatchBrush="{Binding BorderBrush}"/>
+                            <controls:StudioSettingField Margin="0,0,8,12" Header="Primary text" Description="Values" Text="{Binding PrimaryText}" ShowSwatch="True" SwatchBrush="{Binding PrimaryTextBrush}"/>
+                            <controls:StudioSettingField Margin="8,0,8,12" Header="Secondary text" Description="Metadata" Text="{Binding SecondaryText}" ShowSwatch="True" SwatchBrush="{Binding SecondaryTextBrush}"/>
+                            <controls:StudioSettingField Margin="8,0,0,12" Header="Tracks" Description="Graph base" Text="{Binding Track}" ShowSwatch="True" SwatchBrush="{Binding TrackBrush}"/>
+                            <controls:StudioSettingField Margin="0,0,8,12" Header="CPU" Description="Processor" Text="{Binding CpuAccent}" ShowSwatch="True" SwatchBrush="{Binding CpuAccentBrush}"/>
+                            <controls:StudioSettingField Margin="8,0,8,12" Header="GPU" Description="Graphics" Text="{Binding GpuAccent}" ShowSwatch="True" SwatchBrush="{Binding GpuAccentBrush}"/>
+                            <controls:StudioSettingField Margin="8,0,0,12" Header="Memory" Description="RAM and disks" Text="{Binding MemoryAccent}" ShowSwatch="True" SwatchBrush="{Binding MemoryAccentBrush}"/>
+                            <controls:StudioSettingField Margin="0,0,8,12" Header="Network" Description="Throughput" Text="{Binding NetworkAccent}" ShowSwatch="True" SwatchBrush="{Binding NetworkAccentBrush}"/>
+                            <controls:StudioSettingField Margin="8,0,8,12" Header="Latency" Description="Ping and loss" Text="{Binding LatencyAccent}" ShowSwatch="True" SwatchBrush="{Binding LatencyAccentBrush}"/>
+                            <controls:StudioSettingField Margin="8,0,0,12" Header="Weather" Description="Forecast" Text="{Binding WeatherAccent}" ShowSwatch="True" SwatchBrush="{Binding WeatherAccentBrush}"/>
+                            <controls:StudioSettingField Margin="0,0,8,0" Header="Warning" Description="Caution" Text="{Binding Warning}" ShowSwatch="True" SwatchBrush="{Binding WarningBrush}"/>
+                            <controls:StudioSettingField Margin="8,0,8,0" Header="Critical" Description="Danger" Text="{Binding Critical}" ShowSwatch="True" SwatchBrush="{Binding CriticalBrush}"/>
+                            <controls:StudioSettingField Margin="8,0,0,0" Header="Success" Description="Healthy" Text="{Binding Success}" ShowSwatch="True" SwatchBrush="{Binding SuccessBrush}"/>
                         </UniformGrid>
                     </StackPanel>
                 </Border>
@@ -353,7 +392,9 @@
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Card border" Description="Module outline" Minimum="0" Maximum="4" SmallChange="0.25" ValueFormat="0.00" Unit=" px" Value="{Binding CardBorderWidth}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Accent width" Description="Colored module rail" Minimum="0" Maximum="10" SmallChange="0.5" ValueFormat="0.0" Unit=" px" Value="{Binding AccentWidth}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Progress height" Description="Bars and compact graphs" Minimum="1" Maximum="12" SmallChange="0.5" ValueFormat="0.0" Unit=" px" Value="{Binding ProgressHeight}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Progress radius" Description="Bar corner curve" Minimum="0" Maximum="6" SmallChange="0.5" ValueFormat="0.0" Unit=" px" Value="{Binding ProgressCornerRadius}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Sparkline stroke" Description="Trend line thickness" Minimum="0.5" Maximum="5" SmallChange="0.25" ValueFormat="0.00" Unit=" px" Value="{Binding SparklineThickness}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Sparkline fill" Description="Area tint below the line" Minimum="0" Maximum="0.5" SmallChange="0.02" ValueFormat="0%" Value="{Binding SparklineFillOpacity}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Header height" Description="Widget title area" Minimum="18" Maximum="64" SmallChange="1" Unit=" px" Value="{Binding HeaderHeight}"/>
                             </StackPanel>
                         </Grid>
@@ -371,13 +412,20 @@
                     <StackPanel>
                         <TextBlock Text="Typography" Style="{StaticResource SectionTitleText}"/>
                         <TextBlock Margin="0,5,0,16" Text="The minimum readable size protects compact layouts from becoming illegible." Style="{StaticResource CaptionText}"/>
-                        <controls:StudioSettingField Header="Font family" Description="Installed Windows font" Text="{Binding FontFamily}"/>
+                        <StackPanel>
+                            <Grid><TextBlock Text="Font family" FontWeight="SemiBold"/><TextBlock HorizontalAlignment="Right" Text="Installed Windows fonts" Style="{StaticResource CaptionText}"/></Grid>
+                            <ComboBox Margin="0,7,0,0" IsEditable="True" IsTextSearchEnabled="True"
+                                      ItemsSource="{Binding DataContext.InstalledFontFamilies, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"
+                                      MaxDropDownHeight="360" AutomationProperties.Name="Font family"/>
+                        </StackPanel>
                         <Grid Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <StackPanel>
                                 <controls:StudioSettingSlider Header="Header size" Description="Widget title" Minimum="8" Maximum="24" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding HeaderSize}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Label size" Description="Module names" Minimum="8" Maximum="26" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding LabelSize}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Secondary size" Description="Temperatures and metadata" Minimum="8" Maximum="24" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding SecondarySize}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Value size" Description="Primary metric values" Minimum="10" Maximum="42" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding ValueSize}"/>
+                                <controls:StudioSettingSlider Margin="0,12,0,0" Header="Icon size" Description="Module glyphs in spacious layouts" Minimum="8" Maximum="32" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding IconSize}"/>
                                 <controls:StudioSettingSlider Margin="0,12,0,0" Header="Readable minimum" Description="Lower safety bound" Minimum="8" Maximum="18" SmallChange="0.5" ValueFormat="0.0" Unit=" pt" Value="{Binding MinimumReadableSize}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
