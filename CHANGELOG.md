@@ -3,6 +3,24 @@
 All notable OPS Monitor changes are documented here. Versions follow semantic
 versioning.
 
+## [3.4.2] — 2026-08-14
+
+### Fixed
+
+- The always-on-top widget can no longer become the foreground window from a
+  pointer click, preventing it from taking keyboard or raw-mouse focus from a
+  running game.
+- Borderless and full-screen applications now enable a temporary native
+  click-through guard. The user's normal interaction mode returns automatically
+  after leaving full screen.
+- Widget startup no longer activates over the application the user is already
+  using.
+
+### Added
+
+- Automated style-policy coverage and a real HWND full-screen transition probe
+  for the no-activate and input pass-through contracts.
+
 ## [3.4.1] — 2026-08-14
 
 ### Added
@@ -130,6 +148,7 @@ versioning.
 - Release artifacts contain package identity and version markers for safe
   in-place updates.
 
+[3.4.2]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.2
 [3.4.1]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.1
 [3.4.0]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.0
 [3.3.0]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.3.0

@@ -54,6 +54,7 @@ public partial class MainWindow : Window
     private readonly WidgetSettings _startupSettings;
     private readonly MainWindowViewModel _viewModel;
     private readonly DispatcherTimer _saveTimer;
+    private readonly DispatcherTimer _gameSafetyTimer;
     private readonly DebouncedSettingsFileWatcher _settingsWatcher;
     private readonly bool _isEphemeralSession;
     private readonly WindowsStartupRegistration _startupRegistration =
@@ -73,6 +74,7 @@ public partial class MainWindow : Window
     private bool _isClosing;
     private bool _hotkeyRegistered;
     private bool _sessionEventsSubscribed;
+    private bool _fullScreenPassthroughActive;
     private double _lastRuntimeCadenceSeconds;
 
     public MainWindow()
@@ -94,6 +96,12 @@ public partial class MainWindow : Window
             Interval = TimeSpan.FromMilliseconds(450)
         };
         _saveTimer.Tick += SaveTimer_OnTick;
+
+        _gameSafetyTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+        _gameSafetyTimer.Tick += GameSafetyTimer_OnTick;
 
         _viewModel.PropertyChanged += ViewModel_OnPropertyChanged;
         _viewModel.TelemetryUpdated += ViewModel_OnTelemetryUpdated;
@@ -138,6 +146,7 @@ public partial class MainWindow : Window
         _settingsWatcher.ReloadRequested -= SettingsWatcher_OnReloadRequested;
         _settingsWatcher.DisposeAsync().AsTask().GetAwaiter().GetResult();
         _saveTimer.Stop();
+        _gameSafetyTimer.Stop();
         _viewModel.PropertyChanged -= ViewModel_OnPropertyChanged;
         _viewModel.TelemetryUpdated -= ViewModel_OnTelemetryUpdated;
         if (_weatherWindow is not null)
@@ -273,6 +282,8 @@ public partial class MainWindow : Window
         EnsureVisibleOnScreen();
         _isLoaded = true;
         _viewModel.Start();
+        UpdateGameSafetyState();
+        _gameSafetyTimer.Start();
         ApplyInteractionMode();
         if (!_isEphemeralSession)
         {
@@ -648,7 +659,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        var clickThrough = _viewModel.InteractionMode == WidgetInteractionMode.ClickThrough;
+        var clickThrough =
+            _viewModel.InteractionMode == WidgetInteractionMode.ClickThrough ||
+            _fullScreenPassthroughActive;
         NativeMethods.SetClickThrough(_windowHandle, clickThrough);
         if (!clickThrough)
         {
@@ -658,6 +671,7 @@ public partial class MainWindow : Window
 
     private void RestoreEditMode()
     {
+        _fullScreenPassthroughActive = false;
         _viewModel.InteractionMode = WidgetInteractionMode.Edit;
         NativeMethods.SetClickThrough(_windowHandle, false);
         Show();
@@ -666,6 +680,26 @@ public partial class MainWindow : Window
         (_viewModel.Layout == WidgetLayout.Dock
             ? DockSettingsButton
             : SettingsButton).Focus();
+    }
+
+    private void GameSafetyTimer_OnTick(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        UpdateGameSafetyState();
+    }
+
+    private void UpdateGameSafetyState()
+    {
+        var fullScreenPassthrough =
+            NativeMethods.IsForegroundApplicationFullScreen(_windowHandle);
+        if (_fullScreenPassthroughActive == fullScreenPassthrough)
+        {
+            return;
+        }
+
+        _fullScreenPassthroughActive = fullScreenPassthrough;
+        ApplyInteractionMode();
     }
 
     private void DragHeader_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

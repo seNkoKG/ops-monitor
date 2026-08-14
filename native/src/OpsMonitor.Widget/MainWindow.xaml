@@ -15,6 +15,7 @@
         Background="Transparent"
         FontFamily="{Binding WidgetFontFamily}"
         ResizeMode="NoResize"
+        ShowActivated="False"
         ShowInTaskbar="False"
         Topmost="{Binding Topmost}"
         UseLayoutRounding="True"

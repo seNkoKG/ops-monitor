@@ -14,6 +14,7 @@ using OpsMonitor.Studio.Controls;
 using OpsMonitor.Studio.Services;
 using OpsMonitor.Studio.ViewModels;
 using OpsMonitor.Widget.Models;
+using OpsMonitor.Widget.Interop;
 using OpsMonitor.Widget.Services;
 using OpsMonitor.Widget.ViewModels;
 using LiveWidgetSizingPolicy = OpsMonitor.Widget.Models.WidgetSizingPolicy;
@@ -55,6 +56,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("widget battery changes preserve unrelated Core modules", TestWidgetBatterySaveAsync),
     ("widget module presentation saves without collapsing latency", TestWidgetModuleSaveAsync),
     ("widget sizing preserves classic footprints and expands by module count", TestWidgetSizingAsync),
+    ("game-safe widget styles preserve game focus and full-screen input", TestGameSafeWindowPolicyAsync),
     ("Studio and widget sizing policies remain identical", TestSizingParityAsync),
     ("widget text remains invariant under Slovenian locale", TestWidgetFormattingAsync),
     ("widget settings preserve scale and interaction preferences", TestWidgetSettingsMappingAsync),
@@ -2100,6 +2102,55 @@ static Task TestWidgetViewModelAsync()
     Assert.Equal("LOSS 0.4%", latency.Status, "brief packet-loss gap flashed unavailable");
     Assert.Equal(SensorState.Stale, latency.State, "held connectivity was not marked stale");
     Assert.Equal(2, updatePulses, "each applied snapshot raises one visual update pulse");
+    return Task.CompletedTask;
+}
+
+static Task TestGameSafeWindowPolicyAsync()
+{
+    const int layeredStyle = 0x00080000;
+    const int transparentStyle = 0x00000020;
+    const int noActivateStyle = 0x08000000;
+    const int captionStyle = 0x00C00000;
+
+    var interactive = NativeMethods.CalculateOverlayExtendedStyles(
+        layeredStyle | transparentStyle,
+        clickThrough: false);
+    Assert.True((interactive & layeredStyle) != 0, "existing overlay style was discarded");
+    Assert.True((interactive & noActivateStyle) != 0, "interactive widget can steal game focus");
+    Assert.False((interactive & transparentStyle) != 0, "interactive widget stayed click-through");
+
+    var passthrough = NativeMethods.CalculateOverlayExtendedStyles(
+        layeredStyle,
+        clickThrough: true);
+    Assert.True((passthrough & noActivateStyle) != 0, "click-through widget can activate");
+    Assert.True((passthrough & transparentStyle) != 0, "click-through widget intercepts pointer input");
+
+    var monitor = new System.Drawing.Rectangle(0, 0, 2560, 1440);
+    Assert.True(
+        NativeMethods.IsFullScreenBounds(
+            new System.Drawing.Rectangle(0, 0, 2560, 1440),
+            monitor,
+            0),
+        "borderless full-screen window was not detected");
+    Assert.True(
+        NativeMethods.IsFullScreenBounds(
+            new System.Drawing.Rectangle(-1, 0, 2562, 1440),
+            monitor,
+            0),
+        "minor full-screen rounding drift was not tolerated");
+    Assert.False(
+        NativeMethods.IsFullScreenBounds(
+            new System.Drawing.Rectangle(0, 0, 2560, 1400),
+            monitor,
+            0),
+        "window leaving taskbar space was treated as full-screen");
+    Assert.False(
+        NativeMethods.IsFullScreenBounds(
+            new System.Drawing.Rectangle(0, 0, 2560, 1440),
+            monitor,
+            captionStyle),
+        "ordinary maximized window was treated as a full-screen game");
+
     return Task.CompletedTask;
 }
 

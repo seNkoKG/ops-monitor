@@ -6,7 +6,7 @@
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-38C9FF?style=flat-square">
   <img alt="Framework" src="https://img.shields.io/badge/.NET-10.0-7655D9?style=flat-square">
   <img alt="UI" src="https://img.shields.io/badge/UI-Native%20WPF-63F6D8?style=flat-square&labelColor=111827">
-  <img alt="Version" src="https://img.shields.io/badge/version-3.4.1-F24DE7?style=flat-square&labelColor=17111F">
+  <img alt="Version" src="https://img.shields.io/badge/version-3.4.2-F24DE7?style=flat-square&labelColor=17111F">
 </p>
 
 <p align="center">
@@ -17,12 +17,12 @@
 <p align="center">
   <a href="https://senkokg.github.io/ops-monitor/"><strong>Explore the website</strong></a>
   ·
-  <a href="https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.1/OPS-Monitor-v3.4.1-Setup.exe"><strong>Download Windows installer</strong></a>
+  <a href="https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.2/OPS-Monitor-v3.4.2-Setup.exe"><strong>Download Windows installer</strong></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.1/OPS-Monitor-v3.4.1-Setup.exe">
-    <img alt="Download OPS Monitor 3.4.1 for Windows 11" src="https://img.shields.io/badge/DOWNLOAD-WINDOWS%2011%20INSTALLER-48DCF9?style=for-the-badge&labelColor=071018">
+  <a href="https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.2/OPS-Monitor-v3.4.2-Setup.exe">
+    <img alt="Download OPS Monitor 3.4.2 for Windows 11" src="https://img.shields.io/badge/DOWNLOAD-WINDOWS%2011%20INSTALLER-48DCF9?style=for-the-badge&labelColor=071018">
   </a>
 </p>
 
@@ -143,16 +143,15 @@ cd .\ops-monitor\native
 `Build.ps1` restores the solution, builds Release, and runs the deterministic
 behavioral test suites.
 
-Version 3.4 adds local forecast confidence and nowcasting, makes compact
-temperature/status typography directly adjustable, and removes fixed template
-values that previously made several designer controls appear ineffective. See
-the [changelog](CHANGELOG.md) and [roadmap](ROADMAP.md) for the complete release
-contract.
+Version 3.4.2 makes the overlay game-safe: it never activates from a pointer
+click and automatically passes input through while a borderless or full-screen
+application owns the display. See the [changelog](CHANGELOG.md) and
+[roadmap](ROADMAP.md) for the complete release contract.
 
 ### Install for the current user
 
 Download and run
-[`OPS-Monitor-v3.4.1-Setup.exe`](https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.1/OPS-Monitor-v3.4.1-Setup.exe).
+[`OPS-Monitor-v3.4.2-Setup.exe`](https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.2/OPS-Monitor-v3.4.2-Setup.exe).
 It is self-contained, needs no separate .NET installation, and installs without
 administrator rights. The wizard offers sign-in startup and a desktop shortcut;
 Windows Settings can remove it normally while saved designs and history remain.
