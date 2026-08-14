@@ -7,9 +7,13 @@ param(
 
     [switch]$SelfContained,
 
+    [switch]$Installer,
+
     [switch]$NoArchive,
 
-    [string]$CertificateThumbprint
+    [string]$CertificateThumbprint,
+
+    [string]$InnoSetupCompiler
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,6 +25,9 @@ $props = [xml](Get-Content -LiteralPath (Join-Path $root 'Directory.Build.props'
 $version = ([string]$props.Project.PropertyGroup.Version | Select-Object -First 1).Trim()
 if ([string]::IsNullOrWhiteSpace($version)) {
     throw 'Directory.Build.props does not define a release version.'
+}
+if ($Installer -and (-not $Publish -or -not $SelfContained)) {
+    throw '-Installer requires -Publish -SelfContained because the setup package carries the Windows x64 runtime.'
 }
 
 $dotnetCommand = Get-Command dotnet -ErrorAction SilentlyContinue
@@ -161,6 +168,7 @@ if ($Publish) {
                 'Enable-CpuTemperature.ps1',
                 'Disable-CpuTemperature.ps1',
                 'Update.ps1',
+                'Installer-CloseApps.ps1',
                 'README.md',
                 'THIRD-PARTY-NOTICES.md'
             )) {
@@ -236,6 +244,17 @@ if ($Publish) {
         }
 
         Write-Host "Published package: $output" -ForegroundColor Cyan
+
+        if ($Installer) {
+            & (Join-Path $root 'Build-Installer.ps1') `
+                -SourceDirectory $output `
+                -Version $version `
+                -CompilerPath $InnoSetupCompiler `
+                -CertificateThumbprint $CertificateThumbprint
+            if ($LASTEXITCODE -ne 0) {
+                throw 'Building the Windows installer failed.'
+            }
+        }
     }
     finally {
         if (Test-Path -LiteralPath $stagingRoot) {

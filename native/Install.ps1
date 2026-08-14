@@ -146,6 +146,11 @@ $resolvedInstall = Get-NormalizedPath $installDirectory
 if (-not (Test-IsChildPath -Path $resolvedInstall -Parent $resolvedPrograms)) {
     throw "Refusing to install outside $resolvedPrograms."
 }
+if (Get-ChildItem -LiteralPath $resolvedInstall -Filter 'unins*.exe' -File -ErrorAction SilentlyContinue |
+    Where-Object BaseName -Match '^unins\d+$' |
+    Select-Object -First 1) {
+    throw 'This copy is managed by the Windows installer. Use Check for OPS Monitor updates or run the latest Setup.exe instead of replacing its files with Install.ps1.'
+}
 
 $blockingProcesses = @(Get-InstalledProcesses -InstallDirectory $resolvedInstall)
 if ($blockingProcesses.Count -gt 0) {

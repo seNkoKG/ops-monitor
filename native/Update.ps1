@@ -96,7 +96,14 @@ try {
     else {
         'framework-dependent'
     }
-    $packageProperty = $manifest.packages.PSObject.Properties[$packageKind]
+    $installerProperty = $manifest.packages.PSObject.Properties['windows-installer']
+    $usesWindowsInstaller = $null -ne $installerProperty
+    $packageProperty = if ($usesWindowsInstaller) {
+        $installerProperty
+    }
+    else {
+        $manifest.packages.PSObject.Properties[$packageKind]
+    }
     if ($null -eq $packageProperty) {
         throw "The release does not provide a $packageKind package."
     }
@@ -107,6 +114,7 @@ try {
         CurrentVersion = $currentVersion.ToString(3)
         AvailableVersion = $availableVersion.ToString(3)
         PackageKind = $packageKind
+        DeliveryKind = if ($usesWindowsInstaller) { 'windows-installer' } else { 'zip' }
         UpdateAvailable = $updateAvailable
         ReleaseUrl = [string]$manifest.releaseUrl
     }
@@ -141,23 +149,11 @@ try {
     }
 
     New-Item -ItemType Directory -Path $stage -Force | Out-Null
-    $archive = Join-Path $stage 'release.zip'
-    Invoke-WebRequest -Uri ([uri]$package.url) -OutFile $archive -TimeoutSec 120
-    $actualHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
+    $download = Join-Path $stage $(if ($usesWindowsInstaller) { 'setup.exe' } else { 'release.zip' })
+    Invoke-WebRequest -Uri ([uri]$package.url) -OutFile $download -TimeoutSec 120
+    $actualHash = (Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash
     if (-not $actualHash.Equals([string]$package.sha256, [StringComparison]::OrdinalIgnoreCase)) {
         throw 'The downloaded release failed SHA-256 verification.'
-    }
-
-    $expanded = Join-Path $stage 'package'
-    Expand-Archive -LiteralPath $archive -DestinationPath $expanded
-    foreach ($required in @('OpsMonitor.Widget.exe', 'OpsMonitor.Studio.exe', 'Install.ps1', 'VERSION')) {
-        if (-not (Test-Path -LiteralPath (Join-Path $expanded $required))) {
-            throw "The downloaded package is incomplete: $required is missing."
-        }
-    }
-    $packageVersion = [version](Get-Content -LiteralPath (Join-Path $expanded 'VERSION') -Raw).Trim()
-    if ($packageVersion -ne $availableVersion) {
-        throw "The package version $packageVersion does not match manifest version $availableVersion."
     }
 
     $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
@@ -167,18 +163,77 @@ try {
     $desktopShortcut = Join-Path (
         [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
     ) 'OPS Monitor.lnk'
+    $desktopShortcutEnabled = Test-Path -LiteralPath $desktopShortcut
     Stop-InstalledApps
 
-    $installArguments = @{
-        NoBuild = $true
-        SelfContained = $packageKind -eq 'win-x64-self-contained'
-        EnableStartup = $startupEnabled
-        DesktopShortcut = Test-Path -LiteralPath $desktopShortcut
-        Launch = -not $NoLaunch
+    if ($usesWindowsInstaller) {
+        $installerVersionText = [Diagnostics.FileVersionInfo]::GetVersionInfo($download).ProductVersion
+        $installerVersion = [version]$installerVersionText
+        if ($installerVersion -ne $availableVersion) {
+            throw "The installer version $installerVersion does not match manifest version $availableVersion."
+        }
+
+        $selectedTasks = @()
+        if ($startupEnabled) {
+            $selectedTasks += 'startup'
+        }
+        if ($desktopShortcutEnabled) {
+            $selectedTasks += 'desktopicon'
+        }
+        $setupArguments = @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+            '/NORESTARTAPPLICATIONS',
+            '/CURRENTUSER',
+            ('/TASKS=' + ($selectedTasks -join ','))
+        )
+        $setup = Start-Process `
+            -FilePath $download `
+            -ArgumentList $setupArguments `
+            -Wait `
+            -PassThru
+        try {
+            if ($setup.ExitCode -ne 0) {
+                throw "The Windows installer exited with code $($setup.ExitCode)."
+            }
+        }
+        finally {
+            $setup.Dispose()
+        }
+
+        if (-not $NoLaunch) {
+            $widget = Join-Path $root 'OpsMonitor.Widget.exe'
+            if (-not (Test-Path -LiteralPath $widget)) {
+                throw 'The updated Widget executable is missing.'
+            }
+            Start-Process -FilePath $widget -WorkingDirectory $root
+        }
     }
-    & (Join-Path $expanded 'Install.ps1') @installArguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "The installer exited with code $LASTEXITCODE."
+    else {
+        $expanded = Join-Path $stage 'package'
+        Expand-Archive -LiteralPath $download -DestinationPath $expanded
+        foreach ($required in @('OpsMonitor.Widget.exe', 'OpsMonitor.Studio.exe', 'Install.ps1', 'VERSION')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $expanded $required))) {
+                throw "The downloaded package is incomplete: $required is missing."
+            }
+        }
+        $packageVersion = [version](Get-Content -LiteralPath (Join-Path $expanded 'VERSION') -Raw).Trim()
+        if ($packageVersion -ne $availableVersion) {
+            throw "The package version $packageVersion does not match manifest version $availableVersion."
+        }
+
+        $installArguments = @{
+            NoBuild = $true
+            SelfContained = $packageKind -eq 'win-x64-self-contained'
+            EnableStartup = $startupEnabled
+            DesktopShortcut = $desktopShortcutEnabled
+            Launch = -not $NoLaunch
+        }
+        & (Join-Path $expanded 'Install.ps1') @installArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "The installer exited with code $LASTEXITCODE."
+        }
     }
 
     Show-UpdateMessage "OPS Monitor $($availableVersion.ToString(3)) was installed successfully."

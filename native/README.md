@@ -81,13 +81,22 @@ Create a portable Windows x64 self-contained release:
 .\Build.ps1 -Configuration Release -Publish -SelfContained
 ```
 
-Publish produces a combined companion-app folder and ZIP:
+Create the self-contained package and the one-click Windows installer (Inno
+Setup 6.7 or newer is required for this packaging step):
+
+```powershell
+.\Build.ps1 -Configuration Release -Publish -SelfContained -Installer
+```
+
+Publish produces combined companion-app folders, portable ZIPs, and optionally
+the setup executable:
 
 ```text
 artifacts\publish\framework-dependent\
-artifacts\publish\OPS-Monitor-v3.4.0-framework-dependent.zip
+artifacts\publish\OPS-Monitor-v3.4.1-framework-dependent.zip
 artifacts\publish\win-x64-self-contained\
-artifacts\publish\OPS-Monitor-v3.4.0-win-x64-self-contained.zip
+artifacts\publish\OPS-Monitor-v3.4.1-win-x64-self-contained.zip
+artifacts\publish\OPS-Monitor-v3.4.1-Setup.exe
 ```
 
 Widget and Studio intentionally live in the same folder. This lets each app open
@@ -120,6 +129,14 @@ dotnet run --project .\tests\OpsMonitor.Tests\OpsMonitor.Tests.csproj -c Release
 ```
 
 ## Install for the current user
+
+For normal use, download and run the self-contained
+`OPS-Monitor-v3.4.1-Setup.exe`. It provides the standard Windows wizard,
+registers with Installed Apps, supports silent deployment and in-place
+upgrades, and preserves `%LOCALAPPDATA%\OPS Monitor` on uninstall.
+
+The PowerShell install path remains available for portable and development
+workflows. It uses the same destination and settings contract:
 
 The installer uses `%LOCALAPPDATA%\Programs\OPS Monitor`, creates Start menu
 shortcuts, and preserves settings during updates:

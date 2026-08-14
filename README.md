@@ -6,7 +6,7 @@
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-38C9FF?style=flat-square">
   <img alt="Framework" src="https://img.shields.io/badge/.NET-10.0-7655D9?style=flat-square">
   <img alt="UI" src="https://img.shields.io/badge/UI-Native%20WPF-63F6D8?style=flat-square&labelColor=111827">
-  <img alt="Version" src="https://img.shields.io/badge/version-3.4.0-F24DE7?style=flat-square&labelColor=17111F">
+  <img alt="Version" src="https://img.shields.io/badge/version-3.4.1-F24DE7?style=flat-square&labelColor=17111F">
 </p>
 
 <p align="center">
@@ -17,7 +17,13 @@
 <p align="center">
   <a href="https://senkokg.github.io/ops-monitor/"><strong>Explore the website</strong></a>
   ·
-  <a href="https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.0"><strong>Download v3.4</strong></a>
+  <a href="https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.1/OPS-Monitor-v3.4.1-Setup.exe"><strong>Download Windows installer</strong></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.1/OPS-Monitor-v3.4.1-Setup.exe">
+    <img alt="Download OPS Monitor 3.4.1 for Windows 11" src="https://img.shields.io/badge/DOWNLOAD-WINDOWS%2011%20INSTALLER-48DCF9?style=for-the-badge&labelColor=071018">
+  </a>
 </p>
 
 ## The desktop, without the dashboard clutter
@@ -145,14 +151,25 @@ contract.
 
 ### Install for the current user
 
+Download and run
+[`OPS-Monitor-v3.4.1-Setup.exe`](https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.1/OPS-Monitor-v3.4.1-Setup.exe).
+It is self-contained, needs no separate .NET installation, and installs without
+administrator rights. The wizard offers sign-in startup and a desktop shortcut;
+Windows Settings can remove it normally while saved designs and history remain.
+The current community build is not code-signed, so Windows may show an Unknown
+Publisher warning; the release includes a matching SHA-256 checksum for
+verification.
+
+For a source build or portable deployment:
+
 ```powershell
 cd .\native
 .\Build.ps1 -Configuration Release -Publish -SelfContained
 .\Install.ps1 -SelfContained -EnableStartup -DesktopShortcut -Launch
 ```
 
-The installer uses `%LOCALAPPDATA%\Programs\OPS Monitor`, creates verified
-shortcuts, preserves settings during upgrades, and can install without admin
+Both install paths use `%LOCALAPPDATA%\Programs\OPS Monitor`, create verified
+shortcuts, preserve settings during upgrades, and can install without admin
 rights. See the [native build and operations guide](native/README.md) for
 package variants, visual-QA flags, CPU temperature setup, and clean uninstall.
 

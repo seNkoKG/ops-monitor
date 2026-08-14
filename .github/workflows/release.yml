@@ -31,8 +31,48 @@ jobs:
           }
           powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File native/Build.ps1 -Configuration Release -Publish
           if ($LASTEXITCODE -ne 0) { throw 'Framework-dependent package failed.' }
-          powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File native/Build.ps1 -Configuration Release -Publish -SelfContained
-          if ($LASTEXITCODE -ne 0) { throw 'Self-contained package failed.' }
+          powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File native/Build.ps1 -Configuration Release -Publish -SelfContained -Installer
+          if ($LASTEXITCODE -ne 0) { throw 'Self-contained package or Windows installer failed.' }
+
+      - name: Smoke test Windows installer
+        shell: pwsh
+        run: |
+          $props = [xml](Get-Content native/Directory.Build.props -Raw)
+          $version = ([string]$props.Project.PropertyGroup.Version | Select-Object -First 1).Trim()
+          $setup = Resolve-Path "native/artifacts/publish/OPS-Monitor-v$version-Setup.exe"
+          $install = Join-Path $env:LOCALAPPDATA 'Programs\OPS Monitor'
+          $arguments = @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+            '/NORESTARTAPPLICATIONS',
+            '/CURRENTUSER',
+            '/TASKS=startup,desktopicon'
+          )
+          $setupProcess = Start-Process $setup -ArgumentList $arguments -Wait -PassThru
+          if ($setupProcess.ExitCode -ne 0) {
+            throw "Installer exited with code $($setupProcess.ExitCode)."
+          }
+          if ((Get-Content (Join-Path $install 'VERSION') -Raw).Trim() -ne $version -or
+              -not (Test-Path (Join-Path $install 'OpsMonitor.Widget.exe')) -or
+              -not (Test-Path (Join-Path $install 'OpsMonitor.Studio.exe')) -or
+              -not (Test-Path (Join-Path $install 'unins000.exe'))) {
+            throw 'Installed Apps registration or required program files are incomplete.'
+          }
+          $uninstallProcess = Start-Process `
+            (Join-Path $install 'unins000.exe') `
+            -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' `
+            -Wait `
+            -PassThru
+          if ($uninstallProcess.ExitCode -ne 0) {
+            throw "Uninstaller exited with code $($uninstallProcess.ExitCode)."
+          }
+          for ($attempt = 0; $attempt -lt 60 -and (Test-Path $install); $attempt++) {
+            Start-Sleep -Milliseconds 250
+          }
+          if (Test-Path $install) {
+            throw 'Uninstaller left program files behind.'
+          }
 
       - name: Publish GitHub release
         shell: pwsh
@@ -41,7 +81,7 @@ jobs:
         run: |
           $tag = '${{ github.ref_name }}'
           $files = Get-ChildItem native/artifacts/publish -File |
-            Where-Object Name -Match '^OPS-Monitor-v.+\.(zip|sha256)$' |
+            Where-Object Name -Match '^OPS-Monitor-v.+\.(exe|zip|sha256)$' |
             ForEach-Object FullName
           if (-not (gh release view $tag 2>$null)) {
             gh release create $tag @files --verify-tag --generate-notes --title "OPS Monitor $tag"
@@ -59,8 +99,10 @@ jobs:
           $publish = Resolve-Path native/artifacts/publish
           $frameworkName = "OPS-Monitor-$tag-framework-dependent.zip"
           $selfContainedName = "OPS-Monitor-$tag-win-x64-self-contained.zip"
+          $installerName = "OPS-Monitor-$tag-Setup.exe"
           $frameworkHash = (Get-FileHash (Join-Path $publish $frameworkName) -Algorithm SHA256).Hash.ToLowerInvariant()
           $selfContainedHash = (Get-FileHash (Join-Path $publish $selfContainedName) -Algorithm SHA256).Hash.ToLowerInvariant()
+          $installerHash = (Get-FileHash (Join-Path $publish $installerName) -Algorithm SHA256).Hash.ToLowerInvariant()
           git checkout main
           $baseUrl = "https://github.com/$repository/releases/download/$tag"
           $manifest = [ordered]@{
@@ -71,6 +113,7 @@ jobs:
             packages = [ordered]@{
               'framework-dependent' = [ordered]@{ url = "$baseUrl/$frameworkName"; sha256 = $frameworkHash }
               'win-x64-self-contained' = [ordered]@{ url = "$baseUrl/$selfContainedName"; sha256 = $selfContainedHash }
+              'windows-installer' = [ordered]@{ url = "$baseUrl/$installerName"; sha256 = $installerHash }
             }
           }
           $manifest | ConvertTo-Json -Depth 5 | Set-Content docs/release-manifest.json -Encoding utf8
@@ -87,5 +130,6 @@ jobs:
           name: ops-monitor-${{ github.ref_name }}
           path: |
             native/artifacts/publish/OPS-Monitor-${{ github.ref_name }}-*.zip
+            native/artifacts/publish/OPS-Monitor-${{ github.ref_name }}-Setup.exe
             native/artifacts/publish/OPS-Monitor-${{ github.ref_name }}-*.sha256
           if-no-files-found: error

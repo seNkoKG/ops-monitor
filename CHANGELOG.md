@@ -3,6 +3,24 @@
 All notable OPS Monitor changes are documented here. Versions follow semantic
 versioning.
 
+## [3.4.1] — 2026-08-14
+
+### Added
+
+- A self-contained Windows 11 setup executable with a standard install wizard,
+  current-user install, Start menu entries, optional desktop and sign-in
+  shortcuts, Add/Remove Programs registration, clean uninstall, and in-place
+  upgrade support that preserves settings.
+- Direct installer downloads on the project website and README, plus a
+  versioned SHA-256 checksum beside every setup executable.
+
+### Changed
+
+- The installed updater now prefers the verified Windows installer when a
+  release provides one, while retaining ZIP compatibility for older releases.
+- GitHub releases and CI artifacts now publish the installer alongside the two
+  portable ZIP variants.
+
 ## [3.4.0] — 2026-08-13
 
 ### Added
@@ -112,6 +130,7 @@ versioning.
 - Release artifacts contain package identity and version markers for safe
   in-place updates.
 
+[3.4.1]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.1
 [3.4.0]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.0
 [3.3.0]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.3.0
 [3.2.0]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.2.0

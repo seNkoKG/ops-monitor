@@ -39,6 +39,80 @@ if (-not (Test-IsChildPath -Path $resolvedInstall -Parent $resolvedPrograms)) {
     throw "Refusing to uninstall outside $resolvedPrograms."
 }
 
+$windowsUninstaller = Get-ChildItem `
+    -LiteralPath $resolvedInstall `
+    -Filter 'unins*.exe' `
+    -File `
+    -ErrorAction SilentlyContinue |
+    Where-Object BaseName -Match '^unins\d+$' |
+    Sort-Object Name |
+    Select-Object -First 1
+if ($windowsUninstaller) {
+    if (-not $PSCmdlet.ShouldProcess(
+            $resolvedInstall,
+            'Run the registered OPS Monitor Windows uninstaller')) {
+        Write-Host 'OPS Monitor Windows-uninstaller preview completed; nothing was removed.' -ForegroundColor Cyan
+        return
+    }
+
+    if ($RemoveCpuSensor) {
+        $sensorCleanupScript = Join-Path $resolvedInstall 'Disable-CpuTemperature.ps1'
+        if (Test-Path -LiteralPath $sensorCleanupScript) {
+            $sensorCleanup = Start-Process `
+                -FilePath (Get-Process -Id $PID).Path `
+                -ArgumentList (
+                    '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "{0}"' -f
+                    $sensorCleanupScript
+                ) `
+                -Wait `
+                -PassThru
+            try {
+                if ($sensorCleanup.ExitCode -ne 0) {
+                    throw "CPU sensor cleanup exited with code $($sensorCleanup.ExitCode)."
+                }
+            }
+            finally {
+                $sensorCleanup.Dispose()
+            }
+        }
+    }
+
+    $uninstaller = Start-Process `
+        -FilePath $windowsUninstaller.FullName `
+        -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' `
+        -Wait `
+        -PassThru
+    try {
+        if ($uninstaller.ExitCode -ne 0) {
+            throw "The Windows uninstaller exited with code $($uninstaller.ExitCode)."
+        }
+    }
+    finally {
+        $uninstaller.Dispose()
+    }
+
+    for ($attempt = 0; $attempt -lt 60 -and (Test-Path -LiteralPath $resolvedInstall); $attempt++) {
+        Start-Sleep -Milliseconds 250
+    }
+    if (Test-Path -LiteralPath $resolvedInstall) {
+        throw 'The Windows uninstaller finished but program files are still present.'
+    }
+
+    if ($RemoveUserData) {
+        $userData = Get-NormalizedPath (Join-Path $env:LOCALAPPDATA 'OPS Monitor')
+        $resolvedLocalData = Get-NormalizedPath $env:LOCALAPPDATA
+        if (-not (Test-IsChildPath -Path $userData -Parent $resolvedLocalData)) {
+            throw "Refusing to remove user data outside $resolvedLocalData."
+        }
+        if (Test-Path -LiteralPath $userData) {
+            Remove-Item -LiteralPath $userData -Recurse -Force
+        }
+    }
+
+    Write-Host 'OPS Monitor was uninstalled through Windows. Saved settings were preserved unless -RemoveUserData was used.' -ForegroundColor Green
+    return
+}
+
 $installedProcesses = @()
 foreach ($process in @(Get-Process -Name 'OpsMonitor.Widget', 'OpsMonitor.Studio' -ErrorAction SilentlyContinue)) {
     try {
