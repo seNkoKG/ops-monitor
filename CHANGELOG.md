@@ -3,6 +3,29 @@
 All notable OPS Monitor changes are documented here. Versions follow semantic
 versioning.
 
+## [3.4.4] — 2026-08-17
+
+### Added
+
+- Animated, colorful vector weather icons replace the static emoji across the
+  whole weather suite. Clear days spin their sun rays, nights twinkle, clouds
+  drift, rain falls, snow sways, fog slides, and storms flash — all drawn
+  locally with no external assets, fonts, or network dependency.
+- A gentle breathing glow behind the current-conditions hero and the title-bar
+  weather mark. Icons and ambient motion stop automatically when Windows
+  animations are disabled or the user's theme disables motion.
+
+### Changed
+
+- The Nowcast and Hourly forecast strips hide their horizontal scrollbars so
+  the layout stays clean; chevron buttons, Shift+wheel, and touchpad panning
+  still reach every card.
+
+### Fixed
+
+- Small forecast cards now animate lightly (a single drifting or falling
+  element) so dozens of visible cards stay cheap on the render thread.
+
 ## [3.4.3] — 2026-08-17
 
 ### Added
@@ -170,6 +193,7 @@ versioning.
 - Release artifacts contain package identity and version markers for safe
   in-place updates.
 
+[3.4.4]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.4
 [3.4.3]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.3
 [3.4.2]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.2
 [3.4.1]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.1

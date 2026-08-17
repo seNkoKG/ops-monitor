@@ -802,7 +802,8 @@ public partial class MainWindow : Window
                 {
                     await _viewModel.SetWeatherLocationAsync(location).ConfigureAwait(true);
                     ScheduleSave();
-                });
+                },
+                motionEnabled: _viewModel.MotionEnabled && SystemParameters.ClientAreaAnimation);
             _weatherWindow.Closed += (_, _) => _weatherWindow = null;
         }
 

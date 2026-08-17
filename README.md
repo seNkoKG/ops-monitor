@@ -6,7 +6,7 @@
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-38C9FF?style=flat-square">
   <img alt="Framework" src="https://img.shields.io/badge/.NET-10.0-7655D9?style=flat-square">
   <img alt="UI" src="https://img.shields.io/badge/UI-Native%20WPF-63F6D8?style=flat-square&labelColor=111827">
-  <img alt="Version" src="https://img.shields.io/badge/version-3.4.3-F24DE7?style=flat-square&labelColor=17111F">
+  <img alt="Version" src="https://img.shields.io/badge/version-3.4.4-F24DE7?style=flat-square&labelColor=17111F">
 </p>
 
 <p align="center">
@@ -17,12 +17,12 @@
 <p align="center">
   <a href="https://senkokg.github.io/ops-monitor/"><strong>Explore the website</strong></a>
   ·
-  <a href="https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.3/OPS-Monitor-v3.4.3-win-x64-self-contained.zip"><strong>Download Windows portable</strong></a>
+  <a href="https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.4/OPS-Monitor-v3.4.4-win-x64-self-contained.zip"><strong>Download Windows portable</strong></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.3/OPS-Monitor-v3.4.3-win-x64-self-contained.zip">
-    <img alt="Download OPS Monitor 3.4.3 for Windows 11" src="https://img.shields.io/badge/DOWNLOAD-WINDOWS%2011%20PORTABLE-48DCF9?style=for-the-badge&labelColor=071018">
+  <a href="https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.4/OPS-Monitor-v3.4.4-win-x64-self-contained.zip">
+    <img alt="Download OPS Monitor 3.4.4 for Windows 11" src="https://img.shields.io/badge/DOWNLOAD-WINDOWS%2011%20PORTABLE-48DCF9?style=for-the-badge&labelColor=071018">
   </a>
 </p>
 
@@ -143,15 +143,16 @@ cd .\ops-monitor\native
 `Build.ps1` restores the solution, builds Release, and runs the deterministic
 behavioral test suites.
 
-Version 3.4.3 deepens the weather suite with advanced current and forecast
-stats and makes the Nowcast and Hourly strips scroll smoothly in every
-direction. See the [changelog](CHANGELOG.md) and [roadmap](ROADMAP.md) for the
-complete release contract.
+Version 3.4.4 brings the weather suite to life: animated, colorful vector icons
+that replace static emoji, cleaner forecast strips with hidden scrollbars, and
+motion that respects your theme and Windows animation settings. See the
+[changelog](CHANGELOG.md) and [roadmap](ROADMAP.md) for the complete release
+contract.
 
 ### Install for the current user
 
 Download the
-[`OPS-Monitor-v3.4.3-win-x64-self-contained.zip`](https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.3/OPS-Monitor-v3.4.3-win-x64-self-contained.zip)
+[`OPS-Monitor-v3.4.4-win-x64-self-contained.zip`](https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.4/OPS-Monitor-v3.4.4-win-x64-self-contained.zip)
 portable package, or run the matching
 [`Install.ps1`](native/Install.ps1) script. It is self-contained, needs no
 separate .NET installation, and installs without administrator rights. The

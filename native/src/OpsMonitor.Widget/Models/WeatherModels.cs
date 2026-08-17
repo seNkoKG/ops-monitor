@@ -39,6 +39,8 @@ public sealed record WeatherHour(
 
     public string RainLabel => $"{PrecipitationProbability}%";
 
+    public bool IsDayValue => Time.Hour is >= 6 and < 21;
+
     public string DetailLabel =>
         WeatherPresentation.Compass(WindDirectionDegrees) is { Length: > 0 } direction
             ? $"{direction} {WindKilometresPerHour:0} km/h · G {WindGustKilometresPerHour:0}"
@@ -73,6 +75,8 @@ public sealed record WeatherMinute(
     public string RainLabel => PrecipitationMillimetres < 0.05
         ? $"{PrecipitationProbability}%"
         : $"{PrecipitationMillimetres:0.0} mm";
+
+    public bool IsDayValue => Time.Hour is >= 6 and < 21;
 
     public string Icon => WeatherPresentation.Icon(WeatherCode, Time.Hour is >= 6 and < 21);
 }
@@ -233,9 +237,11 @@ public sealed record WeatherSnapshot(
 
     public string Condition => WeatherPresentation.Condition(WeatherCode);
 
+    public bool IsDayValue => IsDay ?? DateTime.Now.Hour is >= 6 and < 21;
+
     public string Icon => WeatherPresentation.Icon(
         WeatherCode,
-        IsDay ?? DateTime.Now.Hour is >= 6 and < 21);
+        IsDayValue);
 
     public string FeelsLikeLabel => $"Feels {Math.Round(FeelsLikeCelsius):0}°";
 

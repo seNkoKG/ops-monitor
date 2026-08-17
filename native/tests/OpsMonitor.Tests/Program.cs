@@ -77,6 +77,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("diagnostic logs remain bounded and rotate", TestDiagnosticLogRotationAsync),
     ("concurrent settings updates preserve every writer", TestConcurrentSettingsUpdatesAsync),
     ("single-instance lease rejects a second process owner", TestSingleInstanceAsync),
+    ("animated weather icons build without exceptions", TestWeatherIconSmokeAsync),
     // WPF permits one process-global Application. Keep this smoke test last.
     ("Studio application resources load on an STA thread", TestStudioApplicationResourcesAsync)
 };
@@ -1619,11 +1620,17 @@ var day = new WeatherDay(
     Assert.Equal("3.5 cm", snapshot.SnowDepthLabel, "current snow depth label");
     Assert.Equal("3400 m", snapshot.FreezingLevelLabel, "current freezing level label");
     Assert.Equal("21.4°", snapshot.SoilTemperatureLabel, "current soil temperature label");
+    Assert.True(snapshot.IsDayValue, "explicit is_day flag was ignored");
 
     var night = snapshot with { IsDay = false };
     Assert.False(
         string.Equals(snapshot.Icon, night.Icon, StringComparison.Ordinal),
         "is_day flag did not change the current icon");
+    Assert.False(night.IsDayValue, "night flag was not honored by IsDayValue");
+
+    var nightHour = hour with { Time = new DateTime(2026, 8, 20, 23, 0, 0) };
+    Assert.False(nightHour.IsDayValue, "night hour was marked as day");
+    Assert.True(hour.IsDayValue, "day hour was marked as night");
 
     Assert.Equal("N", WeatherPresentation.Compass(0), "north compass");
     Assert.Equal("NE", WeatherPresentation.Compass(45), "north-east compass");
@@ -2607,6 +2614,76 @@ static Task TestStudioApplicationResourcesAsync()
     {
         throw new InvalidOperationException(
             "Studio resources failed to initialize",
+            threadFailure);
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestWeatherIconSmokeAsync()
+{
+    Exception? threadFailure = null;
+    var thread = new Thread(() =>
+    {
+        try
+        {
+            OpsMonitor.Widget.Controls.WeatherIcon.MotionEnabled = true;
+            var host = new System.Windows.Window
+            {
+                Width = 160,
+                Height = 160,
+                ShowInTaskbar = false,
+                WindowStyle = System.Windows.WindowStyle.None,
+            };
+            int[] weatherCodes = [0, 1, 2, 3, 45, 51, 61, 71, 80, 95];
+            bool[] dayStates = [true, false];
+            var icons = new List<OpsMonitor.Widget.Controls.WeatherIcon>();
+            foreach (bool isDay in dayStates)
+            {
+                foreach (int code in weatherCodes)
+                {
+                    var icon = new OpsMonitor.Widget.Controls.WeatherIcon
+                    {
+                        WeatherCode = code,
+                        IsDay = isDay,
+                        Width = 64,
+                        Height = 64,
+                    };
+                    icon.Measure(new System.Windows.Size(64, 64));
+                    icon.Arrange(new System.Windows.Rect(0, 0, 64, 64));
+                    icon.UpdateLayout();
+                    icons.Add(icon);
+                }
+            }
+
+            var grid = new System.Windows.Controls.StackPanel();
+            foreach (OpsMonitor.Widget.Controls.WeatherIcon icon in icons)
+            {
+                grid.Children.Add(icon);
+            }
+
+            host.Content = grid;
+            host.Show();
+            host.UpdateLayout();
+            Assert.True(
+                icons.All(icon => icon.IsVisible && icon.ActualWidth > 0 && icon.ActualHeight > 0),
+                "weather icons did not arrange at their requested size");
+            host.Close();
+        }
+        catch (Exception exception)
+        {
+            threadFailure = exception;
+        }
+    });
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+    Assert.True(
+        thread.Join(TimeSpan.FromSeconds(10)),
+        "weather icon rendering hung");
+    if (threadFailure is not null)
+    {
+        throw new InvalidOperationException(
+            "Weather icons failed to build",
             threadFailure);
     }
 

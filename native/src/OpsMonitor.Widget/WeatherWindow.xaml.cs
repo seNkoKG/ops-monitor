@@ -6,8 +6,11 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using OpsMonitor.Widget.Controls;
 using OpsMonitor.Widget.Models;
 using OpsMonitor.Widget.Services;
 using Drawing = System.Drawing;
@@ -37,12 +40,14 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
 
     internal WeatherWindow(
         WeatherService weatherService,
-        Func<WeatherLocation, Task> locationChanged)
+        Func<WeatherLocation, Task> locationChanged,
+        bool motionEnabled = true)
     {
         InitializeComponent();
         _weatherService = weatherService;
         _locationChanged = locationChanged;
         _locationQuery = weatherService.Location.Name;
+        WeatherIcon.MotionEnabled = motionEnabled;
         _radarTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(560)
@@ -174,7 +179,40 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
         _ = sender;
         _ = e;
         _weatherService.SnapshotAvailable += WeatherService_OnSnapshotAvailable;
+        StartHeroGlow();
         await RefreshWeatherAsync().ConfigureAwait(true);
+    }
+
+    private void StartHeroGlow()
+    {
+        if (!WeatherIcon.MotionEnabled || !SystemParameters.ClientAreaAnimation)
+        {
+            return;
+        }
+
+        var ease = new QuadraticEase
+        {
+            EasingMode = EasingMode.EaseInOut
+        };
+        HeroGlow.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(0.75, 1, TimeSpan.FromSeconds(4.2))
+            {
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = ease
+            },
+            HandoffBehavior.SnapshotAndReplace);
+        HeroGlowCore.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(0.7, 1, TimeSpan.FromSeconds(3.4))
+            {
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+                BeginTime = TimeSpan.FromSeconds(1.2),
+                EasingFunction = ease
+            },
+            HandoffBehavior.SnapshotAndReplace);
     }
 
     private void Window_OnClosed(object? sender, EventArgs e)

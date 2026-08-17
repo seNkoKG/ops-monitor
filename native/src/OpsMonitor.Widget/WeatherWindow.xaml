@@ -1,6 +1,7 @@
 <Window x:Class="OpsMonitor.Widget.WeatherWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:OpsMonitor.Widget.Controls"
         Title="OPS Weather"
         Width="1080"
         Height="760"
@@ -145,8 +146,9 @@
                             <BlurEffect Radius="9" />
                         </Ellipse.Effect>
                     </Ellipse>
-                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                               FontFamily="Segoe UI Emoji" FontSize="21" Text="☀" />
+                    <controls:WeatherIcon Width="32" Height="32"
+                                          WeatherCode="{Binding Current.WeatherCode}"
+                                          IsDay="{Binding Current.IsDayValue}" />
                 </Grid>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock FontSize="18" FontWeight="SemiBold" Text="OPS WEATHER" />
@@ -235,12 +237,15 @@
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Grid Width="146" Height="146">
-                                            <Ellipse Fill="#1748DCF9">
+                                            <Ellipse x:Name="HeroGlow" Fill="#1748DCF9">
                                                 <Ellipse.Effect><BlurEffect Radius="18" /></Ellipse.Effect>
                                             </Ellipse>
-                                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                       FontFamily="Segoe UI Emoji" FontSize="84"
-                                                       Text="{Binding Current.Icon}" />
+                                            <Ellipse x:Name="HeroGlowCore" Fill="#2848DCF9">
+                                                <Ellipse.Effect><BlurEffect Radius="30" /></Ellipse.Effect>
+                                            </Ellipse>
+                                            <controls:WeatherIcon Width="132" Height="132"
+                                                                  WeatherCode="{Binding Current.WeatherCode}"
+                                                                  IsDay="{Binding Current.IsDayValue}" />
                                         </Grid>
                                         <StackPanel Grid.Column="1" Margin="24,5,0,0" VerticalAlignment="Center">
                                             <TextBlock Foreground="{StaticResource WeatherCyan}" FontSize="14"
@@ -415,7 +420,7 @@
                                 <Button x:Name="NowcastScrollRight" Grid.Column="2" Click="NowcastScrollRight_OnClick" Style="{StaticResource StripChevronButton}" Content="›" ToolTip="Scroll nowcast right" />
                             </Grid>
                             <ScrollViewer x:Name="NowcastScroller"
-                                          HorizontalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Hidden"
                                           VerticalScrollBarVisibility="Disabled"
                                           PanningMode="HorizontalOnly"
                                           ScrollChanged="HorizontalStrip_OnScrollChanged"
@@ -430,8 +435,10 @@
                                                 <StackPanel HorizontalAlignment="Center">
                                                     <TextBlock HorizontalAlignment="Center" Style="{StaticResource MutedText}"
                                                                Text="{Binding TimeLabel}" />
-                                                    <TextBlock Margin="0,5,0,3" HorizontalAlignment="Center"
-                                                               FontFamily="Segoe UI Emoji" FontSize="20" Text="{Binding Icon}" />
+                                                    <controls:WeatherIcon Width="42" Height="42" Margin="0,2,0,0"
+                                                               WeatherCode="{Binding WeatherCode}"
+                                                               IsDay="{Binding IsDayValue}"
+                                                               Subtle="True" />
                                                     <TextBlock HorizontalAlignment="Center" Foreground="{StaticResource WeatherCyan}"
                                                                FontSize="12" FontWeight="SemiBold" Text="{Binding RainLabel}" />
                                                     <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center"
@@ -455,7 +462,7 @@
                                 <Button x:Name="HourlyScrollRight" Grid.Column="2" Click="HourlyScrollRight_OnClick" Style="{StaticResource StripChevronButton}" Content="›" ToolTip="Scroll hourly forecast right" />
                             </Grid>
                             <ScrollViewer x:Name="HourlyScroller"
-                                          HorizontalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Hidden"
                                           VerticalScrollBarVisibility="Disabled"
                                           PanningMode="HorizontalOnly"
                                           ScrollChanged="HorizontalStrip_OnScrollChanged"
@@ -470,8 +477,10 @@
                                                 <StackPanel HorizontalAlignment="Center">
                                                     <TextBlock HorizontalAlignment="Center" Style="{StaticResource MutedText}"
                                                                Text="{Binding TimeLabel}" />
-                                                    <TextBlock Margin="0,8,0,5" HorizontalAlignment="Center"
-                                                               FontFamily="Segoe UI Emoji" FontSize="26" Text="{Binding Icon}" />
+                                                    <controls:WeatherIcon Width="52" Height="52" Margin="0,2,0,0"
+                                                               WeatherCode="{Binding WeatherCode}"
+                                                               IsDay="{Binding IsDayValue}"
+                                                               Subtle="True" />
                                                     <TextBlock HorizontalAlignment="Center" FontSize="21" FontWeight="SemiBold"
                                                                Text="{Binding TemperatureLabel}" />
                                                     <TextBlock Margin="0,7,0,0" HorizontalAlignment="Center"
@@ -518,8 +527,11 @@
                                                     <TextBlock Margin="0,2,0,0" Foreground="{StaticResource WeatherAmber}"
                                                                FontSize="9" Text="{Binding DaylightLabel}" />
                                                 </StackPanel>
-                                                <TextBlock Grid.Column="1" VerticalAlignment="Center" FontFamily="Segoe UI Emoji"
-                                                           FontSize="25" Text="{Binding Icon}" />
+                                                <controls:WeatherIcon Grid.Column="1" Width="48" Height="48"
+                                                           VerticalAlignment="Center"
+                                                           WeatherCode="{Binding WeatherCode}"
+                                                           IsDay="True"
+                                                           Subtle="True" />
                                                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                                     <TextBlock FontSize="16" FontWeight="SemiBold" Text="{Binding RangeLabel}" />
                                                     <TextBlock Margin="0,2,0,0" Foreground="{StaticResource WeatherBlue}"
