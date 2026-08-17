@@ -150,7 +150,13 @@ internal sealed class WeatherService : IDisposable
                 outlook,
                 forecast.Nowcast,
                 forecast.Hourly,
-                forecast.Daily);
+                forecast.Daily,
+                UvIndex: current.UvIndex,
+                SnowfallMillimetres: current.SnowfallMillimetres,
+                SnowDepthCentimetres: current.SnowDepthCentimetres,
+                FreezingLevelMetres: current.FreezingLevelMetres,
+                SoilTemperatureCelsius: current.SoilTemperatureCelsius,
+                IsDay: current.IsDay);
             Current = snapshot;
             SaveCached(snapshot);
             SnapshotAvailable?.Invoke(this, snapshot);
@@ -263,10 +269,10 @@ internal sealed class WeatherService : IDisposable
         string timeZone = Uri.EscapeDataString(
             string.IsNullOrWhiteSpace(location.TimeZone) ? "auto" : location.TimeZone);
         string url = $"{OpenMeteoBase}/forecast?{coordinates}" +
-                     "&current=temperature_2m,relative_humidity_2m,apparent_temperature,dew_point_2m,precipitation,weather_code,cloud_cover,pressure_msl,visibility,wind_speed_10m,wind_direction_10m,wind_gusts_10m" +
+                     "&current=temperature_2m,relative_humidity_2m,apparent_temperature,dew_point_2m,precipitation,weather_code,cloud_cover,pressure_msl,visibility,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,snowfall,snow_depth,freezing_level_height,soil_temperature_0cm,is_day" +
                      "&minutely_15=precipitation,precipitation_probability,weather_code" +
-                     "&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,precipitation_probability,precipitation,weather_code,cloud_cover,visibility,wind_speed_10m,wind_gusts_10m" +
-                     "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,uv_index_max,sunrise,sunset" +
+                     "&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,precipitation_probability,precipitation,weather_code,cloud_cover,visibility,wind_speed_10m,wind_gusts_10m,pressure_msl,uv_index,snowfall,wind_direction_10m,freezing_level_height" +
+                     "&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_probability_max,precipitation_sum,precipitation_hours,sunshine_duration,snowfall_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,uv_index_max,sunrise,sunset" +
                      $"&models={BestMatch},{Ecmwf},{IconEurope}" +
                      $"&timezone={timeZone}&forecast_days=8&forecast_minutely_15=48";
         using JsonDocument document = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);
@@ -289,7 +295,13 @@ internal sealed class WeatherService : IDisposable
             Math.Clamp(GetInt(current, "cloud_cover") ?? 0, 0, 100),
             GetDouble(current, "precipitation") ?? 0,
             0,
-            weatherCode);
+            weatherCode,
+            GetDouble(current, "uv_index"),
+            GetDouble(current, "snowfall"),
+            GetDouble(current, "snow_depth"),
+            GetDouble(current, "freezing_level_height"),
+            GetDouble(current, "soil_temperature_0cm"),
+            GetInt(current, "is_day") == 1);
 
         JsonElement hourly = root.GetProperty("hourly");
         string[] hourTimes = ReadStringArray(hourly, "time");
@@ -304,6 +316,11 @@ internal sealed class WeatherService : IDisposable
         double[] hourVisibility = ReadModelDoubleArray(hourly, "visibility", BestMatch);
         double[] hourWind = ReadModelDoubleArray(hourly, "wind_speed_10m", BestMatch);
         double[] hourGust = ReadModelDoubleArray(hourly, "wind_gusts_10m", BestMatch);
+        double[] hourPressure = ReadOptionalModelDoubleArray(hourly, "pressure_msl", BestMatch);
+        double[] hourUv = ReadOptionalModelDoubleArray(hourly, "uv_index", BestMatch);
+        double[] hourSnow = ReadOptionalModelDoubleArray(hourly, "snowfall", BestMatch);
+        int[] hourWindDir = ReadOptionalModelIntArray(hourly, "wind_direction_10m", BestMatch);
+        double[] hourFreezingLevel = ReadOptionalModelDoubleArray(hourly, "freezing_level_height", BestMatch);
         double[][] modelTemps =
         [
             hourTemps,
@@ -343,7 +360,12 @@ internal sealed class WeatherService : IDisposable
                 hourRainChance[index], hourRain[index], hourWind[index], hourGust[index],
                 hourHumidity[index], hourDewPoint[index], hourVisibility[index] / 1000,
                 hourCloud[index], ConfidenceScore(index, modelTemps, modelRainChance),
-                hourCodes[index]));
+                hourCodes[index],
+                FiniteOrNull(hourPressure, index),
+                FiniteOrZero(hourUv, index),
+                FiniteOrZero(hourSnow, index),
+                ValidOrNull(hourWindDir, index),
+                FiniteOrNull(hourFreezingLevel, index)));
         }
 
         if (hours.Count > 0)
@@ -364,10 +386,16 @@ internal sealed class WeatherService : IDisposable
         string[] dayTimes = ReadStringArray(daily, "time");
         double[] dayMax = ReadModelDoubleArray(daily, "temperature_2m_max", BestMatch);
         double[] dayMin = ReadModelDoubleArray(daily, "temperature_2m_min", BestMatch);
+        double[] dayApparentMax = ReadOptionalModelDoubleArray(daily, "apparent_temperature_max", BestMatch);
+        double[] dayApparentMin = ReadOptionalModelDoubleArray(daily, "apparent_temperature_min", BestMatch);
         int[] dayRain = ReadModelIntArray(daily, "precipitation_probability_max", BestMatch);
         double[] dayRainAmount = ReadModelDoubleArray(daily, "precipitation_sum", BestMatch);
+        double[] dayRainHours = ReadOptionalModelDoubleArray(daily, "precipitation_hours", BestMatch);
+        double[] daySunshine = ReadOptionalModelDoubleArray(daily, "sunshine_duration", BestMatch);
+        double[] daySnow = ReadOptionalModelDoubleArray(daily, "snowfall_sum", BestMatch);
         double[] dayWind = ReadModelDoubleArray(daily, "wind_speed_10m_max", BestMatch);
         double[] dayGust = ReadModelDoubleArray(daily, "wind_gusts_10m_max", BestMatch);
+        int[] dayWindDir = ReadOptionalModelIntArray(daily, "wind_direction_10m_dominant", BestMatch);
         double[] dayUv = ReadModelDoubleArray(daily, "uv_index_max", BestMatch);
         int[] dayCodes = ReadModelIntArray(daily, "weather_code", BestMatch);
         string[] sunrises = ReadModelStringArray(daily, "sunrise", BestMatch);
@@ -405,7 +433,15 @@ internal sealed class WeatherService : IDisposable
             days.Add(new WeatherDay(date, dayMin[index], dayMax[index], dayRain[index],
                 dayRainAmount[index], dayWind[index], dayGust[index], dayUv[index],
                 ConfidenceScore(index, modelDayMax, modelDayRain), dayCodes[index],
-                sunrise, sunset));
+                sunrise, sunset,
+                FiniteOrNull(dayRainHours, index),
+                FiniteOrNull(daySunshine, index) is { } sunshineSeconds
+                    ? sunshineSeconds / 3600
+                    : null,
+                FiniteOrNull(daySnow, index),
+                ValidOrNull(dayWindDir, index),
+                FiniteOrNull(dayApparentMin, index),
+                FiniteOrNull(dayApparentMax, index)));
         }
 
         return new ForecastResult(currentResult, confidence, nowcast, hours, days);
@@ -525,7 +561,7 @@ internal sealed class WeatherService : IDisposable
         CancellationToken cancellationToken)
     {
         string url = $"{OpenMeteoAirBase}/air-quality?{Coordinates(location)}" +
-                     "&current=european_aqi,pm2_5,pm10,uv_index,grass_pollen,birch_pollen&timezone=auto";
+                     "&current=european_aqi,pm2_5,pm10,uv_index,grass_pollen,birch_pollen,nitrogen_dioxide,ozone,sulphur_dioxide,carbon_monoxide,alder_pollen,olive_pollen,ragweed_pollen&timezone=auto";
         using JsonDocument document = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);
         if (!document.RootElement.TryGetProperty("current", out JsonElement current))
         {
@@ -538,7 +574,14 @@ internal sealed class WeatherService : IDisposable
             GetDouble(current, "pm10"),
             GetDouble(current, "uv_index"),
             GetDouble(current, "grass_pollen"),
-            GetDouble(current, "birch_pollen"));
+            GetDouble(current, "birch_pollen"),
+            GetDouble(current, "nitrogen_dioxide"),
+            GetDouble(current, "ozone"),
+            GetDouble(current, "sulphur_dioxide"),
+            GetDouble(current, "carbon_monoxide"),
+            GetDouble(current, "alder_pollen"),
+            GetDouble(current, "olive_pollen"),
+            GetDouble(current, "ragweed_pollen"));
     }
 
     private async Task<WeatherAlert?> FetchWarningAsync(
@@ -994,6 +1037,12 @@ internal sealed class WeatherService : IDisposable
     private static double[] ReadModelDoubleArray(JsonElement parent, string name, string model) =>
         ReadDoubleArray(parent, $"{name}_{model}");
 
+    internal static double[] ReadOptionalModelDoubleArray(JsonElement parent, string name, string model)
+    {
+        double[] values = ReadModelDoubleArray(parent, name, model);
+        return values.Length > 0 ? values : ReadDoubleArray(parent, name);
+    }
+
     internal static int[] ReadIntArray(JsonElement parent, string name) =>
         parent.TryGetProperty(name, out JsonElement values)
             ? values.EnumerateArray().Select(value =>
@@ -1004,6 +1053,27 @@ internal sealed class WeatherService : IDisposable
 
     private static int[] ReadModelIntArray(JsonElement parent, string name, string model) =>
         ReadIntArray(parent, $"{name}_{model}");
+
+    private static int[] ReadOptionalModelIntArray(JsonElement parent, string name, string model)
+    {
+        int[] values = ReadModelIntArray(parent, name, model);
+        return values.Length > 0 && values.Any(value => value != int.MinValue)
+            ? values
+            : ReadIntArray(parent, name);
+    }
+
+    private static double? FiniteOrNull(double[] values, int index) =>
+        index >= 0 && index < values.Length && double.IsFinite(values[index])
+            ? values[index]
+            : null;
+
+    private static double FiniteOrZero(double[] values, int index) =>
+        FiniteOrNull(values, index) ?? 0;
+
+    private static int? ValidOrNull(int[] values, int index) =>
+        index >= 0 && index < values.Length && values[index] != int.MinValue
+            ? values[index]
+            : null;
 
     private static int MinLength(params int[] lengths) => lengths.Length == 0 ? 0 : lengths.Min();
 
@@ -1047,7 +1117,13 @@ internal sealed class WeatherService : IDisposable
         int CloudCover,
         double PrecipitationMillimetres,
         int PrecipitationProbability,
-        int WeatherCode);
+        int WeatherCode,
+        double? UvIndex = null,
+        double? SnowfallMillimetres = null,
+        double? SnowDepthCentimetres = null,
+        double? FreezingLevelMetres = null,
+        double? SoilTemperatureCelsius = null,
+        bool? IsDay = null);
 
     private sealed record ForecastResult(
         CurrentForecast Current,

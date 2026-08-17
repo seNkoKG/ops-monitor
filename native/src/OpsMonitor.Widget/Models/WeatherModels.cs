@@ -26,7 +26,12 @@ public sealed record WeatherHour(
     double VisibilityKilometres,
     int CloudCover,
     int ConfidenceScore,
-    int WeatherCode)
+    int WeatherCode,
+    double? PressureHectopascals = null,
+    double UvIndex = 0,
+    double SnowfallMillimetres = 0,
+    int? WindDirectionDegrees = null,
+    double? FreezingLevelMetres = null)
 {
     public string TimeLabel => Time.ToString("HH:mm", System.Globalization.CultureInfo.CurrentCulture);
 
@@ -34,7 +39,22 @@ public sealed record WeatherHour(
 
     public string RainLabel => $"{PrecipitationProbability}%";
 
-    public string DetailLabel => $"RH {RelativeHumidity}% · G {WindGustKilometresPerHour:0}";
+    public string DetailLabel =>
+        WeatherPresentation.Compass(WindDirectionDegrees) is { Length: > 0 } direction
+            ? $"{direction} {WindKilometresPerHour:0} km/h · G {WindGustKilometresPerHour:0}"
+            : $"{WindKilometresPerHour:0} km/h · G {WindGustKilometresPerHour:0}";
+
+    public string PressureLabel => PressureHectopascals is { } pressure
+        ? $"{pressure:0} hPa"
+        : "N/A";
+
+    public string UvLabel => UvIndex > 0
+        ? FormattableString.Invariant($"UV {UvIndex:0.0}")
+        : string.Empty;
+
+    public string SnowLabel => SnowfallMillimetres >= 0.05
+        ? FormattableString.Invariant($"{SnowfallMillimetres:0.#} mm snow")
+        : string.Empty;
 
     public string ConfidenceLabel => $"{ConfidenceScore}%";
 
@@ -69,7 +89,13 @@ public sealed record WeatherDay(
     int ConfidenceScore,
     int WeatherCode,
     DateTime? Sunrise,
-    DateTime? Sunset)
+    DateTime? Sunset,
+    double? PrecipitationHours = null,
+    double? SunshineHours = null,
+    double? SnowfallMillimetres = null,
+    int? DominantWindDirectionDegrees = null,
+    double? ApparentMinimumCelsius = null,
+    double? ApparentMaximumCelsius = null)
 {
     public string DayLabel => Date.Date == DateTime.Today
         ? "TODAY"
@@ -81,7 +107,15 @@ public sealed record WeatherDay(
         ? $"{PrecipitationProbability}% rain"
         : $"{PrecipitationProbability}% · {PrecipitationMillimetres:0.#} mm";
 
-    public string WindLabel => $"{WindKilometresPerHour:0} · gust {WindGustKilometresPerHour:0} km/h";
+    public string WindLabel => $"{WeatherPresentation.Compass(DominantWindDirectionDegrees)} {WindKilometresPerHour:0} · gust {WindGustKilometresPerHour:0} km/h";
+
+    public string SnowLabel => SnowfallMillimetres is >= 0.05
+        ? FormattableString.Invariant($"❄ {SnowfallMillimetres:0.#} cm")
+        : string.Empty;
+
+    public string DaylightLabel => PrecipitationHours is { } rainHours && SunshineHours is { } sunHours
+        ? FormattableString.Invariant($"☀ {sunHours:0.#}h · ☂ {rainHours:0.#}h")
+        : string.Empty;
 
     public string ConfidenceLabel => $"{ConfidenceScore}% agreement";
 
@@ -140,7 +174,14 @@ public sealed record AirQualitySnapshot(
     double? Pm10,
     double? UvIndex,
     double? GrassPollen,
-    double? BirchPollen)
+    double? BirchPollen,
+    double? NitrogenDioxide = null,
+    double? Ozone = null,
+    double? SulphurDioxide = null,
+    double? CarbonMonoxide = null,
+    double? AlderPollen = null,
+    double? OlivePollen = null,
+    double? RagweedPollen = null)
 {
     public string AqiLabel => EuropeanAqi switch
     {
@@ -180,13 +221,21 @@ public sealed record WeatherSnapshot(
     IReadOnlyList<WeatherMinute> Nowcast,
     IReadOnlyList<WeatherHour> Hourly,
     IReadOnlyList<WeatherDay> Daily,
-    bool IsStale = false)
+    bool IsStale = false,
+    double? UvIndex = null,
+    double? SnowfallMillimetres = null,
+    double? SnowDepthCentimetres = null,
+    double? FreezingLevelMetres = null,
+    double? SoilTemperatureCelsius = null,
+    bool? IsDay = null)
 {
     public string TemperatureLabel => $"{Math.Round(TemperatureCelsius):0}°";
 
     public string Condition => WeatherPresentation.Condition(WeatherCode);
 
-    public string Icon => WeatherPresentation.Icon(WeatherCode, DateTime.Now.Hour is >= 6 and < 21);
+    public string Icon => WeatherPresentation.Icon(
+        WeatherCode,
+        IsDay ?? DateTime.Now.Hour is >= 6 and < 21);
 
     public string FeelsLikeLabel => $"Feels {Math.Round(FeelsLikeCelsius):0}°";
 
@@ -212,6 +261,22 @@ public sealed record WeatherSnapshot(
         ? $"{pressure:0} hPa"
         : "N/A";
 
+    public string UvIndexLabel => UvIndex is { } uv
+        ? FormattableString.Invariant($"{uv:0.0}")
+        : "N/A";
+
+    public string SnowDepthLabel => SnowDepthCentimetres is >= 0.1
+        ? FormattableString.Invariant($"{SnowDepthCentimetres:0.#} cm")
+        : "N/A";
+
+    public string FreezingLevelLabel => FreezingLevelMetres is { } level
+        ? FormattableString.Invariant($"{level:0} m")
+        : "N/A";
+
+    public string SoilTemperatureLabel => SoilTemperatureCelsius is { } soil
+        ? FormattableString.Invariant($"{soil:0.0}°")
+        : "N/A";
+
     public string RainLabel => $"{PrecipitationProbability}%";
 
     public string CoordinateLabel =>
@@ -226,6 +291,17 @@ public sealed record WeatherSnapshot(
 
 public static class WeatherPresentation
 {
+    public static string Compass(int? degrees) => degrees is not { } value
+        ? string.Empty
+        : CompassDegrees(value);
+
+    public static string CompassDegrees(double degrees)
+    {
+        string[] directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+        int index = (int)Math.Round(((degrees % 360) + 360) % 360 / 45, MidpointRounding.AwayFromZero) % 8;
+        return directions[index];
+    }
+
     public static string Condition(int code) => code switch
     {
         0 => "Clear sky",

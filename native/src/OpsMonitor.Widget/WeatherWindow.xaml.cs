@@ -224,6 +224,7 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
 
         OnPropertyChanged(nameof(DaylightLabel));
         StatusText = $"{snapshot.FreshnessLabel} · {snapshot.ObservationSource} · {snapshot.Confidence.Label}";
+        Dispatcher.BeginInvoke(UpdateStripButtons, DispatcherPriority.Loaded);
     }
 
     private async Task RefreshWeatherAsync()
@@ -449,6 +450,74 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
         {
             DragMove();
         }
+    }
+
+    private const double StripScrollStep = 330;
+
+    private void NowcastScrollLeft_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        ScrollStrip(NowcastScroller, -StripScrollStep);
+    }
+
+    private void NowcastScrollRight_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        ScrollStrip(NowcastScroller, StripScrollStep);
+    }
+
+    private void HourlyScrollLeft_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        ScrollStrip(HourlyScroller, -StripScrollStep);
+    }
+
+    private void HourlyScrollRight_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        ScrollStrip(HourlyScroller, StripScrollStep);
+    }
+
+    private static void ScrollStrip(System.Windows.Controls.ScrollViewer scroller, double delta)
+    {
+        scroller.ScrollToHorizontalOffset(scroller.HorizontalOffset + delta);
+    }
+
+    private void HorizontalStrip_OnScrollChanged(object sender, System.Windows.Controls.ScrollChangedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        UpdateStripButtons();
+    }
+
+    private void UpdateStripButtons()
+    {
+        NowcastScrollLeft.IsEnabled = NowcastScroller.HorizontalOffset > 0;
+        NowcastScrollRight.IsEnabled = NowcastScroller.HorizontalOffset < NowcastScroller.ScrollableWidth;
+        HourlyScrollLeft.IsEnabled = HourlyScroller.HorizontalOffset > 0;
+        HourlyScrollRight.IsEnabled = HourlyScroller.HorizontalOffset < HourlyScroller.ScrollableWidth;
+    }
+
+    private void HorizontalStrip_OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.ScrollViewer scroller)
+        {
+            return;
+        }
+
+        if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+        {
+            scroller.ScrollToHorizontalOffset(scroller.HorizontalOffset - e.Delta);
+            e.Handled = true;
+            return;
+        }
+
+        e.Handled = true;
+        OverviewScroller.ScrollToVerticalOffset(OverviewScroller.VerticalOffset - e.Delta);
     }
 
     private static T? FindVisualAncestor<T>(DependencyObject? element) where T : DependencyObject

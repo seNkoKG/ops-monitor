@@ -70,10 +70,21 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Chrome" Property="Opacity" Value="0.78" />
                             </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.3" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+        <Style x:Key="StripChevronButton" TargetType="Button" BasedOn="{StaticResource WeatherButton}">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="3,0,0,0" />
+            <Setter Property="FontSize" Value="15" />
         </Style>
         <Style TargetType="TabItem">
             <Setter Property="Foreground" Value="{StaticResource WeatherMuted}" />
@@ -210,7 +221,7 @@
                         Background="Transparent" BorderThickness="0"
                         SelectionChanged="WeatherTabs_OnSelectionChanged">
                 <TabItem Header="OVERVIEW">
-                    <ScrollViewer Margin="0,12,0,0" VerticalScrollBarVisibility="Hidden">
+                    <ScrollViewer x:Name="OverviewScroller" Margin="0,12,0,0" VerticalScrollBarVisibility="Hidden">
                         <StackPanel Margin="6,0,6,16">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -276,7 +287,7 @@
                                                            Text="{Binding Current.CoordinateLabel}" />
                                             </StackPanel>
                                         </Grid>
-                                        <UniformGrid Grid.Row="1" Margin="0,16,0,0" Columns="2" Rows="4">
+                                        <UniformGrid Grid.Row="1" Margin="0,16,0,0" Columns="2" Rows="6">
                                             <StackPanel Margin="0,0,10,12">
                                                 <TextBlock Style="{StaticResource MutedText}" Text="HUMIDITY" />
                                                 <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
@@ -298,9 +309,10 @@
                                                            Text="{Binding Current.PressureLabel}" />
                                             </StackPanel>
                                             <StackPanel Margin="0,12,10,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="WIND GUST" />
+                                                <TextBlock Style="{StaticResource MutedText}" Text="UV INDEX" />
                                                 <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Text="{Binding Current.GustLabel}" />
+                                                           Foreground="{StaticResource WeatherAmber}"
+                                                           Text="{Binding Current.UvIndexLabel}" />
                                             </StackPanel>
                                             <StackPanel Margin="10,12,0,0">
                                                 <TextBlock Style="{StaticResource MutedText}" Text="DEW POINT" />
@@ -316,6 +328,27 @@
                                                 <TextBlock Style="{StaticResource MutedText}" Text="CLOUD COVER" />
                                                 <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
                                                            Text="{Binding Current.CloudLabel}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,12,10,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="SNOW DEPTH" />
+                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource WeatherBlue}"
+                                                           Text="{Binding Current.SnowDepthLabel}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="10,12,0,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="FREEZING LEVEL" />
+                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
+                                                           Text="{Binding Current.FreezingLevelLabel}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,12,10,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="WIND GUST" />
+                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
+                                                           Text="{Binding Current.GustLabel}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="10,12,0,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="SOIL TEMP" />
+                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
+                                                           Text="{Binding Current.SoilTemperatureLabel}" />
                                             </StackPanel>
                                         </UniformGrid>
                                     </Grid>
@@ -375,12 +408,18 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource SectionTitle}" Text="NEXT 4 HOURS · 15-MINUTE RAIN" />
-                                <TextBlock Grid.Column="1" Style="{StaticResource MutedText}"
-                                           Text="High-resolution Central Europe guidance" />
+                                <Button x:Name="NowcastScrollLeft" Grid.Column="1" Click="NowcastScrollLeft_OnClick" Style="{StaticResource StripChevronButton}" Content="‹" ToolTip="Scroll nowcast left" />
+                                <Button x:Name="NowcastScrollRight" Grid.Column="2" Click="NowcastScrollRight_OnClick" Style="{StaticResource StripChevronButton}" Content="›" ToolTip="Scroll nowcast right" />
                             </Grid>
-                            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                            <ScrollViewer x:Name="NowcastScroller"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Disabled"
+                                          PanningMode="HorizontalOnly"
+                                          ScrollChanged="HorizontalStrip_OnScrollChanged"
+                                          PreviewMouseWheel="HorizontalStrip_OnPreviewMouseWheel">
                                 <ItemsControl ItemsSource="{Binding Nowcast}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
@@ -405,8 +444,22 @@
                                 </ItemsControl>
                             </ScrollViewer>
 
-                            <TextBlock Margin="2,18,0,9" Style="{StaticResource SectionTitle}" Text="NEXT 24 HOURS" />
-                            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                            <Grid Margin="2,18,0,9">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource SectionTitle}" Text="NEXT 24 HOURS" />
+                                <Button x:Name="HourlyScrollLeft" Grid.Column="1" Click="HourlyScrollLeft_OnClick" Style="{StaticResource StripChevronButton}" Content="‹" ToolTip="Scroll hourly forecast left" />
+                                <Button x:Name="HourlyScrollRight" Grid.Column="2" Click="HourlyScrollRight_OnClick" Style="{StaticResource StripChevronButton}" Content="›" ToolTip="Scroll hourly forecast right" />
+                            </Grid>
+                            <ScrollViewer x:Name="HourlyScroller"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Disabled"
+                                          PanningMode="HorizontalOnly"
+                                          ScrollChanged="HorizontalStrip_OnScrollChanged"
+                                          PreviewMouseWheel="HorizontalStrip_OnPreviewMouseWheel">
                                 <ItemsControl ItemsSource="{Binding Hourly}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
@@ -428,6 +481,15 @@
                                                                Foreground="{StaticResource WeatherMuted}" FontSize="9"
                                                                Text="{Binding DetailLabel}" />
                                                     <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center"
+                                                               Foreground="{StaticResource WeatherMuted}" FontSize="9"
+                                                               Text="{Binding PressureLabel}" />
+                                                    <TextBlock Margin="0,2,0,0" HorizontalAlignment="Center"
+                                                               Foreground="{StaticResource WeatherAmber}" FontSize="9"
+                                                               Text="{Binding UvLabel}" />
+                                                    <TextBlock Margin="0,2,0,0" HorizontalAlignment="Center"
+                                                               Foreground="{StaticResource WeatherBlue}" FontSize="9"
+                                                               Text="{Binding SnowLabel}" />
+                                                    <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center"
                                                                Foreground="{StaticResource WeatherGreen}" FontSize="9"
                                                                Text="{Binding ConfidenceLabel, StringFormat={}AGREE {0}}" />
                                                 </StackPanel>
@@ -447,15 +509,22 @@
                                                     <ColumnDefinition Width="92" />
                                                     <ColumnDefinition Width="48" />
                                                     <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="155" />
+                                                    <ColumnDefinition Width="150" />
                                                     <ColumnDefinition Width="175" />
-                                                    <ColumnDefinition Width="108" />
+                                                    <ColumnDefinition Width="110" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding DayLabel}" />
+                                                <StackPanel>
+                                                    <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding DayLabel}" />
+                                                    <TextBlock Margin="0,2,0,0" Foreground="{StaticResource WeatherAmber}"
+                                                               FontSize="9" Text="{Binding DaylightLabel}" />
+                                                </StackPanel>
                                                 <TextBlock Grid.Column="1" VerticalAlignment="Center" FontFamily="Segoe UI Emoji"
                                                            FontSize="25" Text="{Binding Icon}" />
-                                                <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="16"
-                                                           FontWeight="SemiBold" Text="{Binding RangeLabel}" />
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="{Binding RangeLabel}" />
+                                                    <TextBlock Margin="0,2,0,0" Foreground="{StaticResource WeatherBlue}"
+                                                               FontSize="9" Text="{Binding SnowLabel}" />
+                                                </StackPanel>
                                                 <TextBlock Grid.Column="3" VerticalAlignment="Center" Foreground="{StaticResource WeatherCyan}"
                                                            Text="{Binding RainLabel}" />
                                                 <TextBlock Grid.Column="4" VerticalAlignment="Center"
@@ -573,6 +642,28 @@
                                                            Text="{Binding Current.AirQuality.Pm10, StringFormat={}{0:0.0} μg/m³, TargetNullValue=N/A}" />
                                             </StackPanel>
                                         </UniformGrid>
+                                        <UniformGrid Margin="0,14,0,0" Columns="4">
+                                            <StackPanel Margin="0,0,8,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="NO₂" />
+                                                <TextBlock Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold"
+                                                           Text="{Binding Current.AirQuality.NitrogenDioxide, StringFormat={}{0:0.0} μg/m³, TargetNullValue=N/A}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,8,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="O₃" />
+                                                <TextBlock Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold"
+                                                           Text="{Binding Current.AirQuality.Ozone, StringFormat={}{0:0.0} μg/m³, TargetNullValue=N/A}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,8,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="SO₂" />
+                                                <TextBlock Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold"
+                                                           Text="{Binding Current.AirQuality.SulphurDioxide, StringFormat={}{0:0.0} μg/m³, TargetNullValue=N/A}" />
+                                            </StackPanel>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource MutedText}" Text="CO" />
+                                                <TextBlock Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold"
+                                                           Text="{Binding Current.AirQuality.CarbonMonoxide, StringFormat={}{0:0.0} mg/m³, TargetNullValue=N/A}" />
+                                            </StackPanel>
+                                        </UniformGrid>
                                     </StackPanel>
                                 </Border>
                                 <Border Grid.Column="1" Margin="7,0,0,0" Padding="24" Style="{StaticResource GlassCard}">
@@ -599,6 +690,23 @@
                                                 <TextBlock Style="{StaticResource MutedText}" Text="TODAY MAX UV" />
                                                 <TextBlock Margin="0,4,0,0" FontSize="25" FontWeight="SemiBold"
                                                            Text="{Binding Daily[0].UvIndex, StringFormat={}{0:0.0}, TargetNullValue=N/A}" />
+                                            </StackPanel>
+                                        </UniformGrid>
+                                        <UniformGrid Margin="0,10,0,0" Columns="2" Rows="2">
+                                            <StackPanel Margin="0,0,10,12">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="ALDER POLLEN" />
+                                                <TextBlock Margin="0,4,0,0" FontSize="18" FontWeight="SemiBold"
+                                                           Text="{Binding Current.AirQuality.AlderPollen, StringFormat={}{0:0}, TargetNullValue=N/A}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="10,0,0,12">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="OLIVE POLLEN" />
+                                                <TextBlock Margin="0,4,0,0" FontSize="18" FontWeight="SemiBold"
+                                                           Text="{Binding Current.AirQuality.OlivePollen, StringFormat={}{0:0}, TargetNullValue=N/A}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,10,0">
+                                                <TextBlock Style="{StaticResource MutedText}" Text="RAGWEED POLLEN" />
+                                                <TextBlock Margin="0,4,0,0" FontSize="18" FontWeight="SemiBold"
+                                                           Text="{Binding Current.AirQuality.RagweedPollen, StringFormat={}{0:0}, TargetNullValue=N/A}" />
                                             </StackPanel>
                                         </UniformGrid>
                                     </StackPanel>

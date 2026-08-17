@@ -53,6 +53,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("invalid settings fall back without crashing", TestInvalidSettingsAsync),
     ("widget modules honor Core order and visibility", TestWidgetModulesAsync),
     ("weather settings and ARSO feeds normalize safely", TestWeatherIntegrationAsync),
+    ("weather advanced stats format without fabricating values", TestWeatherAdvancedStatsAsync),
     ("widget battery changes preserve unrelated Core modules", TestWidgetBatterySaveAsync),
     ("widget module presentation saves without collapsing latency", TestWidgetModuleSaveAsync),
     ("widget sizing preserves classic footprints and expands by module count", TestWidgetSizingAsync),
@@ -1462,7 +1463,7 @@ static Task TestWeatherIntegrationAsync()
     Assert.Equal(18.1, observation.DewPointCelsius ?? double.NaN, "ARSO dew point");
     Assert.Equal(0.4, observation.PrecipitationMillimetres ?? double.NaN, "ARSO precipitation");
 
-    using (JsonDocument nullableForecast = JsonDocument.Parse(
+using (JsonDocument nullableForecast = JsonDocument.Parse(
                """{"doubleValues":[15.2,null,16.1],"intValues":[72,null,81]}"""))
     {
         double[] doubleValues = WeatherService.ReadDoubleArray(
@@ -1475,6 +1476,23 @@ static Task TestWeatherIntegrationAsync()
             "nullable forecast double was converted into fabricated zero");
         Assert.Equal(int.MinValue, intValues[1],
             "nullable forecast integer was converted into fabricated zero");
+    }
+
+    using (JsonDocument fallbackForecast = JsonDocument.Parse(
+               """{"plain":[1.5,2.5],"plain_best_match":[3.5,4.5]}"""))
+    {
+        double[] suffixed = WeatherService.ReadOptionalModelDoubleArray(
+            fallbackForecast.RootElement,
+            "plain",
+            "best_match");
+        Assert.Equal(2, suffixed.Length, "optional model array length");
+        Assert.Equal(3.5, suffixed[0], "suffixed model array was not preferred");
+
+        double[] missing = WeatherService.ReadOptionalModelDoubleArray(
+            fallbackForecast.RootElement,
+            "missing",
+            "best_match");
+        Assert.Equal(0, missing.Length, "missing optional array length");
     }
 
     const string outlookXml = """
@@ -1493,6 +1511,125 @@ static Task TestWeatherIntegrationAsync()
     Assert.True(warning is not null, "ARSO CAP warning was not parsed");
     Assert.Equal(2, warning!.Level, "ARSO CAP awareness level");
     Assert.Equal("Thunderstorm warning", warning.Headline, "ARSO CAP headline");
+    return Task.CompletedTask;
+}
+
+static Task TestWeatherAdvancedStatsAsync()
+{
+var day = new WeatherDay(
+        new DateTime(2026, 8, 20),
+        MinimumCelsius: 12,
+        MaximumCelsius: 27,
+        PrecipitationProbability: 45,
+        PrecipitationMillimetres: 3.2,
+        WindKilometresPerHour: 14,
+        WindGustKilometresPerHour: 31,
+        UvIndex: 6.8,
+        ConfidenceScore: 82,
+        WeatherCode: 61,
+        Sunrise: new DateTime(2026, 8, 20, 6, 2, 0),
+        Sunset: new DateTime(2026, 8, 20, 20, 15, 0),
+        PrecipitationHours: 2.5,
+        SunshineHours: 4.2,
+        SnowfallMillimetres: 0,
+        DominantWindDirectionDegrees: 225,
+        ApparentMinimumCelsius: 10,
+        ApparentMaximumCelsius: 29);
+
+    Assert.Equal("SW 14 · gust 31 km/h", day.WindLabel, "daily dominant wind direction");
+    Assert.Equal("☀ 4.2h · ☂ 2.5h", day.DaylightLabel, "daily daylight breakdown");
+    Assert.Equal(string.Empty, day.SnowLabel, "dry day snow label");
+
+    var snowy = day with
+    {
+        SnowfallMillimetres = 8.4,
+        DominantWindDirectionDegrees = 90
+    };
+    Assert.Equal("❄ 8.4 cm", snowy.SnowLabel, "daily snowfall label");
+    Assert.Equal("E 14 · gust 31 km/h", snowy.WindLabel, "daily east wind direction");
+
+    var hour = new WeatherHour(
+        new DateTime(2026, 8, 20, 10, 0, 0),
+        TemperatureCelsius: 24,
+        FeelsLikeCelsius: 25,
+        PrecipitationProbability: 20,
+        PrecipitationMillimetres: 0,
+        WindKilometresPerHour: 9,
+        WindGustKilometresPerHour: 17,
+        RelativeHumidity: 61,
+        DewPointCelsius: 16,
+        VisibilityKilometres: 18,
+        CloudCover: 40,
+        ConfidenceScore: 78,
+        WeatherCode: 2,
+        PressureHectopascals: 1013.2,
+        UvIndex: 5.4,
+        SnowfallMillimetres: 0,
+        WindDirectionDegrees: 315,
+        FreezingLevelMetres: 3300);
+    Assert.Equal("NW 9 km/h · G 17", hour.DetailLabel, "hourly wind detail");
+    Assert.Equal("1013 hPa", hour.PressureLabel, "hourly pressure label");
+    Assert.Equal("UV 5.4", hour.UvLabel, "hourly UV label");
+    Assert.Equal(string.Empty, hour.SnowLabel, "dry hour snow label");
+
+    var snowHour = hour with
+    {
+        SnowfallMillimetres = 1.2,
+        WindDirectionDegrees = null
+    };
+    Assert.Equal("1.2 mm snow", snowHour.SnowLabel, "hourly snowfall label");
+    Assert.Equal(
+        "9 km/h · G 17",
+        snowHour.DetailLabel,
+        "missing wind direction is not fabricated");
+
+    var snapshot = new WeatherSnapshot(
+        new WeatherLocation("Celje", "Slovenia", 46.2366, 15.2259, "Europe/Ljubljana", "CELJE_MEDLOG"),
+        new DateTimeOffset(2026, 8, 20, 8, 0, 0, TimeSpan.Zero),
+        ObservationTime: null,
+        ObservationSource: "Open-Meteo",
+        StationName: "Celje",
+        TemperatureCelsius: 24,
+        FeelsLikeCelsius: 25,
+        RelativeHumidity: 61,
+        WindKilometresPerHour: 9,
+        WindGustKilometresPerHour: 17,
+        WindDirection: "N",
+        PressureHectopascals: 1013.2,
+        DewPointCelsius: 16,
+        VisibilityKilometres: 18,
+        CloudCover: 40,
+        PrecipitationMillimetres: 0,
+        PrecipitationProbability: 20,
+        WeatherCode: 0,
+        AirQuality: null,
+        Alert: null,
+        Confidence: new ForecastConfidence(80, 1.2, 15, 3),
+        OfficialOutlook: null,
+        Nowcast: [],
+        Hourly: [hour],
+        Daily: [day],
+        UvIndex: 6.2,
+        SnowfallMillimetres: 0,
+        SnowDepthCentimetres: 3.5,
+        FreezingLevelMetres: 3400,
+        SoilTemperatureCelsius: 21.4,
+        IsDay: true);
+    Assert.Equal("6.2", snapshot.UvIndexLabel, "current UV label");
+    Assert.Equal("3.5 cm", snapshot.SnowDepthLabel, "current snow depth label");
+    Assert.Equal("3400 m", snapshot.FreezingLevelLabel, "current freezing level label");
+    Assert.Equal("21.4°", snapshot.SoilTemperatureLabel, "current soil temperature label");
+
+    var night = snapshot with { IsDay = false };
+    Assert.False(
+        string.Equals(snapshot.Icon, night.Icon, StringComparison.Ordinal),
+        "is_day flag did not change the current icon");
+
+    Assert.Equal("N", WeatherPresentation.Compass(0), "north compass");
+    Assert.Equal("NE", WeatherPresentation.Compass(45), "north-east compass");
+    Assert.Equal("SW", WeatherPresentation.Compass(225), "south-west compass");
+    Assert.Equal("N", WeatherPresentation.Compass(360), "compass wrap-around");
+    Assert.Equal(string.Empty, WeatherPresentation.Compass(null), "null compass is empty");
     return Task.CompletedTask;
 }
 
