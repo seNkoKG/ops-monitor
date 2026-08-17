@@ -1,0 +1,7 @@
+Meteocons static weather icons
+Copyright (c) 2020-present Bas Milius
+
+Licensed under the MIT License. The complete license text is available at:
+https://github.com/basmilius/meteocons/blob/main/packages/svg-static/LICENSE
+
+This application bundles selected assets from @meteocons/svg-static 0.1.0.

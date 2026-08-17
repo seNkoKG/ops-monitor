@@ -93,9 +93,9 @@ the setup executable:
 
 ```text
 artifacts\publish\framework-dependent\
-artifacts\publish\OPS-Monitor-v3.4.6-framework-dependent.zip
+artifacts\publish\OPS-Monitor-v3.4.7-framework-dependent.zip
 artifacts\publish\win-x64-self-contained\
-artifacts\publish\OPS-Monitor-v3.4.6-win-x64-self-contained.zip
+artifacts\publish\OPS-Monitor-v3.4.7-win-x64-self-contained.zip
 ```
 
 Widget and Studio intentionally live in the same folder. This lets each app open
@@ -130,7 +130,7 @@ dotnet run --project .\tests\OpsMonitor.Tests\OpsMonitor.Tests.csproj -c Release
 ## Install for the current user
 
 For normal use, download the self-contained
-`OPS-Monitor-v3.4.6-win-x64-self-contained.zip` portable package or run
+`OPS-Monitor-v3.4.7-win-x64-self-contained.zip` portable package or run
 `Install.ps1`. It installs into `%LOCALAPPDATA%\Programs\OPS Monitor`, registers
 with Installed Apps, supports in-place upgrades, and preserves
 `%LOCALAPPDATA%\OPS Monitor` on uninstall.

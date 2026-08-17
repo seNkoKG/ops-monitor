@@ -1,25 +1,25 @@
+using System.Collections.Concurrent;
+using System.Globalization;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
-using Drawing = System.Drawing;
+using System.Xml.Linq;
 using MediaColor = System.Windows.Media.Color;
 using MediaPoint = System.Windows.Point;
 
 namespace OpsMonitor.Widget.Controls;
 
 /// <summary>
-/// Renders a weather condition as colorful, animated vector art. The icon is
-/// resolution-independent (the scene is drawn in a 100×100 unit space and
-/// scaled to whatever size the host gives it) and uses no external assets, so
-/// it stays free, offline-capable, and dependency-light. Subtle looping motion
-/// is used only when Windows animations are enabled and the host allows motion.
+/// Native WPF renderer for bundled Meteocons artwork. SVG is parsed once into
+/// WPF shapes, then each control instance receives its own animated scene.
 /// </summary>
 public sealed class WeatherIcon : ContentControl
 {
-    private const double Scene = 100;
-    private const double CloudY = 46;
+    private const double SceneSize = 128;
+    private static readonly ConcurrentDictionary<string, XDocument?> Documents = new();
 
     public static readonly DependencyProperty WeatherCodeProperty =
         DependencyProperty.Register(
@@ -42,16 +42,14 @@ public sealed class WeatherIcon : ContentControl
             typeof(WeatherIcon),
             new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender, OnIconChanged));
 
-    /// <summary>
-    /// Global gate for looping animation. Set from the owning window based on
-    /// the user's theme motion preference and Windows animation settings.
-    /// </summary>
     public static bool MotionEnabled { get; set; } = true;
 
-    private readonly Canvas _scene = new() { Width = Scene, Height = Scene };
+    private readonly Canvas _scene = new() { Width = SceneSize, Height = SceneSize };
     private Storyboard? _storyboard;
     private bool _loaded;
-    private bool _wasVisible;
+    private bool _visible;
+
+    internal bool HasBundledAsset { get; private set; }
 
     public WeatherIcon()
     {
@@ -64,11 +62,20 @@ public sealed class WeatherIcon : ContentControl
             Stretch = Stretch.Uniform,
             Child = _scene
         };
-        Loaded += (_, _) => { _loaded = true; RefreshAnimation(); };
-        Unloaded += (_, _) => { _loaded = false; StopAnimation(); };
+        Loaded += (_, _) =>
+        {
+            _loaded = true;
+            RefreshAnimation();
+        };
+        Unloaded += (_, _) =>
+        {
+            _loaded = false;
+            StopAnimation();
+        };
         IsVisibleChanged += (_, _) => RefreshAnimation();
         RebuildScene();
     }
+
     public int WeatherCode
     {
         get => (int)GetValue(WeatherCodeProperty);
@@ -81,10 +88,6 @@ public sealed class WeatherIcon : ContentControl
         set => SetValue(IsDayProperty, value);
     }
 
-    /// <summary>
-    /// Subtle mode reduces motion to a single slow element for small cards,
-    /// keeping dozens of forecast cards light on the render thread.
-    /// </summary>
     public bool Subtle
     {
         get => (bool)GetValue(SubtleProperty);
@@ -103,26 +106,49 @@ public sealed class WeatherIcon : ContentControl
     {
         StopAnimation();
         _scene.Children.Clear();
-        _storyboard = BuildScene();
-        _wasVisible = false;
+        string asset = SelectAsset(WeatherCode, IsDay);
+        XDocument? document = Documents.GetOrAdd(asset, LoadDocument);
+        HasBundledAsset = document is not null;
+        if (document is not null)
+        {
+            RenderSvg(document, _scene);
+        }
+        else
+        {
+            RenderFallback(_scene);
+        }
+
+        _storyboard = BuildMotion(asset);
+        _visible = false;
         RefreshAnimation();
     }
 
-    private static bool ShouldAnimate =>
-        MotionEnabled && SystemParameters.ClientAreaAnimation;
+    private static XDocument? LoadDocument(string asset)
+    {
+        string resourceName = $"{typeof(WeatherIcon).Assembly.GetName().Name}.Assets.Weather.{asset}";
+        using System.IO.Stream? stream = typeof(WeatherIcon).Assembly.GetManifestResourceStream(resourceName);
+        if (stream is null)
+        {
+            return null;
+        }
+
+        return XDocument.Load(stream, LoadOptions.PreserveWhitespace);
+    }
+
+    private static bool ShouldAnimate => MotionEnabled && SystemParameters.ClientAreaAnimation;
 
     private void RefreshAnimation()
     {
         bool visible = _loaded && IsVisible;
-        if (visible == _wasVisible)
+        if (visible == _visible)
         {
             return;
         }
 
-        _wasVisible = visible;
+        _visible = visible;
         if (visible && ShouldAnimate)
         {
-            StartAnimation();
+            _storyboard?.Begin(this, true);
         }
         else
         {
@@ -130,476 +156,443 @@ public sealed class WeatherIcon : ContentControl
         }
     }
 
-    private void StartAnimation()
-    {
-        if (_storyboard is null || !ShouldAnimate || !IsVisible)
-        {
-            return;
-        }
-
-        _storyboard.Begin(this, true);
-    }
-
     private void StopAnimation()
     {
-        if (_storyboard is not null)
-        {
-            _storyboard.Stop(this);
-        }
+        _storyboard?.Stop(this);
     }
 
-    private Storyboard? BuildScene()
+    private Storyboard BuildMotion(string asset)
     {
-        var storyboard = new Storyboard { RepeatBehavior = RepeatBehavior.Forever };
-        var condition = Classify(WeatherCode);
-        var isDay = IsDay;
+        var storyboard = new Storyboard();
+        var transform = new TransformGroup();
+        var scale = new ScaleTransform(1, 1, SceneSize / 2, SceneSize / 2);
+        var drift = new TranslateTransform();
+        transform.Children.Add(scale);
+        transform.Children.Add(drift);
+        _scene.RenderTransform = transform;
 
-        switch (condition)
+        double duration = Subtle ? 5.5 : 3.8;
+        var floatAnimation = new DoubleAnimation(-1.4, 1.4, TimeSpan.FromSeconds(duration))
         {
-            case WeatherKind.Clear:
-                if (isDay)
-                {
-                    BuildSun(_scene, storyboard, animateRays: !Subtle, animateGlow: true);
-                }
-                else
-                {
-                    BuildMoon(_scene, storyboard, animateStars: true);
-                }
+            AutoReverse = true,
+            RepeatBehavior = RepeatBehavior.Forever,
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+        };
+        Storyboard.SetTarget(floatAnimation, drift);
+        Storyboard.SetTargetProperty(floatAnimation, new PropertyPath(TranslateTransform.YProperty));
+        storyboard.Children.Add(floatAnimation);
 
-                break;
+        var breathe = new DoubleAnimation(1, Subtle ? 1.015 : 1.035, TimeSpan.FromSeconds(duration + 1.2))
+        {
+            AutoReverse = true,
+            RepeatBehavior = RepeatBehavior.Forever,
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+        };
+        Storyboard.SetTarget(breathe, scale);
+        Storyboard.SetTargetProperty(breathe, new PropertyPath(ScaleTransform.ScaleXProperty));
+        storyboard.Children.Add(breathe);
 
-            case WeatherKind.PartlyCloudy:
-                if (isDay)
-                {
-                    BuildSun(_scene, storyboard, animateRays: !Subtle, animateGlow: true);
-                    BuildCloud(_scene, storyboard, CloudY, scale: 0.62, driftSeconds: 9, animate: true);
-                }
-                else
-                {
-                    BuildMoon(_scene, storyboard, animateStars: !Subtle);
-                    BuildCloud(_scene, storyboard, CloudY, scale: 0.62, driftSeconds: 9, animate: true);
-                }
+        var breatheY = breathe.Clone();
+        Storyboard.SetTarget(breatheY, scale);
+        Storyboard.SetTargetProperty(breatheY, new PropertyPath(ScaleTransform.ScaleYProperty));
+        storyboard.Children.Add(breatheY);
 
-                break;
+        if (!Subtle && asset.Contains("clear-day", StringComparison.Ordinal))
+        {
+            var rotation = new RotateTransform(0, SceneSize / 2, SceneSize / 2);
+            _scene.RenderTransform = rotation;
+            var spin = new DoubleAnimation(0, 360, TimeSpan.FromSeconds(48))
+            {
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = null
+            };
+            Storyboard.SetTarget(spin, rotation);
+            Storyboard.SetTargetProperty(spin, new PropertyPath(RotateTransform.AngleProperty));
+            storyboard.Children.Add(spin);
+        }
 
-            case WeatherKind.Overcast:
-                BuildCloud(_scene, storyboard, CloudY, scale: 0.72, driftSeconds: 11, animate: true);
-                BuildCloud(_scene, storyboard, CloudY + 10, scale: 0.55, driftSeconds: 15, animate: true, offset: 18);
-                break;
+        Canvas overlay = new() { Width = SceneSize, Height = SceneSize, IsHitTestVisible = false };
+        if (asset.Contains("rain", StringComparison.Ordinal) || asset.Contains("drizzle", StringComparison.Ordinal))
+        {
+            AddRainOverlay(overlay, storyboard);
+        }
+        else if (asset.Contains("snow", StringComparison.Ordinal))
+        {
+            AddSnowOverlay(overlay, storyboard);
+        }
+        else if (asset.Contains("thunderstorms", StringComparison.Ordinal))
+        {
+            AddLightningOverlay(overlay, storyboard);
+        }
 
-            case WeatherKind.Fog:
-                BuildFog(_scene, storyboard);
-                break;
-
-            case WeatherKind.Drizzle:
-                BuildCloud(_scene, storyboard, CloudY, scale: 0.72, driftSeconds: 11, animate: true);
-                BuildPrecipitation(_scene, storyboard, rain: true, heavy: false, snow: false, dropScale: 0.7);
-                break;
-
-            case WeatherKind.Rain:
-            case WeatherKind.Showers:
-                BuildCloud(_scene, storyboard, CloudY, scale: 0.78, driftSeconds: 11, animate: true, darker: true);
-                BuildPrecipitation(_scene, storyboard, rain: true, heavy: condition == WeatherKind.Showers, snow: false, dropScale: 1);
-                break;
-
-            case WeatherKind.Snow:
-                BuildCloud(_scene, storyboard, CloudY, scale: 0.78, driftSeconds: 11, animate: true, darker: true);
-                BuildPrecipitation(_scene, storyboard, rain: false, heavy: false, snow: true, dropScale: 1);
-                break;
-
-            case WeatherKind.Thunder:
-                BuildCloud(_scene, storyboard, CloudY, scale: 0.82, driftSeconds: 13, animate: true, darker: true);
-                BuildLightning(_scene, storyboard);
-                BuildPrecipitation(_scene, storyboard, rain: true, heavy: true, snow: false, dropScale: 0.9);
-                break;
-
-            default:
-                BuildSun(_scene, storyboard, animateRays: !Subtle, animateGlow: true);
-                break;
+        if (overlay.Children.Count > 0)
+        {
+            _scene.Children.Add(overlay);
         }
 
         return storyboard;
     }
 
-    private static WeatherKind Classify(int code) => code switch
+    private static void AddRainOverlay(Canvas overlay, Storyboard storyboard)
     {
-        0 => WeatherKind.Clear,
-        1 or 2 => WeatherKind.PartlyCloudy,
-        3 => WeatherKind.Overcast,
-        45 or 48 => WeatherKind.Fog,
-        51 or 53 or 55 or 56 or 57 => WeatherKind.Drizzle,
-        61 or 63 or 65 or 66 or 67 => WeatherKind.Rain,
-        71 or 73 or 75 or 77 or 85 or 86 => WeatherKind.Snow,
-        80 or 81 or 82 => WeatherKind.Showers,
-        95 or 96 or 99 => WeatherKind.Thunder,
-        _ => WeatherKind.Clear
-    };
+        var layer = new Canvas();
+        for (var index = 0; index < 4; index++)
+        {
+            var drop = new Line
+            {
+                X1 = 34 + index * 17,
+                Y1 = 86 + (index % 2) * 4,
+                X2 = 31 + index * 17,
+                Y2 = 96 + (index % 2) * 4,
+                Stroke = new SolidColorBrush(MediaColor.FromRgb(0x45, 0xC7, 0xFF)),
+                StrokeThickness = 2.2,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Opacity = 0.8
+            };
+            layer.Children.Add(drop);
+        }
 
-    private static void BuildSun(
-        Canvas scene,
-        Storyboard storyboard,
-        bool animateRays,
-        bool animateGlow)
+        overlay.Children.Add(layer);
+        var transform = new TranslateTransform(0, -6);
+        layer.RenderTransform = transform;
+        var fall = new DoubleAnimation(-4, 6, TimeSpan.FromSeconds(0.9))
+        {
+            RepeatBehavior = RepeatBehavior.Forever
+        };
+        Storyboard.SetTarget(fall, transform);
+        Storyboard.SetTargetProperty(fall, new PropertyPath(TranslateTransform.YProperty));
+        storyboard.Children.Add(fall);
+    }
+
+    private static void AddSnowOverlay(Canvas overlay, Storyboard storyboard)
     {
-        const double center = 42;
-        var glow = new Ellipse
+        var layer = new Canvas();
+        for (var index = 0; index < 5; index++)
+        {
+            var flake = new Ellipse
+            {
+                Width = 4,
+                Height = 4,
+                Fill = new SolidColorBrush(MediaColor.FromRgb(0xF1, 0xF7, 0xFF)),
+                Opacity = 0.9
+            };
+            Canvas.SetLeft(flake, 28 + index * 14);
+            Canvas.SetTop(flake, 82 + (index % 2) * 5);
+            layer.Children.Add(flake);
+        }
+
+        overlay.Children.Add(layer);
+        var transform = new TranslateTransform(0, -5);
+        layer.RenderTransform = transform;
+        var fall = new DoubleAnimation(-2, 8, TimeSpan.FromSeconds(2.1))
+        {
+            RepeatBehavior = RepeatBehavior.Forever,
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+        };
+        Storyboard.SetTarget(fall, transform);
+        Storyboard.SetTargetProperty(fall, new PropertyPath(TranslateTransform.YProperty));
+        storyboard.Children.Add(fall);
+    }
+
+    private static void AddLightningOverlay(Canvas overlay, Storyboard storyboard)
+    {
+        var flash = new System.Windows.Shapes.Rectangle
+        {
+            Width = 76,
+            Height = 76,
+            RadiusX = 38,
+            RadiusY = 38,
+            Fill = new RadialGradientBrush(
+                MediaColor.FromArgb(0x80, 0xFF, 0xD4, 0x6A),
+                MediaColor.FromArgb(0x00, 0xFF, 0xD4, 0x6A)),
+            Opacity = 0
+        };
+        Canvas.SetLeft(flash, 26);
+        Canvas.SetTop(flash, 20);
+        overlay.Children.Add(flash);
+        var flicker = new DoubleAnimationUsingKeyFrames
+        {
+            RepeatBehavior = RepeatBehavior.Forever
+        };
+        flicker.KeyFrames.Add(new DiscreteDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0))));
+        flicker.KeyFrames.Add(new DiscreteDoubleKeyFrame(0.9, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.7))));
+        flicker.KeyFrames.Add(new DiscreteDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.82))));
+        Storyboard.SetTarget(flicker, flash);
+        Storyboard.SetTargetProperty(flicker, new PropertyPath(OpacityProperty));
+        storyboard.Children.Add(flicker);
+    }
+
+    private static void RenderSvg(XDocument document, Canvas target)
+    {
+        XElement root = document.Root!;
+        var gradients = root.Descendants().Where(element => element.Name.LocalName is "linearGradient" or "radialGradient")
+            .ToDictionary(element => element.Attribute("id")?.Value ?? string.Empty, StringComparer.Ordinal);
+        foreach (XElement element in root.Elements())
+        {
+            RenderElement(element, target, gradients, 1);
+        }
+    }
+
+    private static void RenderElement(
+        XElement element,
+        System.Windows.Controls.Panel target,
+        IReadOnlyDictionary<string, XElement> gradients,
+        double inheritedOpacity)
+    {
+        string name = element.Name.LocalName;
+        if (name is "defs" or "clipPath" or "linearGradient" or "radialGradient" or "stop")
+        {
+            return;
+        }
+
+        double opacity = inheritedOpacity * ReadDouble(element, "opacity", 1) * ReadDouble(element, "fill-opacity", 1);
+        if (name == "g")
+        {
+            var group = new Canvas { Width = SceneSize, Height = SceneSize, Opacity = opacity };
+            if (TryParseTransform(element.Attribute("transform")?.Value, out Transform? groupTransform))
+            {
+                group.RenderTransform = groupTransform;
+            }
+
+            foreach (XElement child in element.Elements())
+            {
+                RenderElement(child, group, gradients, 1);
+            }
+
+            target.Children.Add(group);
+            return;
+        }
+
+        Shape? shape = name switch
+        {
+            "path" => CreatePath(element),
+            "circle" => CreateCircle(element),
+            "ellipse" => CreateEllipse(element),
+            "rect" => CreateRectangle(element),
+            "line" => CreateLine(element),
+            "polygon" => CreatePolygon(element, closed: true),
+            "polyline" => CreatePolygon(element, closed: false),
+            _ => null
+        };
+        if (shape is null)
+        {
+            foreach (XElement child in element.Elements())
+            {
+                RenderElement(child, target, gradients, opacity);
+            }
+
+            return;
+        }
+
+        string? fillValue = element.Attribute("fill")?.Value;
+        if (fillValue is not "none")
+        {
+            shape.Fill = ParseBrush(fillValue, gradients) ?? new SolidColorBrush(MediaColor.FromRgb(0xE8, 0xF0, 0xFA));
+        }
+
+        string? strokeValue = element.Attribute("stroke")?.Value;
+        if (strokeValue is not null and not "none")
+        {
+            shape.Stroke = ParseBrush(strokeValue, gradients);
+            shape.StrokeThickness = ReadDouble(element, "stroke-width", 1);
+        }
+
+        shape.Opacity = opacity;
+        if (TryParseTransform(element.Attribute("transform")?.Value, out Transform? transform))
+        {
+            shape.RenderTransform = transform;
+        }
+
+        target.Children.Add(shape);
+    }
+
+    private static Path CreatePath(XElement element) =>
+        new Path { Data = Geometry.Parse(element.Attribute("d")?.Value ?? string.Empty) };
+
+    private static Ellipse CreateCircle(XElement element)
+    {
+        double radius = ReadDouble(element, "r", 0);
+        var ellipse = new Ellipse { Width = radius * 2, Height = radius * 2 };
+        Canvas.SetLeft(ellipse, ReadDouble(element, "cx", 0) - radius);
+        Canvas.SetTop(ellipse, ReadDouble(element, "cy", 0) - radius);
+        return ellipse;
+    }
+
+    private static Ellipse CreateEllipse(XElement element)
+    {
+        double radiusX = ReadDouble(element, "rx", 0);
+        double radiusY = ReadDouble(element, "ry", 0);
+        var ellipse = new Ellipse { Width = radiusX * 2, Height = radiusY * 2 };
+        Canvas.SetLeft(ellipse, ReadDouble(element, "cx", 0) - radiusX);
+        Canvas.SetTop(ellipse, ReadDouble(element, "cy", 0) - radiusY);
+        return ellipse;
+    }
+
+    private static System.Windows.Shapes.Rectangle CreateRectangle(XElement element) =>
+        new System.Windows.Shapes.Rectangle
+        {
+            Width = ReadDouble(element, "width", 0),
+            Height = ReadDouble(element, "height", 0),
+            RadiusX = ReadDouble(element, "rx", 0),
+            RadiusY = ReadDouble(element, "ry", 0),
+            Margin = new Thickness(ReadDouble(element, "x", 0), ReadDouble(element, "y", 0), 0, 0)
+        };
+
+    private static Line CreateLine(XElement element) =>
+        new Line
+        {
+            X1 = ReadDouble(element, "x1", 0),
+            Y1 = ReadDouble(element, "y1", 0),
+            X2 = ReadDouble(element, "x2", 0),
+            Y2 = ReadDouble(element, "y2", 0)
+        };
+
+    private static Shape CreatePolygon(XElement element, bool closed)
+    {
+        string[] points = (element.Attribute("points")?.Value ?? string.Empty)
+            .Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
+        var pointCollection = new PointCollection();
+        for (var index = 0; index + 1 < points.Length; index += 2)
+        {
+            pointCollection.Add(new MediaPoint(
+                double.Parse(points[index], CultureInfo.InvariantCulture),
+                double.Parse(points[index + 1], CultureInfo.InvariantCulture)));
+        }
+
+        if (closed)
+        {
+            return new Polygon { Points = pointCollection };
+        }
+
+        return new Polyline { Points = pointCollection };
+    }
+
+    private static System.Windows.Media.Brush? ParseBrush(string? value, IReadOnlyDictionary<string, XElement> gradients)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value == "none")
+        {
+            return null;
+        }
+
+        if (value.StartsWith("url(#", StringComparison.Ordinal) && value.EndsWith(')'))
+        {
+            string id = value[5..^1];
+            if (gradients.TryGetValue(id, out XElement? gradient))
+            {
+                GradientBrush brush = gradient.Name.LocalName == "radialGradient"
+                    ? new RadialGradientBrush()
+                    : new LinearGradientBrush();
+                foreach (XElement stop in gradient.Elements().Where(child => child.Name.LocalName == "stop"))
+                {
+                    MediaColor color = ParseColor(stop.Attribute("stop-color")?.Value) ?? MediaColor.FromRgb(0xE8, 0xF0, 0xFA);
+                    double offset = ReadOffset(stop.Attribute("offset")?.Value);
+                    brush.GradientStops.Add(new GradientStop(color, offset));
+                }
+
+                return brush;
+            }
+        }
+
+        return ParseColor(value) is { } colorValue
+            ? new SolidColorBrush(colorValue)
+            : null;
+    }
+
+    private static MediaColor? ParseColor(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value == "none")
+        {
+            return null;
+        }
+
+        try
+        {
+            return (MediaColor?)System.Windows.Media.ColorConverter.ConvertFromString(value);
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    private static double ReadOffset(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0;
+        }
+
+        return value.EndsWith('%')
+            ? double.Parse(value[..^1], CultureInfo.InvariantCulture) / 100
+            : double.Parse(value, CultureInfo.InvariantCulture);
+    }
+
+    private static double ReadDouble(XElement element, string name, double fallback) =>
+        double.TryParse(element.Attribute(name)?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
+            ? value
+            : fallback;
+
+    private static bool TryParseTransform(string? value, out Transform? transform)
+    {
+        transform = null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        if (value.StartsWith("translate(", StringComparison.Ordinal) && value.EndsWith(')'))
+        {
+            double[] values = ParseNumbers(value[10..^1]);
+            transform = new TranslateTransform(values.ElementAtOrDefault(0), values.ElementAtOrDefault(1));
+            return true;
+        }
+
+        if (value.StartsWith("rotate(", StringComparison.Ordinal) && value.EndsWith(')'))
+        {
+            double[] values = ParseNumbers(value[7..^1]);
+            transform = new RotateTransform(values.ElementAtOrDefault(0), values.ElementAtOrDefault(1), values.ElementAtOrDefault(2));
+            return true;
+        }
+
+        return false;
+    }
+
+    private static double[] ParseNumbers(string value) =>
+        value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries)
+            .Select(number => double.Parse(number, CultureInfo.InvariantCulture))
+            .ToArray();
+
+    private static void RenderFallback(Canvas target)
+    {
+        var ring = new Ellipse
         {
             Width = 66,
             Height = 66,
-            Fill = new RadialGradientBrush(MediaColor.FromRgb(0xFF, 0xFF, 0xFF), MediaColor.FromArgb(0x00, 0xFF, 0xD7, 0x7A))
-            {
-                GradientOrigin = new MediaPoint(0.5, 0.5),
-                Center = new MediaPoint(0.5, 0.5),
-                RadiusX = 0.5,
-                RadiusY = 0.5
-            }
+            Stroke = new SolidColorBrush(MediaColor.FromRgb(0x5B, 0xE1, 0xFF)),
+            StrokeThickness = 5,
+            Opacity = 0.8
         };
-        Canvas.SetLeft(glow, center - 33);
-        Canvas.SetTop(glow, center - 33);
-        scene.Children.Add(glow);
-
-        var rays = new Canvas { Opacity = 0.95 };
-        for (var i = 0; i < 8; i++)
-        {
-            var ray = new System.Windows.Shapes.Rectangle
-            {
-                Width = 5,
-                Height = 15,
-                RadiusX = 2.5,
-                RadiusY = 2.5,
-                Fill = new LinearGradientBrush(
-                    MediaColor.FromArgb(0xF2, 0xFF, 0xC9, 0x5C),
-                    MediaColor.FromArgb(0xB0, 0xF0, 0x9E, 0x2E),
-                    90)
-            };
-            Canvas.SetLeft(ray, center - 2.5);
-            Canvas.SetTop(ray, center - 22 - 15);
-            ray.RenderTransform = new RotateTransform(i * 45, center, center);
-            rays.Children.Add(ray);
-        }
-
-        var rotationGroup = new RotateTransform(0, center, center);
-        rays.RenderTransform = rotationGroup;
-        Canvas.SetLeft(rays, 0);
-        Canvas.SetTop(rays, 0);
-        scene.Children.Add(rays);
-        if (animateRays)
-        {
-            var rotation = new DoubleAnimation(0, 360, TimeSpan.FromSeconds(46))
-            {
-                RepeatBehavior = RepeatBehavior.Forever
-            };
-            Storyboard.SetTarget(rotation, rotationGroup);
-            Storyboard.SetTargetProperty(rotation, new PropertyPath(RotateTransform.AngleProperty));
-            storyboard.Children.Add(rotation);
-        }
-
-        var core = new Ellipse
-        {
-            Width = 40,
-            Height = 40,
-            Fill = new RadialGradientBrush(MediaColor.FromRgb(0xFF, 0xE9, 0x9B), MediaColor.FromRgb(0xF7, 0xA6, 0x2B))
-            {
-                GradientOrigin = new MediaPoint(0.35, 0.35)
-            }
-        };
-        Canvas.SetLeft(core, center - 20);
-        Canvas.SetTop(core, center - 20);
-        scene.Children.Add(core);
-
-        if (animateGlow)
-        {
-            var pulse = new DoubleAnimation(0.55, 0.95, TimeSpan.FromSeconds(3.4))
-            {
-                AutoReverse = true,
-                RepeatBehavior = RepeatBehavior.Forever
-            };
-            Storyboard.SetTarget(pulse, glow);
-            Storyboard.SetTargetProperty(pulse, new PropertyPath(OpacityProperty));
-            storyboard.Children.Add(pulse);
-        }
+        Canvas.SetLeft(ring, 31);
+        Canvas.SetTop(ring, 31);
+        target.Children.Add(ring);
     }
 
-    private static void BuildMoon(Canvas scene, Storyboard storyboard, bool animateStars)
+    private static string SelectAsset(int code, bool isDay)
     {
-        const double center = 46;
-        var glow = new Ellipse
+        string period = isDay ? "day" : "night";
+        return code switch
         {
-            Width = 58,
-            Height = 58,
-            Fill = new RadialGradientBrush(MediaColor.FromArgb(0x2E, 0xFF, 0xFA, 0xE0), MediaColor.FromArgb(0x00, 0xFF, 0xFA, 0xE0))
-            {
-                GradientOrigin = new MediaPoint(0.5, 0.5),
-                Center = new MediaPoint(0.5, 0.5)
-            }
+            0 => $"clear-{period}.svg",
+            1 or 2 => $"partly-cloudy-{period}.svg",
+            3 => "cloudy.svg",
+            45 or 48 => "fog.svg",
+            51 or 53 or 55 or 56 or 57 => $"overcast-{period}-drizzle.svg",
+            61 or 63 or 65 or 66 or 67 => $"overcast-{period}-rain.svg",
+            71 or 73 or 75 or 77 or 85 or 86 => $"overcast-{period}-snow.svg",
+            80 or 81 or 82 => $"partly-cloudy-{period}-rain.svg",
+            95 or 96 or 99 => $"thunderstorms-{period}.svg",
+            _ => $"clear-{period}.svg"
         };
-        Canvas.SetLeft(glow, center - 29);
-        Canvas.SetTop(glow, center - 29);
-        scene.Children.Add(glow);
-
-        var moon = new Path
-        {
-            Fill = new RadialGradientBrush(MediaColor.FromRgb(0xFF, 0xF6, 0xDE), MediaColor.FromRgb(0xE2, 0xCE, 0x9E))
-            {
-                GradientOrigin = new MediaPoint(0.4, 0.4)
-            },
-            Data = new CombinedGeometry(
-                GeometryCombineMode.Exclude,
-                new EllipseGeometry(new MediaPoint(center + 8, center), 22, 22),
-                new EllipseGeometry(new MediaPoint(center - 2, center - 4), 19, 19))
-        };
-        Canvas.SetLeft(moon, 0);
-        Canvas.SetTop(moon, 0);
-        scene.Children.Add(moon);
-
-        AddStar(scene, storyboard, x: 18, y: 22, size: 3, animateStars);
-        AddStar(scene, storyboard, x: 72, y: 16, size: 2.2, animateStars, phaseSeconds: 1.1);
-        AddStar(scene, storyboard, x: 78, y: 64, size: 2.6, animateStars, phaseSeconds: 0.6);
-        AddStar(scene, storyboard, x: 20, y: 70, size: 2, animateStars, phaseSeconds: 1.8);
-    }
-
-    private static void AddStar(
-        Canvas scene,
-        Storyboard storyboard,
-        double x,
-        double y,
-        double size,
-        bool animate,
-        double phaseSeconds = 0)
-    {
-        var star = new Ellipse
-        {
-            Width = size,
-            Height = size,
-            Fill = new SolidColorBrush(MediaColor.FromRgb(0xFF, 0xFF, 0xFF)),
-            Opacity = 0.85
-        };
-        Canvas.SetLeft(star, x);
-        Canvas.SetTop(star, y);
-        scene.Children.Add(star);
-
-        if (animate)
-        {
-            var twinkle = new DoubleAnimation(0.35, 1, TimeSpan.FromSeconds(2.6))
-            {
-                AutoReverse = true,
-                BeginTime = TimeSpan.FromSeconds(phaseSeconds),
-                RepeatBehavior = RepeatBehavior.Forever
-            };
-            Storyboard.SetTarget(twinkle, star);
-            Storyboard.SetTargetProperty(twinkle, new PropertyPath(OpacityProperty));
-            storyboard.Children.Add(twinkle);
-        }
-    }
-
-    private static void BuildCloud(
-        Canvas scene,
-        Storyboard storyboard,
-        double y,
-        double scale,
-        double driftSeconds,
-        bool animate,
-        bool darker = false,
-        double offset = 0)
-    {
-        var cloud = new Canvas();
-        var fill = darker
-            ? new LinearGradientBrush(MediaColor.FromRgb(0x8F, 0x9C, 0xB3), MediaColor.FromRgb(0x56, 0x63, 0x7A), 90)
-            : new LinearGradientBrush(MediaColor.FromRgb(0xFF, 0xFF, 0xFF), MediaColor.FromRgb(0xB8, 0xC6, 0xDC), 90);
-
-        var bumps = new[]
-        {
-            (X: 28, Y: 30, R: 16),
-            (X: 47, Y: 24, R: 21),
-            (X: 66, Y: 30, R: 15)
-        };
-        foreach ((double x, double bumpY, double radius) in bumps)
-        {
-            var bump = new Ellipse
-            {
-                Width = radius * 2,
-                Height = radius * 2,
-                Fill = fill
-            };
-            Canvas.SetLeft(bump, x - radius);
-            Canvas.SetTop(bump, bumpY - radius);
-            cloud.Children.Add(bump);
-        }
-
-        var baseRect = new System.Windows.Shapes.Rectangle
-        {
-            Width = 62,
-            Height = 18,
-            RadiusX = 9,
-            RadiusY = 9,
-            Fill = fill
-        };
-        Canvas.SetLeft(baseRect, 19);
-        Canvas.SetTop(baseRect, 34);
-        cloud.Children.Add(baseRect);
-
-        var translate = new TranslateTransform(offset, 0);
-        var scaleTransform = new ScaleTransform(scale, scale, Scene / 2, y + 20);
-        var cloudTransform = new TransformGroup();
-        cloudTransform.Children.Add(scaleTransform);
-        cloudTransform.Children.Add(translate);
-        cloud.RenderTransform = cloudTransform;
-        Canvas.SetLeft(cloud, 0);
-        Canvas.SetTop(cloud, y);
-        scene.Children.Add(cloud);
-
-        if (animate)
-        {
-            var drift = new DoubleAnimation(offset - 3, offset + 3, TimeSpan.FromSeconds(driftSeconds))
-            {
-                AutoReverse = true,
-                RepeatBehavior = RepeatBehavior.Forever
-            };
-            Storyboard.SetTarget(drift, translate);
-            Storyboard.SetTargetProperty(drift, new PropertyPath(TranslateTransform.XProperty));
-            storyboard.Children.Add(drift);
-        }
-    }
-
-    private static void BuildFog(Canvas scene, Storyboard storyboard)
-    {
-        double[] rows = [62, 74, 86];
-        for (var index = 0; index < rows.Length; index++)
-        {
-            double y = rows[index];
-            var band = new System.Windows.Shapes.Rectangle
-            {
-                Width = index == 1 ? 74 : 62,
-                Height = 7,
-                RadiusX = 3.5,
-                RadiusY = 3.5,
-                Fill = new LinearGradientBrush(
-                    MediaColor.FromArgb(0xE6, 0xC6, 0xD3, 0xE4),
-                    MediaColor.FromArgb(0x99, 0x8E, 0xA0, 0xB8),
-                    0),
-                Opacity = 0.9 - (index * 0.12)
-            };
-            Canvas.SetLeft(band, index == 1 ? 13 : 19);
-            Canvas.SetTop(band, y);
-            var translate = new TranslateTransform(0, 0);
-            band.RenderTransform = translate;
-            scene.Children.Add(band);
-
-            var drift = new DoubleAnimation(-6, 6, TimeSpan.FromSeconds(12 + index * 4))
-            {
-                AutoReverse = true,
-                BeginTime = TimeSpan.FromSeconds(index * 1.4),
-                RepeatBehavior = RepeatBehavior.Forever
-            };
-            Storyboard.SetTarget(drift, translate);
-            Storyboard.SetTargetProperty(drift, new PropertyPath(TranslateTransform.XProperty));
-            storyboard.Children.Add(drift);
-        }
-    }
-
-    private static void BuildPrecipitation(
-        Canvas scene,
-        Storyboard storyboard,
-        bool rain,
-        bool heavy,
-        bool snow,
-        double dropScale)
-    {
-        int count = heavy ? 5 : 3;
-        var layer = new Canvas();
-        Canvas.SetLeft(layer, 0);
-        Canvas.SetTop(layer, 0);
-        scene.Children.Add(layer);
-
-        var fall = new TranslateTransform(0, 0);
-        layer.RenderTransform = fall;
-
-        for (var i = 0; i < count; i++)
-        {
-            double x = 26 + (i * 13);
-            if (rain)
-            {
-                var drop = new System.Windows.Shapes.Rectangle
-                {
-                    Width = 3.4 * dropScale,
-                    Height = 11 * dropScale,
-                    RadiusX = 1.7 * dropScale,
-                    RadiusY = 1.7 * dropScale,
-                    Fill = new LinearGradientBrush(MediaColor.FromRgb(0x6F, 0xD3, 0xFF), MediaColor.FromRgb(0x2E, 0x8F, 0xFF), 90)
-                };
-                Canvas.SetLeft(drop, x);
-                Canvas.SetTop(drop, 64 + (i % 3) * 3);
-                layer.Children.Add(drop);
-            }
-            else
-            {
-                var flake = new Ellipse
-                {
-                    Width = 5 * dropScale,
-                    Height = 5 * dropScale,
-                    Fill = new SolidColorBrush(MediaColor.FromRgb(0xFF, 0xFF, 0xFF)),
-                    Opacity = 0.95
-                };
-                Canvas.SetLeft(flake, x);
-                Canvas.SetTop(flake, 64 + (i % 3) * 3);
-                layer.Children.Add(flake);
-            }
-        }
-
-        var fallSeconds = rain ? (heavy ? 0.8 : 1.1) : 2.4;
-        var fallAnimation = new DoubleAnimation(0, 22, TimeSpan.FromSeconds(fallSeconds))
-        {
-            RepeatBehavior = RepeatBehavior.Forever
-        };
-        Storyboard.SetTarget(fallAnimation, fall);
-        Storyboard.SetTargetProperty(fallAnimation, new PropertyPath(TranslateTransform.YProperty));
-        storyboard.Children.Add(fallAnimation);
-
-        if (snow)
-        {
-            var sway = new DoubleAnimation(-2.5, 2.5, TimeSpan.FromSeconds(1.6))
-            {
-                AutoReverse = true,
-                RepeatBehavior = RepeatBehavior.Forever
-            };
-            Storyboard.SetTarget(sway, fall);
-            Storyboard.SetTargetProperty(sway, new PropertyPath(TranslateTransform.XProperty));
-            storyboard.Children.Add(sway);
-        }
-    }
-
-    private static void BuildLightning(Canvas scene, Storyboard storyboard)
-    {
-        var bolt = new Path
-        {
-            Fill = new LinearGradientBrush(MediaColor.FromRgb(0xFF, 0xE9, 0x7A), MediaColor.FromRgb(0xF5, 0xA8, 0x2A), 90),
-            Data = Geometry.Parse(
-                "M 47 52 L 37 68 L 45 68 L 41 82 L 57 63 L 48 63 L 54 52 Z")
-        };
-        Canvas.SetLeft(bolt, 0);
-        Canvas.SetTop(bolt, 0);
-        scene.Children.Add(bolt);
-
-        var flash = new DoubleAnimation(0.2, 1, TimeSpan.FromSeconds(1.6))
-        {
-            AutoReverse = true,
-            RepeatBehavior = RepeatBehavior.Forever
-        };
-        Storyboard.SetTarget(flash, bolt);
-        Storyboard.SetTargetProperty(flash, new PropertyPath(OpacityProperty));
-        storyboard.Children.Add(flash);
-    }
-
-    private enum WeatherKind
-    {
-        Clear,
-        PartlyCloudy,
-        Overcast,
-        Fog,
-        Drizzle,
-        Rain,
-        Showers,
-        Snow,
-        Thunder
     }
 }

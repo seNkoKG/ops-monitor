@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OpsMonitor.Core\OpsMonitor.Core.csproj" />
+    <EmbeddedResource Include="Assets\Weather\*.svg" />
+    <EmbeddedResource Include="Assets\Weather\Meteocons-LICENSE.txt" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -3,6 +3,19 @@
 All notable OPS Monitor changes are documented here. Versions follow semantic
 versioning.
 
+## [3.4.7] — 2026-08-17
+
+### Changed
+
+- Replaced hand-built weather illustrations with pinned, bundled Meteocons
+  artwork converted into native WPF shapes and gradients.
+- Weather motion now animates the actual station artwork with restrained rain,
+  snow, clear-sky, and storm layers instead of animating emoji-like shapes.
+
+### Added
+
+- Bundled Meteocons MIT attribution under `native/src/OpsMonitor.Widget/Assets/Weather`.
+
 ## [3.4.6] — 2026-08-17
 
 ### Changed
@@ -228,6 +241,7 @@ versioning.
 - Release artifacts contain package identity and version markers for safe
   in-place updates.
 
+[3.4.7]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.7
 [3.4.6]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.6
 [3.4.5]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.5
 [3.4.4]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.4

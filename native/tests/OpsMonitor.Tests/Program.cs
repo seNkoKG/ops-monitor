@@ -2653,6 +2653,7 @@ static Task TestWeatherIconSmokeAsync()
                     icon.Measure(new System.Windows.Size(64, 64));
                     icon.Arrange(new System.Windows.Rect(0, 0, 64, 64));
                     icon.UpdateLayout();
+                    Assert.True(icon.HasBundledAsset, $"weather asset was not embedded for code {code}");
                     icons.Add(icon);
                 }
             }
