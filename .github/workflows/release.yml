@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: windows-latest
@@ -103,7 +107,6 @@ jobs:
           $frameworkHash = (Get-FileHash (Join-Path $publish $frameworkName) -Algorithm SHA256).Hash.ToLowerInvariant()
           $selfContainedHash = (Get-FileHash (Join-Path $publish $selfContainedName) -Algorithm SHA256).Hash.ToLowerInvariant()
           $installerHash = (Get-FileHash (Join-Path $publish $installerName) -Algorithm SHA256).Hash.ToLowerInvariant()
-          git checkout main
           $baseUrl = "https://github.com/$repository/releases/download/$tag"
           $manifest = [ordered]@{
             schemaVersion = 1
@@ -116,13 +119,44 @@ jobs:
               'windows-installer' = [ordered]@{ url = "$baseUrl/$installerName"; sha256 = $installerHash }
             }
           }
-          $manifest | ConvertTo-Json -Depth 5 | Set-Content docs/release-manifest.json -Encoding utf8
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add docs/release-manifest.json
-          if (-not (git diff --cached --quiet)) {
+
+          $published = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            git fetch origin main
+            if ($LASTEXITCODE -ne 0) { throw 'Could not fetch the latest main branch.' }
+            git checkout -B main origin/main
+            if ($LASTEXITCODE -ne 0) { throw 'Could not check out the latest main branch.' }
+
+            if (Test-Path docs/release-manifest.json) {
+              $currentVersion = (Get-Content docs/release-manifest.json -Raw | ConvertFrom-Json).version
+              if ([version]$currentVersion -ge [version]$version) {
+                $published = $true
+                break
+              }
+            }
+
+            $manifest | ConvertTo-Json -Depth 5 | Set-Content docs/release-manifest.json -Encoding utf8
+            git add docs/release-manifest.json
+            git diff --cached --quiet
+            if ($LASTEXITCODE -eq 0) {
+              $published = $true
+              break
+            }
+            if ($LASTEXITCODE -ne 1) { throw 'Could not inspect the updater manifest change.' }
+
             git commit -m "chore(release): publish $tag manifest"
-            git push origin main
+            if ($LASTEXITCODE -ne 0) { throw 'Could not commit the updater manifest.' }
+            git push origin HEAD:main
+            if ($LASTEXITCODE -eq 0) {
+              $published = $true
+              break
+            }
+          }
+
+          if (-not $published) {
+            throw 'Could not publish the updater manifest after three attempts.'
           }
 
       - uses: actions/upload-artifact@v7
