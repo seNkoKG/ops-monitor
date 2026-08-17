@@ -11,10 +11,10 @@
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <Version>3.4.6</Version>
-    <AssemblyVersion>3.4.6.0</AssemblyVersion>
-    <FileVersion>3.4.6.0</FileVersion>
-    <InformationalVersion>3.4.6</InformationalVersion>
+    <Version>3.4.7</Version>
+    <AssemblyVersion>3.4.7.0</AssemblyVersion>
+    <FileVersion>3.4.7.0</FileVersion>
+    <InformationalVersion>3.4.7</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
