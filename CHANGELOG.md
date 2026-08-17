@@ -3,6 +3,28 @@
 All notable OPS Monitor changes are documented here. Versions follow semantic
 versioning.
 
+## [3.4.3] — 2026-08-17
+
+### Added
+
+- Weather current conditions now include UV index, snow depth, snowfall,
+  freezing level, and soil temperature, and the condition icon respects the
+  reported day/night state instead of the wall clock.
+- Hourly forecast cards show pressure, UV index, wind direction (compass),
+  snowfall, and freezing level per hour.
+- The eight-day outlook adds precipitation hours, sunshine hours, snowfall
+  totals, dominant wind direction, and apparent (feels-like) minimum/maximum.
+- The atmosphere view adds NO₂, O₃, SO₂, and CO alongside PM2.5/PM10, plus
+  alder, olive, and ragweed pollen.
+
+### Fixed
+
+- The weather page's Nowcast and Hourly strips no longer swallow mouse wheel
+  input, so the page keeps scrolling vertically over them.
+- Hidden forecast content to the left and right is now reachable: chevron
+  buttons page the strips, the strip scrollbars are visible, and Shift+wheel
+  scrolls a strip horizontally while a trackpad can pan it directly.
+
 ## [3.4.2] — 2026-08-14
 
 ### Fixed
@@ -148,6 +170,7 @@ versioning.
 - Release artifacts contain package identity and version markers for safe
   in-place updates.
 
+[3.4.3]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.3
 [3.4.2]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.2
 [3.4.1]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.1
 [3.4.0]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.0

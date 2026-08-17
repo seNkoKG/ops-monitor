@@ -1,20 +1,16 @@
 {
   "schemaVersion": 1,
-  "version": "3.4.2",
-  "publishedUtc": "2026-08-14T09:31:32.3529035+00:00",
-  "releaseUrl": "https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.2",
+  "version": "3.4.3",
+  "publishedUtc": "2026-08-17T10:58:10.9947473+00:00",
+  "releaseUrl": "https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.3",
   "packages": {
     "framework-dependent": {
-      "url": "https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.2/OPS-Monitor-v3.4.2-framework-dependent.zip",
-      "sha256": "2b78316dd6a475f554e06c7eccdb00cfcc1178f86a19b246e12b120510b4e0e2"
+      "url": "https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.3/OPS-Monitor-v3.4.3-framework-dependent.zip",
+      "sha256": "942798dae55978db106358b0c5d3e5e36f795ff5966c42e66483fa1c3a76212d"
     },
     "win-x64-self-contained": {
-      "url": "https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.2/OPS-Monitor-v3.4.2-win-x64-self-contained.zip",
-      "sha256": "16431b1f805c4e358cd2697db6ddd2b9e7b009a3fe5a9626b6e0470dfb763dff"
-    },
-    "windows-installer": {
-      "url": "https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.2/OPS-Monitor-v3.4.2-Setup.exe",
-      "sha256": "5976ee2fd0a4376e116edde26b626dd79451405c617911f04a8f0abc87ffc0bc"
+      "url": "https://github.com/seNkoKG/ops-monitor/releases/download/v3.4.3/OPS-Monitor-v3.4.3-win-x64-self-contained.zip",
+      "sha256": "459b3bdaaa90393d8ec1181b763cd5370f430db707e4b86887571224ba5821ef"
     }
   }
 }

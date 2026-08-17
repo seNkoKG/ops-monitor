@@ -93,10 +93,9 @@ the setup executable:
 
 ```text
 artifacts\publish\framework-dependent\
-artifacts\publish\OPS-Monitor-v3.4.2-framework-dependent.zip
+artifacts\publish\OPS-Monitor-v3.4.3-framework-dependent.zip
 artifacts\publish\win-x64-self-contained\
-artifacts\publish\OPS-Monitor-v3.4.2-win-x64-self-contained.zip
-artifacts\publish\OPS-Monitor-v3.4.2-Setup.exe
+artifacts\publish\OPS-Monitor-v3.4.3-win-x64-self-contained.zip
 ```
 
 Widget and Studio intentionally live in the same folder. This lets each app open
@@ -130,10 +129,11 @@ dotnet run --project .\tests\OpsMonitor.Tests\OpsMonitor.Tests.csproj -c Release
 
 ## Install for the current user
 
-For normal use, download and run the self-contained
-`OPS-Monitor-v3.4.2-Setup.exe`. It provides the standard Windows wizard,
-registers with Installed Apps, supports silent deployment and in-place
-upgrades, and preserves `%LOCALAPPDATA%\OPS Monitor` on uninstall.
+For normal use, download the self-contained
+`OPS-Monitor-v3.4.3-win-x64-self-contained.zip` portable package or run
+`Install.ps1`. It installs into `%LOCALAPPDATA%\Programs\OPS Monitor`, registers
+with Installed Apps, supports in-place upgrades, and preserves
+`%LOCALAPPDATA%\OPS Monitor` on uninstall.
 
 The PowerShell install path remains available for portable and development
 workflows. It uses the same destination and settings contract:
