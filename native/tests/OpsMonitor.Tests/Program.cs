@@ -78,6 +78,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("concurrent settings updates preserve every writer", TestConcurrentSettingsUpdatesAsync),
     ("single-instance lease rejects a second process owner", TestSingleInstanceAsync),
     ("animated weather icons build without exceptions", TestWeatherIconSmokeAsync),
+    ("weather station shell measures without clipping", TestWeatherWindowShellAsync),
     // WPF permits one process-global Application. Keep this smoke test last.
     ("Studio application resources load on an STA thread", TestStudioApplicationResourcesAsync)
 };
@@ -2684,6 +2685,59 @@ static Task TestWeatherIconSmokeAsync()
     {
         throw new InvalidOperationException(
             "Weather icons failed to build",
+            threadFailure);
+    }
+
+    return Task.CompletedTask;
+}
+
+static Task TestWeatherWindowShellAsync()
+{
+    Exception? threadFailure = null;
+    var thread = new Thread(() =>
+    {
+        try
+        {
+            var location = new WeatherLocation(
+                "Celje",
+                "Slovenia",
+                46.2366,
+                15.2259,
+                "Europe/Ljubljana",
+                "CELJE_MEDLOG");
+            using var service = new WeatherService(location, TimeSpan.FromMinutes(15));
+            var window = new OpsMonitor.Widget.WeatherWindow(
+                service,
+                _ => Task.CompletedTask,
+                motionEnabled: false)
+            {
+                Width = 1180,
+                Height = 820,
+                ShowInTaskbar = false
+            };
+            window.Show();
+            window.Measure(new System.Windows.Size(1180, 820));
+            window.Arrange(new System.Windows.Rect(0, 0, 1180, 820));
+            window.UpdateLayout();
+            Assert.True(
+                window.ActualWidth > 0 && window.ActualHeight > 0,
+                "weather station shell did not measure");
+            window.Close();
+        }
+        catch (Exception exception)
+        {
+            threadFailure = exception;
+        }
+    });
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+    Assert.True(
+        thread.Join(TimeSpan.FromSeconds(10)),
+        "weather station shell rendering hung");
+    if (threadFailure is not null)
+    {
+        throw new InvalidOperationException(
+            "Weather station shell failed to build",
             threadFailure);
     }
 

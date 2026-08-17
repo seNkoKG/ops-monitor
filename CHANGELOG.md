@@ -3,6 +3,25 @@
 All notable OPS Monitor changes are documented here. Versions follow semantic
 versioning.
 
+## [3.4.5] — 2026-08-17
+
+### Changed
+
+- Rebuilt Weather Station UI around four focused surfaces: Now, Forecast,
+  Radar, and Environment.
+- Current conditions now lead with station freshness, confidence, live
+  measurements, and a dedicated rain track instead of one long dashboard.
+- Hourly and daily forecast layouts now use clearer hierarchy, calmer cards,
+  larger visual weather states, and fewer fixed-width columns.
+- Radar and environment views now use the same station shell and visual tokens.
+
+### Fixed
+
+- Forecast wheel routing now scrolls whichever parent page contains the active
+  horizontal strip, not only the old overview page.
+- Weather station shell now has a dedicated rendering smoke test and no longer
+  relies on emoji fonts or weather emoji bindings.
+
 ## [3.4.4] — 2026-08-17
 
 ### Added
@@ -193,6 +212,7 @@ versioning.
 - Release artifacts contain package identity and version markers for safe
   in-place updates.
 
+[3.4.5]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.5
 [3.4.4]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.4
 [3.4.3]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.3
 [3.4.2]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.2

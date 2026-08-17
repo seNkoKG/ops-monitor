@@ -33,7 +33,7 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
     private string _statusText = "Loading local weather…";
     private string _radarStatus = "Open Live Radar to load the official ARSO composite";
     private int _radarFrameIndex;
-    private bool _radarPlaying = true;
+    private bool _radarPlaying;
     private double _radarZoom = 0.64;
     private bool _radarLoaded;
     private bool _isSearchOpen;
@@ -168,7 +168,7 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
         ? Visibility.Collapsed
         : Visibility.Visible;
 
-    public string RadarPlayLabel => _radarPlaying ? "❚❚  PAUSE" : "▶  PLAY";
+    public string RadarPlayLabel => _radarPlaying ? "PAUSE" : "PLAY";
 
     public string RadarFrameLabel => _radarFrames.Count == 0
         ? "Waiting for radar"
@@ -555,7 +555,26 @@ public partial class WeatherWindow : Window, INotifyPropertyChanged
         }
 
         e.Handled = true;
-        OverviewScroller.ScrollToVerticalOffset(OverviewScroller.VerticalOffset - e.Delta);
+        if (FindParentScrollViewer(scroller) is { } parent)
+        {
+            parent.ScrollToVerticalOffset(parent.VerticalOffset - e.Delta);
+        }
+    }
+
+    private static System.Windows.Controls.ScrollViewer? FindParentScrollViewer(DependencyObject element)
+    {
+        DependencyObject? parent = System.Windows.Media.VisualTreeHelper.GetParent(element);
+        while (parent is not null)
+        {
+            if (parent is System.Windows.Controls.ScrollViewer scrollViewer)
+            {
+                return scrollViewer;
+            }
+
+            parent = System.Windows.Media.VisualTreeHelper.GetParent(parent);
+        }
+
+        return null;
     }
 
     private static T? FindVisualAncestor<T>(DependencyObject? element) where T : DependencyObject

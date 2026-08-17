@@ -2,9 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:OpsMonitor.Widget.Controls"
-        Title="OPS Weather"
-        Width="1080"
-        Height="760"
+        Title="OPS Weather Station"
+        Width="1180"
+        Height="820"
         MinWidth="820"
         MinHeight="620"
         AllowsTransparency="True"
@@ -15,43 +15,63 @@
         Loaded="Window_OnLoaded"
         Closed="Window_OnClosed">
     <Window.Resources>
-        <SolidColorBrush x:Key="WeatherSurface" Color="#F1080C14" />
-        <SolidColorBrush x:Key="WeatherCard" Color="#D9161E2C" />
-        <SolidColorBrush x:Key="WeatherCardSoft" Color="#99101825" />
-        <SolidColorBrush x:Key="WeatherBorder" Color="#4A5C789A" />
-        <SolidColorBrush x:Key="WeatherText" Color="#FFF6FAFF" />
-        <SolidColorBrush x:Key="WeatherMuted" Color="#FF9CAFC7" />
-        <SolidColorBrush x:Key="WeatherCyan" Color="#FF48DCF9" />
-        <SolidColorBrush x:Key="WeatherBlue" Color="#FF4C8DFF" />
-        <SolidColorBrush x:Key="WeatherGreen" Color="#FF58E6B2" />
-        <SolidColorBrush x:Key="WeatherAmber" Color="#FFFFC35A" />
+        <SolidColorBrush x:Key="WeatherSurface" Color="#F20B111A" />
+        <SolidColorBrush x:Key="WeatherPanel" Color="#D9141D2A" />
+        <SolidColorBrush x:Key="WeatherPanelStrong" Color="#EC172331" />
+        <SolidColorBrush x:Key="WeatherPanelSoft" Color="#80151F2D" />
+        <SolidColorBrush x:Key="WeatherBorder" Color="#4A607C99" />
+        <SolidColorBrush x:Key="WeatherBorderStrong" Color="#6B7EA0BA" />
+        <SolidColorBrush x:Key="WeatherText" Color="#FFF5F9FF" />
+        <SolidColorBrush x:Key="WeatherMuted" Color="#FF9AAFC7" />
+        <SolidColorBrush x:Key="WeatherDim" Color="#FF6C819A" />
+        <SolidColorBrush x:Key="WeatherCyan" Color="#FF55DFFF" />
+        <SolidColorBrush x:Key="WeatherBlue" Color="#FF6C9BFF" />
+        <SolidColorBrush x:Key="WeatherGreen" Color="#FF62E5B4" />
+        <SolidColorBrush x:Key="WeatherAmber" Color="#FFFFC95F" />
+        <SolidColorBrush x:Key="WeatherViolet" Color="#FFB39CFF" />
+        <SolidColorBrush x:Key="WeatherDanger" Color="#FFFF7D89" />
 
         <Style TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI Variable" />
             <Setter Property="Foreground" Value="{StaticResource WeatherText}" />
         </Style>
+        <Style x:Key="MicroLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource WeatherDim}" />
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        </Style>
         <Style x:Key="MutedText" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource WeatherMuted}" />
             <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource WeatherMuted}" />
         </Style>
         <Style x:Key="SectionTitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{StaticResource WeatherMuted}" />
+            <Setter Property="Foreground" Value="{StaticResource WeatherText}" />
         </Style>
-        <Style x:Key="GlassCard" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource WeatherCard}" />
+        <Style x:Key="SectionMeta" TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style x:Key="WeatherCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource WeatherPanel}" />
             <Setter Property="BorderBrush" Value="{StaticResource WeatherBorder}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="CornerRadius" Value="20" />
+        </Style>
+        <Style x:Key="WeatherCardStrong" TargetType="Border" BasedOn="{StaticResource WeatherCard}">
+            <Setter Property="Background" Value="{StaticResource WeatherPanelStrong}" />
+            <Setter Property="BorderBrush" Value="{StaticResource WeatherBorderStrong}" />
         </Style>
         <Style x:Key="WeatherButton" TargetType="Button">
+            <Setter Property="MinHeight" Value="36" />
             <Setter Property="Padding" Value="14,8" />
             <Setter Property="Foreground" Value="{StaticResource WeatherText}" />
-            <Setter Property="Background" Value="#251F3045" />
+            <Setter Property="Background" Value="#2A25364B" />
             <Setter Property="BorderBrush" Value="{StaticResource WeatherBorder}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -65,33 +85,37 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#48334B68" />
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#AA48DCF9" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#4A334C6B" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#B055DFFF" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.78" />
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.75" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.3" />
-                                <Setter Property="Cursor" Value="Arrow" />
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.32" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="StripChevronButton" TargetType="Button" BasedOn="{StaticResource WeatherButton}">
-            <Setter Property="Width" Value="30" />
-            <Setter Property="Height" Value="30" />
+        <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource WeatherButton}">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Margin" Value="3,0,0,0" />
-            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontSize" Value="16" />
+        </Style>
+        <Style x:Key="StripChevronButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="FontSize" Value="18" />
         </Style>
         <Style TargetType="TabItem">
             <Setter Property="Foreground" Value="{StaticResource WeatherMuted}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="16,9" />
+            <Setter Property="Padding" Value="18,10" />
+            <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -103,7 +127,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabChrome" Property="Background" Value="#263BCEF0" />
+                                <Setter TargetName="TabChrome" Property="Background" Value="#3A284D68" />
                                 <Setter Property="Foreground" Value="{StaticResource WeatherCyan}" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -118,47 +142,51 @@
 
     <Border Margin="14"
             Background="{StaticResource WeatherSurface}"
-            BorderBrush="#465B7395"
+            BorderBrush="#5A718CAA"
             BorderThickness="1"
-            CornerRadius="26">
+            CornerRadius="30">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="34" Direction="270" Opacity="0.7" ShadowDepth="8" Color="#FF000000" />
+            <DropShadowEffect BlurRadius="36" Direction="270" Opacity="0.72" ShadowDepth="8" Color="#FF000000" />
         </Border.Effect>
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="70" />
+                <RowDefinition Height="86" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="32" />
+                <RowDefinition Height="38" />
             </Grid.RowDefinitions>
 
-            <Grid Margin="24,12,16,8" MouseLeftButtonDown="TitleBar_OnMouseLeftButtonDown">
+            <Grid Grid.Row="0" Margin="26,15,22,10" MouseLeftButtonDown="TitleBar_OnMouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="390" />
+                    <ColumnDefinition Width="350" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Grid Width="38" Height="38" Margin="0,0,12,0">
-                    <Ellipse Fill="#1F48DCF9" />
-                    <Ellipse Width="26" Height="26" Fill="#1648DCF9">
-                        <Ellipse.Effect>
-                            <BlurEffect Radius="9" />
-                        </Ellipse.Effect>
+                <Grid Width="46" Height="46" Margin="0,0,14,0">
+                    <Ellipse Fill="#2548DCF9" />
+                    <Ellipse Width="34" Height="34" Fill="#1648DCF9">
+                        <Ellipse.Effect><BlurEffect Radius="11" /></Ellipse.Effect>
                     </Ellipse>
-                    <controls:WeatherIcon Width="32" Height="32"
-                                          WeatherCode="{Binding Current.WeatherCode}"
-                                          IsDay="{Binding Current.IsDayValue}" />
+                    <controls:WeatherIcon Width="40" Height="40"
+                                           WeatherCode="{Binding Current.WeatherCode}"
+                                           IsDay="{Binding Current.IsDayValue}" />
                 </Grid>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="OPS WEATHER" />
-                    <TextBlock Margin="0,2,0,0" Style="{StaticResource MutedText}"
-                               Text="ARSO observations · 3-model forecast · 15-minute detail" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontSize="19" FontWeight="SemiBold" Text="OPS WEATHER" />
+                        <Border Margin="10,0,0,0" Padding="7,3" Background="#22385C74" CornerRadius="7">
+                            <TextBlock Style="{StaticResource MicroLabel}" Foreground="{StaticResource WeatherCyan}" Text="LIVE STATION" />
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Margin="0,3,0,0" Style="{StaticResource MutedText}"
+                               Text="Observation, forecast, radar, atmosphere" />
                 </StackPanel>
 
-                <Grid x:Name="LocationSearchHost" Grid.Column="2" Margin="14,0">
+                <Grid x:Name="LocationSearchHost" Grid.Column="2" Margin="16,0">
                     <Border Background="#B40C121D" BorderBrush="{StaticResource WeatherBorder}"
-                            BorderThickness="1" CornerRadius="13" />
+                            BorderThickness="1" CornerRadius="14" />
                     <Grid Margin="13,0,5,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -166,41 +194,33 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock VerticalAlignment="Center" Foreground="{StaticResource WeatherCyan}"
-                                   FontSize="15" Text="⌖" />
-                        <TextBox x:Name="LocationSearchBox" Grid.Column="1" Margin="9,0"
+                                   FontSize="16" Text="LOCATE" />
+                        <TextBox x:Name="LocationSearchBox" Grid.Column="1" Margin="10,0"
                                  VerticalContentAlignment="Center" Background="Transparent"
                                  BorderThickness="0" Foreground="{StaticResource WeatherText}"
-                                 CaretBrush="{StaticResource WeatherCyan}"
-                                 FontSize="13" Text="{Binding LocationQuery, UpdateSourceTrigger=PropertyChanged}"
+                                 CaretBrush="{StaticResource WeatherCyan}" FontSize="13"
+                                 Text="{Binding LocationQuery, UpdateSourceTrigger=PropertyChanged}"
                                  KeyDown="LocationSearchBox_OnKeyDown"
-                                 ToolTip="Search any town or postcode" />
+                                 ToolTip="Search any town, municipality, or coordinates" />
                         <Button Grid.Column="2" Width="34" Height="30" Padding="0"
                                 Click="SearchButton_OnClick" Style="{StaticResource WeatherButton}"
-                                ToolTip="Find location" Content="↵" />
+                                ToolTip="Find location" Content="FIND" FontSize="10" />
                     </Grid>
-                    <Popup Width="390"
-                           AllowsTransparency="True"
-                           HorizontalOffset="0"
-                           IsOpen="{Binding IsSearchOpen, Mode=TwoWay}"
-                           Placement="Bottom"
-                           PlacementTarget="{Binding ElementName=LocationSearchHost}"
-                           StaysOpen="False"
-                           VerticalOffset="7">
-                        <Border Padding="7"
-                                Background="#FB0B1019"
-                                BorderBrush="{StaticResource WeatherBorder}"
-                                BorderThickness="1"
-                                CornerRadius="13">
-                            <ScrollViewer MaxHeight="430" VerticalScrollBarVisibility="Hidden">
+                    <Popup Width="350" AllowsTransparency="True"
+                           HorizontalOffset="0" IsOpen="{Binding IsSearchOpen, Mode=TwoWay}"
+                           Placement="Bottom" PlacementTarget="{Binding ElementName=LocationSearchHost}"
+                           StaysOpen="False" VerticalOffset="8">
+                        <Border Padding="8" Background="#FB0B1019" BorderBrush="{StaticResource WeatherBorder}"
+                                BorderThickness="1" CornerRadius="14">
+                            <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Hidden">
                                 <ItemsControl ItemsSource="{Binding SearchResults}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Button Margin="0,1" Padding="10,8" HorizontalContentAlignment="Left"
+                                            <Button Margin="0,1" Padding="11,9" HorizontalContentAlignment="Left"
                                                     Click="LocationResult_OnClick" Style="{StaticResource WeatherButton}">
                                                 <StackPanel>
                                                     <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
-                                                    <TextBlock Margin="0,2,0,0" Style="{StaticResource MutedText}"
-                                                               Text="{Binding DisplayName}" />
+                                                    <TextBlock Margin="0,2,0,0" Style="{StaticResource MutedText}" Text="{Binding DisplayName}" />
                                                 </StackPanel>
                                             </Button>
                                         </DataTemplate>
@@ -210,157 +230,20 @@
                         </Border>
                     </Popup>
                 </Grid>
-
-                <Button Grid.Column="3" Width="40" Height="40" Margin="0,0,8,0" Padding="0"
-                        Click="RefreshButton_OnClick" Style="{StaticResource WeatherButton}"
-                        ToolTip="Refresh now" Content="↻" FontSize="17" />
-                <Button Grid.Column="4" Width="40" Height="40" Padding="0"
-                        Click="CloseButton_OnClick" Style="{StaticResource WeatherButton}"
-                        ToolTip="Close" Content="✕" />
+                <Button Grid.Column="3" Margin="0,0,8,0" Click="RefreshButton_OnClick"
+                        Style="{StaticResource IconButton}" ToolTip="Refresh weather" Content="REF" FontSize="10" />
+                <Button Grid.Column="4" Click="CloseButton_OnClick"
+                        Style="{StaticResource IconButton}" ToolTip="Close weather station" Content="CLOSE" FontSize="9" />
             </Grid>
 
-            <TabControl x:Name="WeatherTabs" Grid.Row="1" Margin="18,0,18,0"
+            <TabControl Grid.Row="1" Grid.RowSpan="2" x:Name="WeatherTabs" Margin="24,0,24,12"
                         Background="Transparent" BorderThickness="0"
                         SelectionChanged="WeatherTabs_OnSelectionChanged">
-                <TabItem Header="OVERVIEW">
-                    <ScrollViewer x:Name="OverviewScroller" Margin="0,12,0,0" VerticalScrollBarVisibility="Hidden">
-                        <StackPanel Margin="6,0,6,16">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1.18*" />
-                                    <ColumnDefinition Width="0.82*" />
-                                </Grid.ColumnDefinitions>
-                                <Border Margin="0,0,7,0" Padding="26" Style="{StaticResource GlassCard}">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid Width="146" Height="146">
-                                            <Ellipse x:Name="HeroGlow" Fill="#1748DCF9">
-                                                <Ellipse.Effect><BlurEffect Radius="18" /></Ellipse.Effect>
-                                            </Ellipse>
-                                            <Ellipse x:Name="HeroGlowCore" Fill="#2848DCF9">
-                                                <Ellipse.Effect><BlurEffect Radius="30" /></Ellipse.Effect>
-                                            </Ellipse>
-                                            <controls:WeatherIcon Width="132" Height="132"
-                                                                  WeatherCode="{Binding Current.WeatherCode}"
-                                                                  IsDay="{Binding Current.IsDayValue}" />
-                                        </Grid>
-                                        <StackPanel Grid.Column="1" Margin="24,5,0,0" VerticalAlignment="Center">
-                                            <TextBlock Foreground="{StaticResource WeatherCyan}" FontSize="14"
-                                                       FontWeight="SemiBold" Text="{Binding Current.Location.DisplayName}" />
-                                            <TextBlock Margin="0,-4,0,-4" FontSize="72" FontWeight="Light"
-                                                       Text="{Binding Current.TemperatureLabel}" />
-                                            <TextBlock FontSize="20" FontWeight="SemiBold"
-                                                       Text="{Binding Current.Condition}" />
-                                            <StackPanel Margin="0,7,0,0" Orientation="Horizontal">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="{Binding Current.FeelsLikeLabel}" />
-                                                <TextBlock Margin="8,0" Style="{StaticResource MutedText}" Text="·" />
-                                                <TextBlock Style="{StaticResource MutedText}" Text="{Binding Current.ObservationSource}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
-                                                <Border Padding="8,4" Background="#2458E6B2" CornerRadius="8">
-                                                    <TextBlock Foreground="{StaticResource WeatherGreen}" FontSize="10"
-                                                               FontWeight="Bold" Text="{Binding Current.Confidence.Label}" />
-                                                </Border>
-                                                <TextBlock Margin="9,0,0,0" VerticalAlignment="Center"
-                                                           Style="{StaticResource MutedText}"
-                                                           Text="{Binding Current.Confidence.Detail}" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-
-                                <Border Grid.Column="1" Margin="7,0,0,0" Padding="20" Style="{StaticResource GlassCard}">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Style="{StaticResource SectionTitle}" Text="LIVE CONDITIONS" />
-                                            <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                                                <TextBlock HorizontalAlignment="Right" Style="{StaticResource MutedText}"
-                                                           Text="{Binding Current.StationName}" />
-                                                <TextBlock Margin="0,2,0,0" HorizontalAlignment="Right"
-                                                           Foreground="{StaticResource WeatherCyan}" FontSize="9"
-                                                           Text="{Binding Current.CoordinateLabel}" />
-                                            </StackPanel>
-                                        </Grid>
-                                        <UniformGrid Grid.Row="1" Margin="0,16,0,0" Columns="2" Rows="6">
-                                            <StackPanel Margin="0,0,10,12">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="HUMIDITY" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Text="{Binding Current.HumidityLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="10,0,0,12">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="WIND" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Text="{Binding Current.WindLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="0,6,10,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="RAIN NEXT HOUR" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource WeatherCyan}" Text="{Binding Current.RainLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="10,6,0,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="PRESSURE" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Text="{Binding Current.PressureLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="0,12,10,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="UV INDEX" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource WeatherAmber}"
-                                                           Text="{Binding Current.UvIndexLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="10,12,0,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="DEW POINT" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Text="{Binding Current.DewPointLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="0,12,10,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="VISIBILITY" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Text="{Binding Current.VisibilityLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="10,12,0,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="CLOUD COVER" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Text="{Binding Current.CloudLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="0,12,10,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="SNOW DEPTH" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource WeatherBlue}"
-                                                           Text="{Binding Current.SnowDepthLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="10,12,0,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="FREEZING LEVEL" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Text="{Binding Current.FreezingLevelLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="0,12,10,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="WIND GUST" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Text="{Binding Current.GustLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="10,12,0,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="SOIL TEMP" />
-                                                <TextBlock Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
-                                                           Text="{Binding Current.SoilTemperatureLabel}" />
-                                            </StackPanel>
-                                        </UniformGrid>
-                                    </Grid>
-                                </Border>
-                            </Grid>
-
-                            <Border Margin="0,14,0,0" Padding="18" Style="{StaticResource GlassCard}"
+                <TabItem Header="NOW">
+                    <ScrollViewer x:Name="OverviewScroller" Margin="0,8,0,0"
+                                  VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,0,0,18">
+                            <Border Margin="0,0,0,12" Padding="14,11" Style="{StaticResource WeatherCard}"
                                     Visibility="{Binding AlertVisibility}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -368,82 +251,108 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Border Width="42" Height="42" Background="#30FFC35A" CornerRadius="12">
+                                    <Border Width="36" Height="36" Background="#3C6B303A" CornerRadius="11">
                                         <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Foreground="{StaticResource WeatherAmber}" FontSize="21" Text="⚠" />
+                                                   Foreground="{StaticResource WeatherDanger}" FontSize="12" FontWeight="Bold" Text="ALERT" />
                                     </Border>
-                                    <StackPanel Grid.Column="1" Margin="13,0">
+                                    <StackPanel Grid.Column="1" Margin="12,0">
                                         <TextBlock FontWeight="SemiBold" Text="{Binding Current.Alert.Headline}" TextWrapping="Wrap" />
-                                        <TextBlock Margin="0,4,0,0" Style="{StaticResource MutedText}"
-                                                   Text="Official ARSO warning for this region" />
+                                        <TextBlock Margin="0,2,0,0" Style="{StaticResource MutedText}" Text="Official regional warning" />
                                     </StackPanel>
-                                    <Border Grid.Column="2" Padding="10,5" VerticalAlignment="Center"
-                                            Background="#29FFC35A" CornerRadius="9">
-                                        <TextBlock Foreground="{StaticResource WeatherAmber}" FontSize="11"
-                                                   FontWeight="Bold" Text="{Binding Current.Alert.LevelLabel}" />
+                                    <Border Grid.Column="2" Padding="9,5" Background="#3C6B303A" CornerRadius="8">
+                                        <TextBlock Foreground="{StaticResource WeatherDanger}" FontSize="10" FontWeight="Bold" Text="{Binding Current.Alert.LevelLabel}" />
                                     </Border>
                                 </Grid>
                             </Border>
 
-                            <Border Margin="0,10,0,0" Padding="18,14" Style="{StaticResource GlassCard}"
-                                    Visibility="{Binding OfficialOutlookVisibility}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="38" Height="38" Background="#2248DCF9" CornerRadius="11">
-                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Foreground="{StaticResource WeatherCyan}" FontSize="17" Text="◎" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
-                                        <TextBlock FontSize="14" FontWeight="SemiBold"
-                                                   Text="{Binding Current.OfficialOutlook.Summary}" />
-                                        <TextBlock Margin="0,3,0,0" Style="{StaticResource MutedText}"
-                                                   Text="Official national-service regional outlook" />
-                                    </StackPanel>
-                                    <TextBlock Grid.Column="2" VerticalAlignment="Center"
-                                               Foreground="{StaticResource WeatherCyan}" FontSize="11"
-                                               Text="{Binding Current.OfficialOutlook.SourceLabel}" />
-                                </Grid>
-                            </Border>
-
-                            <Grid Margin="2,18,0,9">
+                            <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="1.05*" />
+                                    <ColumnDefinition Width="0.95*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Style="{StaticResource SectionTitle}" Text="NEXT 4 HOURS · 15-MINUTE RAIN" />
-                                <Button x:Name="NowcastScrollLeft" Grid.Column="1" Click="NowcastScrollLeft_OnClick" Style="{StaticResource StripChevronButton}" Content="‹" ToolTip="Scroll nowcast left" />
-                                <Button x:Name="NowcastScrollRight" Grid.Column="2" Click="NowcastScrollRight_OnClick" Style="{StaticResource StripChevronButton}" Content="›" ToolTip="Scroll nowcast right" />
+                                <Border Margin="0,0,7,0" Padding="24" Style="{StaticResource WeatherCardStrong}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid Grid.Column="0" Width="178" Height="178" HorizontalAlignment="Center">
+                                            <Ellipse x:Name="HeroGlow" Fill="#1D55DFFF">
+                                                <Ellipse.Effect><BlurEffect Radius="24" /></Ellipse.Effect>
+                                            </Ellipse>
+                                            <Ellipse x:Name="HeroGlowCore" Fill="#2A3C9DFF">
+                                                <Ellipse.Effect><BlurEffect Radius="34" /></Ellipse.Effect>
+                                            </Ellipse>
+                                            <controls:WeatherIcon Width="164" Height="164"
+                                                                   WeatherCode="{Binding Current.WeatherCode}"
+                                                                   IsDay="{Binding Current.IsDayValue}" />
+                                        </Grid>
+                                        <StackPanel Grid.Column="1" Margin="22,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Style="{StaticResource MicroLabel}" Foreground="{StaticResource WeatherCyan}"
+                                                       Text="{Binding Current.Location.DisplayName}" />
+                                            <TextBlock Margin="0,2,0,-4" FontSize="76" FontWeight="Light"
+                                                       Text="{Binding Current.TemperatureLabel}" />
+                                            <TextBlock FontSize="22" FontWeight="SemiBold" Text="{Binding Current.Condition}" />
+                                            <TextBlock Margin="0,7,0,0" Style="{StaticResource MutedText}"
+                                                       Text="{Binding Current.FeelsLikeLabel}" />
+                                            <StackPanel Margin="0,14,0,0" Orientation="Horizontal">
+                                                <Border Padding="9,5" Background="#2458E6B2" CornerRadius="8">
+                                                    <TextBlock Foreground="{StaticResource WeatherGreen}" FontSize="10"
+                                                               FontWeight="Bold" Text="{Binding Current.Confidence.Label}" />
+                                                </Border>
+                                                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center"
+                                                           Style="{StaticResource MutedText}" Text="{Binding Current.Confidence.Detail}" />
+                                            </StackPanel>
+                                            <TextBlock Margin="0,13,0,0" Style="{StaticResource MutedText}"
+                                                       Text="{Binding Current.FreshnessLabel}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <Border Grid.Column="1" Margin="7,0,0,0" Padding="20" Style="{StaticResource WeatherCard}">
+                                    <StackPanel>
+                                        <Grid>
+                                            <TextBlock Style="{StaticResource SectionTitle}" Text="AT A GLANCE" />
+                                            <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                                <TextBlock HorizontalAlignment="Right" Style="{StaticResource MutedText}" Text="{Binding Current.StationName}" />
+                                                <TextBlock HorizontalAlignment="Right" Foreground="{StaticResource WeatherCyan}" FontSize="10" Text="{Binding Current.CoordinateLabel}" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <UniformGrid Margin="0,18,0,0" Columns="2" Rows="6">
+                                            <StackPanel Margin="0,0,10,12"><TextBlock Style="{StaticResource MicroLabel}" Text="HUMIDITY" /><TextBlock Margin="0,3,0,0" FontSize="22" FontWeight="SemiBold" Text="{Binding Current.HumidityLabel}" /></StackPanel>
+                                            <StackPanel Margin="10,0,0,12"><TextBlock Style="{StaticResource MicroLabel}" Text="WIND" /><TextBlock Margin="0,3,0,0" FontSize="18" FontWeight="SemiBold" Text="{Binding Current.WindLabel}" /></StackPanel>
+                                            <StackPanel Margin="0,0,10,12"><TextBlock Style="{StaticResource MicroLabel}" Text="RAIN NEXT HOUR" /><TextBlock Margin="0,3,0,0" Foreground="{StaticResource WeatherCyan}" FontSize="22" FontWeight="SemiBold" Text="{Binding Current.RainLabel}" /></StackPanel>
+                                            <StackPanel Margin="10,0,0,12"><TextBlock Style="{StaticResource MicroLabel}" Text="PRESSURE" /><TextBlock Margin="0,3,0,0" FontSize="18" FontWeight="SemiBold" Text="{Binding Current.PressureLabel}" /></StackPanel>
+                                            <StackPanel Margin="0,0,10,12"><TextBlock Style="{StaticResource MicroLabel}" Text="UV INDEX" /><TextBlock Margin="0,3,0,0" Foreground="{StaticResource WeatherAmber}" FontSize="22" FontWeight="SemiBold" Text="{Binding Current.UvIndexLabel}" /></StackPanel>
+                                            <StackPanel Margin="10,0,0,12"><TextBlock Style="{StaticResource MicroLabel}" Text="VISIBILITY" /><TextBlock Margin="0,3,0,0" FontSize="18" FontWeight="SemiBold" Text="{Binding Current.VisibilityLabel}" /></StackPanel>
+                                            <StackPanel Margin="0,0,10,12"><TextBlock Style="{StaticResource MicroLabel}" Text="DEW POINT" /><TextBlock Margin="0,3,0,0" FontSize="18" FontWeight="SemiBold" Text="{Binding Current.DewPointLabel}" /></StackPanel>
+                                            <StackPanel Margin="10,0,0,12"><TextBlock Style="{StaticResource MicroLabel}" Text="CLOUD COVER" /><TextBlock Margin="0,3,0,0" FontSize="18" FontWeight="SemiBold" Text="{Binding Current.CloudLabel}" /></StackPanel>
+                                            <StackPanel Margin="0,0,10,12"><TextBlock Style="{StaticResource MicroLabel}" Text="SNOW DEPTH" /><TextBlock Margin="0,3,0,0" Foreground="{StaticResource WeatherBlue}" FontSize="18" FontWeight="SemiBold" Text="{Binding Current.SnowDepthLabel}" /></StackPanel>
+                                            <StackPanel Margin="10,0,0,12"><TextBlock Style="{StaticResource MicroLabel}" Text="FREEZING LEVEL" /><TextBlock Margin="0,3,0,0" FontSize="18" FontWeight="SemiBold" Text="{Binding Current.FreezingLevelLabel}" /></StackPanel>
+                                            <StackPanel Margin="0,0,10,0"><TextBlock Style="{StaticResource MicroLabel}" Text="WIND GUST" /><TextBlock Margin="0,3,0,0" FontSize="18" FontWeight="SemiBold" Text="{Binding Current.GustLabel}" /></StackPanel>
+                                            <StackPanel Margin="10,0,0,0"><TextBlock Style="{StaticResource MicroLabel}" Text="SOIL TEMP" /><TextBlock Margin="0,3,0,0" FontSize="18" FontWeight="SemiBold" Text="{Binding Current.SoilTemperatureLabel}" /></StackPanel>
+                                        </UniformGrid>
+                                    </StackPanel>
+                                </Border>
                             </Grid>
-                            <ScrollViewer x:Name="NowcastScroller"
-                                          HorizontalScrollBarVisibility="Hidden"
-                                          VerticalScrollBarVisibility="Disabled"
-                                          PanningMode="HorizontalOnly"
-                                          ScrollChanged="HorizontalStrip_OnScrollChanged"
-                                          PreviewMouseWheel="HorizontalStrip_OnPreviewMouseWheel">
+
+                            <Grid Margin="0,18,0,9">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <StackPanel><TextBlock Style="{StaticResource SectionTitle}" Text="RAIN TRACK" /><TextBlock Margin="0,2,0,0" Style="{StaticResource SectionMeta}" Text="NEXT 4 HOURS · 15-MINUTE GUIDANCE" /></StackPanel>
+                                <TextBlock Grid.Column="1" Margin="0,0,10,0" VerticalAlignment="Center" Style="{StaticResource SectionMeta}" Text="MODEL BLEND" />
+                                <Button x:Name="NowcastScrollLeft" Grid.Column="2" Click="NowcastScrollLeft_OnClick" Style="{StaticResource StripChevronButton}" Content="‹" ToolTip="Scroll rain track left" />
+                                <Button x:Name="NowcastScrollRight" Grid.Column="3" Click="NowcastScrollRight_OnClick" Style="{StaticResource StripChevronButton}" Content="›" ToolTip="Scroll rain track right" />
+                            </Grid>
+                            <ScrollViewer x:Name="NowcastScroller" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly" ScrollChanged="HorizontalStrip_OnScrollChanged" PreviewMouseWheel="HorizontalStrip_OnPreviewMouseWheel">
                                 <ItemsControl ItemsSource="{Binding Nowcast}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Width="86" Margin="0,0,7,0" Padding="10,9" Style="{StaticResource GlassCard}">
+                                            <Border Width="108" Margin="0,0,8,0" Padding="12" Style="{StaticResource WeatherCard}">
                                                 <StackPanel HorizontalAlignment="Center">
-                                                    <TextBlock HorizontalAlignment="Center" Style="{StaticResource MutedText}"
-                                                               Text="{Binding TimeLabel}" />
-                                                    <controls:WeatherIcon Width="42" Height="42" Margin="0,2,0,0"
-                                                               WeatherCode="{Binding WeatherCode}"
-                                                               IsDay="{Binding IsDayValue}"
-                                                               Subtle="True" />
-                                                    <TextBlock HorizontalAlignment="Center" Foreground="{StaticResource WeatherCyan}"
-                                                               FontSize="12" FontWeight="SemiBold" Text="{Binding RainLabel}" />
-                                                    <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center"
-                                                               Foreground="{StaticResource WeatherMuted}" FontSize="9"
-                                                               Text="{Binding ConfidenceScore, StringFormat={}{0}% agree}" />
+                                                    <TextBlock HorizontalAlignment="Center" Style="{StaticResource MicroLabel}" Text="{Binding TimeLabel}" />
+                                                    <controls:WeatherIcon Width="48" Height="48" Margin="0,5,0,2" WeatherCode="{Binding WeatherCode}" IsDay="{Binding IsDayValue}" Subtle="True" />
+                                                    <TextBlock HorizontalAlignment="Center" Foreground="{StaticResource WeatherCyan}" FontSize="13" FontWeight="SemiBold" Text="{Binding RainLabel}" />
+                                                    <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center" Style="{StaticResource MicroLabel}" Text="{Binding ConfidenceScore, StringFormat={}{0}% AGREE}" />
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
@@ -451,56 +360,42 @@
                                 </ItemsControl>
                             </ScrollViewer>
 
-                            <Grid Margin="2,18,0,9">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Style="{StaticResource SectionTitle}" Text="NEXT 24 HOURS" />
-                                <Button x:Name="HourlyScrollLeft" Grid.Column="1" Click="HourlyScrollLeft_OnClick" Style="{StaticResource StripChevronButton}" Content="‹" ToolTip="Scroll hourly forecast left" />
-                                <Button x:Name="HourlyScrollRight" Grid.Column="2" Click="HourlyScrollRight_OnClick" Style="{StaticResource StripChevronButton}" Content="›" ToolTip="Scroll hourly forecast right" />
+                            <Border Margin="0,18,0,0" Padding="16" Style="{StaticResource WeatherCard}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Style="{StaticResource SectionTitle}" Text="OFFICIAL OUTLOOK" /><TextBlock Margin="0,3,0,0" Style="{StaticResource MutedText}" Text="{Binding Current.OfficialOutlook.Summary}" /><TextBlock Margin="0,4,0,0" Style="{StaticResource MicroLabel}" Text="{Binding Current.OfficialOutlook.SourceLabel}" /></StackPanel>
+                                    <Border Grid.Column="1" Padding="10,6" Background="#243D5A69" CornerRadius="9" Visibility="{Binding OfficialOutlookVisibility}"><TextBlock Foreground="{StaticResource WeatherCyan}" FontSize="10" FontWeight="SemiBold" Text="ARSO" /></Border>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <TabItem Header="FORECAST">
+                    <ScrollViewer x:Name="ForecastScroller" Margin="0,8,0,0" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,0,0,18">
+                            <Grid Margin="0,0,0,9">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <StackPanel><TextBlock Style="{StaticResource SectionTitle}" Text="HOURLY WINDOW" /><TextBlock Margin="0,2,0,0" Style="{StaticResource SectionMeta}" Text="NEXT 24 HOURS · TEMPERATURE, PRECIPITATION, WIND" /></StackPanel>
+                                <Border Grid.Column="1" Margin="0,0,10,0" Padding="8,5" Background="#23365266" CornerRadius="8"><TextBlock Foreground="{StaticResource WeatherGreen}" FontSize="10" FontWeight="SemiBold" Text="{Binding Current.Confidence.Label}" /></Border>
+                                <Button x:Name="HourlyScrollLeft" Grid.Column="2" Click="HourlyScrollLeft_OnClick" Style="{StaticResource StripChevronButton}" Content="‹" ToolTip="Scroll hourly forecast left" />
+                                <Button x:Name="HourlyScrollRight" Grid.Column="3" Click="HourlyScrollRight_OnClick" Style="{StaticResource StripChevronButton}" Content="›" ToolTip="Scroll hourly forecast right" />
                             </Grid>
-                            <ScrollViewer x:Name="HourlyScroller"
-                                          HorizontalScrollBarVisibility="Hidden"
-                                          VerticalScrollBarVisibility="Disabled"
-                                          PanningMode="HorizontalOnly"
-                                          ScrollChanged="HorizontalStrip_OnScrollChanged"
-                                          PreviewMouseWheel="HorizontalStrip_OnPreviewMouseWheel">
+                            <ScrollViewer x:Name="HourlyScroller" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly" ScrollChanged="HorizontalStrip_OnScrollChanged" PreviewMouseWheel="HorizontalStrip_OnPreviewMouseWheel">
                                 <ItemsControl ItemsSource="{Binding Hourly}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Width="116" Margin="0,0,8,0" Padding="12" Style="{StaticResource GlassCard}">
+                                            <Border Width="142" Margin="0,0,9,0" Padding="14" Style="{StaticResource WeatherCard}">
                                                 <StackPanel HorizontalAlignment="Center">
-                                                    <TextBlock HorizontalAlignment="Center" Style="{StaticResource MutedText}"
-                                                               Text="{Binding TimeLabel}" />
-                                                    <controls:WeatherIcon Width="52" Height="52" Margin="0,2,0,0"
-                                                               WeatherCode="{Binding WeatherCode}"
-                                                               IsDay="{Binding IsDayValue}"
-                                                               Subtle="True" />
-                                                    <TextBlock HorizontalAlignment="Center" FontSize="21" FontWeight="SemiBold"
-                                                               Text="{Binding TemperatureLabel}" />
-                                                    <TextBlock Margin="0,7,0,0" HorizontalAlignment="Center"
-                                                               Foreground="{StaticResource WeatherCyan}" FontSize="11"
-                                                               Text="{Binding RainLabel}" />
-                                                    <TextBlock Margin="0,4,0,0" HorizontalAlignment="Center"
-                                                               Foreground="{StaticResource WeatherMuted}" FontSize="9"
-                                                               Text="{Binding DetailLabel}" />
-                                                    <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center"
-                                                               Foreground="{StaticResource WeatherMuted}" FontSize="9"
-                                                               Text="{Binding PressureLabel}" />
-                                                    <TextBlock Margin="0,2,0,0" HorizontalAlignment="Center"
-                                                               Foreground="{StaticResource WeatherAmber}" FontSize="9"
-                                                               Text="{Binding UvLabel}" />
-                                                    <TextBlock Margin="0,2,0,0" HorizontalAlignment="Center"
-                                                               Foreground="{StaticResource WeatherBlue}" FontSize="9"
-                                                               Text="{Binding SnowLabel}" />
-                                                    <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center"
-                                                               Foreground="{StaticResource WeatherGreen}" FontSize="9"
-                                                               Text="{Binding ConfidenceLabel, StringFormat={}AGREE {0}}" />
+                                                    <TextBlock HorizontalAlignment="Center" Style="{StaticResource MicroLabel}" Text="{Binding TimeLabel}" />
+                                                    <controls:WeatherIcon Width="64" Height="64" Margin="0,7,0,2" WeatherCode="{Binding WeatherCode}" IsDay="{Binding IsDayValue}" Subtle="True" />
+                                                    <TextBlock HorizontalAlignment="Center" FontSize="23" FontWeight="SemiBold" Text="{Binding TemperatureLabel}" />
+                                                    <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center" Foreground="{StaticResource WeatherCyan}" FontSize="11" Text="{Binding RainLabel}" />
+                                                    <TextBlock Margin="0,5,0,0" HorizontalAlignment="Center" Style="{StaticResource MicroLabel}" Text="{Binding DetailLabel}" />
+                                                    <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center" Style="{StaticResource MicroLabel}" Text="{Binding PressureLabel}" />
+                                                    <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center" Foreground="{StaticResource WeatherAmber}" FontSize="10" Text="{Binding UvLabel}" />
+                                                    <TextBlock Margin="0,3,0,0" HorizontalAlignment="Center" Foreground="{StaticResource WeatherGreen}" FontSize="10" Text="{Binding ConfidenceLabel, StringFormat={}AGREE {0}}" />
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
@@ -508,43 +403,21 @@
                                 </ItemsControl>
                             </ScrollViewer>
 
-                            <TextBlock Margin="2,18,0,9" Style="{StaticResource SectionTitle}" Text="8-DAY OUTLOOK" />
+                            <Grid Margin="0,24,0,9">
+                                <StackPanel><TextBlock Style="{StaticResource SectionTitle}" Text="EIGHT-DAY OUTLOOK" /><TextBlock Margin="0,2,0,0" Style="{StaticResource SectionMeta}" Text="DAILY RANGE · RAIN · WIND · CONFIDENCE" /></StackPanel>
+                            </Grid>
                             <ItemsControl ItemsSource="{Binding Daily}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Margin="0,0,0,7" Padding="15,10" Style="{StaticResource GlassCard}">
+                                        <Border Margin="0,0,0,8" Padding="15,12" Style="{StaticResource WeatherCard}">
                                             <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="92" />
-                                                    <ColumnDefinition Width="48" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="150" />
-                                                    <ColumnDefinition Width="175" />
-                                                    <ColumnDefinition Width="110" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel>
-                                                    <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding DayLabel}" />
-                                                    <TextBlock Margin="0,2,0,0" Foreground="{StaticResource WeatherAmber}"
-                                                               FontSize="9" Text="{Binding DaylightLabel}" />
-                                                </StackPanel>
-                                                <controls:WeatherIcon Grid.Column="1" Width="48" Height="48"
-                                                           VerticalAlignment="Center"
-                                                           WeatherCode="{Binding WeatherCode}"
-                                                           IsDay="True"
-                                                           Subtle="True" />
-                                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="{Binding RangeLabel}" />
-                                                    <TextBlock Margin="0,2,0,0" Foreground="{StaticResource WeatherBlue}"
-                                                               FontSize="9" Text="{Binding SnowLabel}" />
-                                                </StackPanel>
-                                                <TextBlock Grid.Column="3" VerticalAlignment="Center" Foreground="{StaticResource WeatherCyan}"
-                                                           Text="{Binding RainLabel}" />
-                                                <TextBlock Grid.Column="4" VerticalAlignment="Center"
-                                                           Style="{StaticResource MutedText}"
-                                                           Text="{Binding WindLabel}" />
-                                                <TextBlock Grid.Column="5" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                           Foreground="{StaticResource WeatherGreen}" FontSize="10"
-                                                           Text="{Binding ConfidenceLabel}" />
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /><ColumnDefinition Width="170" /><ColumnDefinition Width="190" /><ColumnDefinition Width="120" /></Grid.ColumnDefinitions>
+                                                <StackPanel VerticalAlignment="Center"><TextBlock FontWeight="SemiBold" Text="{Binding DayLabel}" /><TextBlock Margin="0,3,0,0" Style="{StaticResource MicroLabel}" Text="{Binding DaylightLabel}" /></StackPanel>
+                                                <controls:WeatherIcon Grid.Column="1" Width="50" Height="50" VerticalAlignment="Center" WeatherCode="{Binding WeatherCode}" IsDay="True" Subtle="True" />
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center"><TextBlock FontSize="18" FontWeight="SemiBold" Text="{Binding RangeLabel}" /><TextBlock Margin="0,3,0,0" Foreground="{StaticResource WeatherBlue}" FontSize="10" Text="{Binding SnowLabel}" /></StackPanel>
+                                                <StackPanel Grid.Column="3" VerticalAlignment="Center"><TextBlock Style="{StaticResource MicroLabel}" Text="PRECIPITATION" /><TextBlock Margin="0,3,0,0" Foreground="{StaticResource WeatherCyan}" FontSize="13" Text="{Binding RainLabel}" /></StackPanel>
+                                                <StackPanel Grid.Column="4" VerticalAlignment="Center"><TextBlock Style="{StaticResource MicroLabel}" Text="WIND" /><TextBlock Margin="0,3,0,0" Style="{StaticResource MutedText}" Text="{Binding WindLabel}" /></StackPanel>
+                                                <TextBlock Grid.Column="5" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{StaticResource WeatherGreen}" FontSize="10" Text="{Binding ConfidenceLabel}" />
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
@@ -554,215 +427,59 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem x:Name="RadarTab" Header="LIVE RADAR">
-                    <Grid Margin="6,12,6,12">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Border Padding="16,11" Style="{StaticResource GlassCard}">
+                <TabItem x:Name="RadarTab" Header="RADAR">
+                    <Grid Margin="0,8,0,0">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Border Padding="18,14" Style="{StaticResource WeatherCard}">
                             <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="ARSO PRECIPITATION COMPOSITE" />
-                                    <TextBlock Margin="0,3,0,0" Style="{StaticResource MutedText}"
-                                               Text="Official Slovenia radar · 5-minute source cadence · 90-minute animation" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Style="{StaticResource MutedText}"
-                                               Text="ZOOM" />
-                                    <Slider Width="120" Minimum="0.6" Maximum="2.2" Value="{Binding RadarZoom, Mode=TwoWay}" />
-                                </StackPanel>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <StackPanel><TextBlock Style="{StaticResource SectionTitle}" Text="ARSO PRECIPITATION RADAR" /><TextBlock Margin="0,3,0,0" Style="{StaticResource SectionMeta}" Text="Official Slovenia composite · 5-minute source cadence" /></StackPanel>
+                                <TextBlock Grid.Column="1" Margin="0,0,14,0" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" Text="ZOOM" />
+                                <Slider Grid.Column="2" Width="130" Minimum="0.6" Maximum="2.2" Value="{Binding RadarZoom, Mode=TwoWay}" />
                             </Grid>
                         </Border>
-
-                        <Border Grid.Row="1" Margin="0,10" Background="#FF05080D"
-                                BorderBrush="{StaticResource WeatherBorder}" BorderThickness="1" CornerRadius="18"
-                                ClipToBounds="True">
+                        <Border Grid.Row="1" Margin="0,12" Background="#FF05080D" BorderBrush="{StaticResource WeatherBorder}" BorderThickness="1" CornerRadius="20" ClipToBounds="True">
                             <Grid>
-                                <ScrollViewer HorizontalContentAlignment="Center"
-                                              VerticalContentAlignment="Center"
-                                              HorizontalScrollBarVisibility="Auto"
-                                              VerticalScrollBarVisibility="Auto"
-                                              PanningMode="Both">
-                                    <Grid>
-                                        <Image x:Name="RadarImage" Stretch="None" RenderOptions.BitmapScalingMode="HighQuality">
-                                            <Image.LayoutTransform>
-                                                <ScaleTransform ScaleX="{Binding RadarZoom}" ScaleY="{Binding RadarZoom}" />
-                                            </Image.LayoutTransform>
-                                        </Image>
-                                    </Grid>
+                                <ScrollViewer HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" PanningMode="Both">
+                                    <Image x:Name="RadarImage" Stretch="None" RenderOptions.BitmapScalingMode="HighQuality">
+                                        <Image.LayoutTransform><ScaleTransform ScaleX="{Binding RadarZoom}" ScaleY="{Binding RadarZoom}" /></Image.LayoutTransform>
+                                    </Image>
                                 </ScrollViewer>
-                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{StaticResource WeatherMuted}" FontSize="14"
-                                           Text="{Binding RadarStatus}" Visibility="{Binding RadarStatusVisibility}" />
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource WeatherMuted}" FontSize="14" Text="{Binding RadarStatus}" Visibility="{Binding RadarStatusVisibility}" />
                             </Grid>
                         </Border>
-
-                        <Border Grid.Row="2" Padding="14,10" Style="{StaticResource GlassCard}">
+                        <Border Grid.Row="2" Padding="14,10" Style="{StaticResource WeatherCard}">
                             <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="150" />
-                                </Grid.ColumnDefinitions>
-                                <Button Width="92" Click="RadarPlayButton_OnClick" Style="{StaticResource WeatherButton}"
-                                        Content="{Binding RadarPlayLabel}" />
-                                <Slider x:Name="RadarTimeline" Grid.Column="1" Margin="15,0" Minimum="0" Maximum="1"
-                                        IsSnapToTickEnabled="True" ValueChanged="RadarTimeline_OnValueChanged" />
-                                <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                           Style="{StaticResource MutedText}" Text="{Binding RadarFrameLabel}" />
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="160" /></Grid.ColumnDefinitions>
+                                <Button x:Name="RadarPlayButton" Width="90" Click="RadarPlayButton_OnClick" Style="{StaticResource WeatherButton}" Content="{Binding RadarPlayLabel}" />
+                                <Slider x:Name="RadarTimeline" Grid.Column="1" Margin="16,0" Minimum="0" Maximum="1" IsSnapToTickEnabled="True" ValueChanged="RadarTimeline_OnValueChanged" />
+                                <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MutedText}" Text="{Binding RadarFrameLabel}" />
                             </Grid>
                         </Border>
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="AIR &amp; SUN">
-                    <ScrollViewer Margin="6,12,6,12" VerticalScrollBarVisibility="Hidden">
-                        <StackPanel>
+                <TabItem Header="ENVIRONMENT">
+                    <ScrollViewer x:Name="EnvironmentScroller" Margin="0,8,0,0" VerticalScrollBarVisibility="Hidden">
+                        <StackPanel Margin="0,0,0,18">
                             <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1.1*" />
-                                    <ColumnDefinition Width="0.9*" />
-                                </Grid.ColumnDefinitions>
-                                <Border Margin="0,0,7,0" Padding="24" Style="{StaticResource GlassCard}">
-                                    <StackPanel>
-                                        <TextBlock Style="{StaticResource SectionTitle}" Text="EUROPEAN AIR QUALITY INDEX" />
-                                        <StackPanel Margin="0,16,0,0" Orientation="Horizontal">
-                                            <TextBlock FontSize="60" FontWeight="Light" Foreground="{StaticResource WeatherGreen}"
-                                                       Text="{Binding Current.AirQuality.EuropeanAqi, TargetNullValue=N/A}" />
-                                            <StackPanel Margin="18,10,0,0">
-                                                <TextBlock FontSize="22" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.AqiLabel}" />
-                                                <TextBlock Margin="0,4,0,0" Style="{StaticResource MutedText}"
-                                                           Text="CAMS European atmospheric model" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                        <UniformGrid Margin="0,24,0,0" Columns="2">
-                                            <StackPanel>
-                                                <TextBlock Style="{StaticResource MutedText}" Text="PM2.5" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="20" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.Pm25, StringFormat={}{0:0.0} μg/m³, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                            <StackPanel>
-                                                <TextBlock Style="{StaticResource MutedText}" Text="PM10" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="20" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.Pm10, StringFormat={}{0:0.0} μg/m³, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                        </UniformGrid>
-                                        <UniformGrid Margin="0,14,0,0" Columns="4">
-                                            <StackPanel Margin="0,0,8,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="NO₂" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.NitrogenDioxide, StringFormat={}{0:0.0} μg/m³, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="0,0,8,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="O₃" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.Ozone, StringFormat={}{0:0.0} μg/m³, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="0,0,8,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="SO₂" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.SulphurDioxide, StringFormat={}{0:0.0} μg/m³, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                            <StackPanel>
-                                                <TextBlock Style="{StaticResource MutedText}" Text="CO" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.CarbonMonoxide, StringFormat={}{0:0.0} mg/m³, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                        </UniformGrid>
-                                    </StackPanel>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="1.1*" /><ColumnDefinition Width="0.9*" /></Grid.ColumnDefinitions>
+                                <Border Margin="0,0,7,0" Padding="24" Style="{StaticResource WeatherCardStrong}">
+                                    <StackPanel><TextBlock Style="{StaticResource SectionTitle}" Text="AIR QUALITY" /><StackPanel Margin="0,15,0,0" Orientation="Horizontal"><TextBlock FontSize="66" FontWeight="Light" Foreground="{StaticResource WeatherGreen}" Text="{Binding Current.AirQuality.EuropeanAqi, TargetNullValue=N/A}" /><StackPanel Margin="18,8,0,0"><TextBlock FontSize="22" FontWeight="SemiBold" Text="{Binding Current.AirQuality.AqiLabel}" /><TextBlock Margin="0,4,0,0" Style="{StaticResource MutedText}" Text="CAMS European atmospheric model" /></StackPanel></StackPanel><UniformGrid Margin="0,22,0,0" Columns="2" Rows="2"><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="PM2.5" /><TextBlock Margin="0,3,0,0" FontSize="20" Text="{Binding Current.AirQuality.Pm25, StringFormat={}{0:0.0} ug/m3, TargetNullValue=N/A}" /></StackPanel><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="PM10" /><TextBlock Margin="0,3,0,0" FontSize="20" Text="{Binding Current.AirQuality.Pm10, StringFormat={}{0:0.0} ug/m3, TargetNullValue=N/A}" /></StackPanel><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="NO2" /><TextBlock Margin="0,3,0,0" FontSize="20" Text="{Binding Current.AirQuality.NitrogenDioxide, StringFormat={}{0:0.0} ug/m3, TargetNullValue=N/A}" /></StackPanel><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="O3" /><TextBlock Margin="0,3,0,0" FontSize="20" Text="{Binding Current.AirQuality.Ozone, StringFormat={}{0:0.0} ug/m3, TargetNullValue=N/A}" /></StackPanel></UniformGrid></StackPanel>
                                 </Border>
-                                <Border Grid.Column="1" Margin="7,0,0,0" Padding="24" Style="{StaticResource GlassCard}">
-                                    <StackPanel>
-                                        <TextBlock Style="{StaticResource SectionTitle}" Text="UV &amp; POLLEN" />
-                                        <UniformGrid Margin="0,18,0,0" Columns="2" Rows="2">
-                                            <StackPanel Margin="0,0,10,20">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="UV INDEX" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="25" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource WeatherAmber}"
-                                                           Text="{Binding Current.AirQuality.UvIndex, StringFormat={}{0:0.0}, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="10,0,0,20">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="GRASS POLLEN" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="25" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.GrassPollen, StringFormat={}{0:0}, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="0,0,10,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="BIRCH POLLEN" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="25" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.BirchPollen, StringFormat={}{0:0}, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="10,0,0,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="TODAY MAX UV" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="25" FontWeight="SemiBold"
-                                                           Text="{Binding Daily[0].UvIndex, StringFormat={}{0:0.0}, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                        </UniformGrid>
-                                        <UniformGrid Margin="0,10,0,0" Columns="2" Rows="2">
-                                            <StackPanel Margin="0,0,10,12">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="ALDER POLLEN" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="18" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.AlderPollen, StringFormat={}{0:0}, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="10,0,0,12">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="OLIVE POLLEN" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="18" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.OlivePollen, StringFormat={}{0:0}, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                            <StackPanel Margin="0,0,10,0">
-                                                <TextBlock Style="{StaticResource MutedText}" Text="RAGWEED POLLEN" />
-                                                <TextBlock Margin="0,4,0,0" FontSize="18" FontWeight="SemiBold"
-                                                           Text="{Binding Current.AirQuality.RagweedPollen, StringFormat={}{0:0}, TargetNullValue=N/A}" />
-                                            </StackPanel>
-                                        </UniformGrid>
-                                    </StackPanel>
-                                </Border>
+                                <Border Grid.Column="1" Margin="7,0,0,0" Padding="24" Style="{StaticResource WeatherCard}"><StackPanel><TextBlock Style="{StaticResource SectionTitle}" Text="UV AND POLLEN" /><UniformGrid Margin="0,18,0,0" Columns="2" Rows="3"><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="UV INDEX" /><TextBlock Margin="0,3,0,0" Foreground="{StaticResource WeatherAmber}" FontSize="28" Text="{Binding Current.AirQuality.UvIndex, StringFormat={}{0:0.0}, TargetNullValue=N/A}" /></StackPanel><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="TODAY MAX UV" /><TextBlock Margin="0,3,0,0" FontSize="28" Text="{Binding Daily[0].UvIndex, StringFormat={}{0:0.0}, TargetNullValue=N/A}" /></StackPanel><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="GRASS" /><TextBlock Margin="0,3,0,0" FontSize="20" Text="{Binding Current.AirQuality.GrassPollen, StringFormat={}{0:0}, TargetNullValue=N/A}" /></StackPanel><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="BIRCH" /><TextBlock Margin="0,3,0,0" FontSize="20" Text="{Binding Current.AirQuality.BirchPollen, StringFormat={}{0:0}, TargetNullValue=N/A}" /></StackPanel><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="ALDER" /><TextBlock Margin="0,3,0,0" FontSize="20" Text="{Binding Current.AirQuality.AlderPollen, StringFormat={}{0:0}, TargetNullValue=N/A}" /></StackPanel><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="RAGWEED" /><TextBlock Margin="0,3,0,0" FontSize="20" Text="{Binding Current.AirQuality.RagweedPollen, StringFormat={}{0:0}, TargetNullValue=N/A}" /></StackPanel></UniformGrid></StackPanel></Border>
                             </Grid>
-
-                            <Border Margin="0,14,0,0" Padding="24" Style="{StaticResource GlassCard}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel>
-                                        <TextBlock Style="{StaticResource SectionTitle}" Text="SUNRISE" />
-                                        <TextBlock Margin="0,8,0,0" FontSize="30" FontWeight="Light"
-                                                   Text="{Binding Daily[0].Sunrise, StringFormat={}{0:HH:mm}, TargetNullValue=N/A}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Style="{StaticResource SectionTitle}" Text="SUNSET" />
-                                        <TextBlock Margin="0,8,0,0" FontSize="30" FontWeight="Light"
-                                                   Text="{Binding Daily[0].Sunset, StringFormat={}{0:HH:mm}, TargetNullValue=N/A}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Style="{StaticResource SectionTitle}" Text="DAYLIGHT" />
-                                        <TextBlock Margin="0,8,0,0" FontSize="30" FontWeight="Light"
-                                                   Text="{Binding DaylightLabel}" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
+                            <Border Margin="0,14,0,0" Padding="24" Style="{StaticResource WeatherCard}"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="SUNRISE" /><TextBlock Margin="0,7,0,0" FontSize="32" FontWeight="Light" Text="{Binding Daily[0].Sunrise, StringFormat={}{0:HH:mm}, TargetNullValue=N/A}" /></StackPanel><StackPanel Grid.Column="1"><TextBlock Style="{StaticResource MicroLabel}" Text="SUNSET" /><TextBlock Margin="0,7,0,0" FontSize="32" FontWeight="Light" Text="{Binding Daily[0].Sunset, StringFormat={}{0:HH:mm}, TargetNullValue=N/A}" /></StackPanel><StackPanel Grid.Column="2"><TextBlock Style="{StaticResource MicroLabel}" Text="DAYLIGHT" /><TextBlock Margin="0,7,0,0" FontSize="32" FontWeight="Light" Text="{Binding DaylightLabel}" /></StackPanel></Grid></Border>
+                            <Border Margin="0,14,0,0" Padding="18" Style="{StaticResource WeatherCard}"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><StackPanel><TextBlock Style="{StaticResource MicroLabel}" Text="SO2" /><TextBlock Margin="0,4,0,0" FontSize="18" Text="{Binding Current.AirQuality.SulphurDioxide, StringFormat={}{0:0.0} ug/m3, TargetNullValue=N/A}" /></StackPanel><StackPanel Grid.Column="1"><TextBlock Style="{StaticResource MicroLabel}" Text="CO" /><TextBlock Margin="0,4,0,0" FontSize="18" Text="{Binding Current.AirQuality.CarbonMonoxide, StringFormat={}{0:0.0} ug/m3, TargetNullValue=N/A}" /></StackPanel><StackPanel Grid.Column="2"><TextBlock Style="{StaticResource MicroLabel}" Text="SOIL" /><TextBlock Margin="0,4,0,0" FontSize="18" Text="{Binding Current.SoilTemperatureLabel}" /></StackPanel><StackPanel Grid.Column="3"><TextBlock Style="{StaticResource MicroLabel}" Text="FREEZING LEVEL" /><TextBlock Margin="0,4,0,0" FontSize="18" Text="{Binding Current.FreezingLevelLabel}" /></StackPanel></Grid></Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
             </TabControl>
 
-            <Grid Grid.Row="2" Margin="25,0,25,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock VerticalAlignment="Center" Style="{StaticResource MutedText}"
-                           Text="{Binding StatusText}" />
-                <TextBlock Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource MutedText}"
-                           Text="ARSO observations/warnings/radar · Open-Meteo Best Match + ECMWF + ICON · CAMS air" />
+            <Grid Grid.Row="3" Margin="26,0,26,10">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock VerticalAlignment="Center" Style="{StaticResource MutedText}" Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource MicroLabel}" Text="ARSO · OPEN-METEO · CAMS" />
             </Grid>
         </Grid>
     </Border>

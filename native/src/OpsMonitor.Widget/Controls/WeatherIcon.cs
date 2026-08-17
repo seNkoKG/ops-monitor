@@ -104,6 +104,7 @@ public sealed class WeatherIcon : ContentControl
         StopAnimation();
         _scene.Children.Clear();
         _storyboard = BuildScene();
+        _wasVisible = false;
         RefreshAnimation();
     }
 
