@@ -16,10 +16,13 @@ internal sealed class WeatherService : IDisposable
     private const string OpenMeteoBase = "https://api.open-meteo.com/v1";
     private const string OpenMeteoAirBase = "https://air-quality-api.open-meteo.com/v1";
     private const string OpenMeteoGeocodingBase = "https://geocoding-api.open-meteo.com/v1";
+    private const string ArsoGroundRainRateUrl =
+        "https://meteo.arso.gov.si/uploads/probase/www/observ/radar/si0-rrg.srd";
     private const string BestMatch = "best_match";
     private const string Ecmwf = "ecmwf_ifs025";
     private const string IconEurope = "dwd_icon_eu";
     private static readonly TimeSpan RadarCacheDuration = TimeSpan.FromMinutes(4);
+    private static readonly TimeSpan RadarMaximumAge = TimeSpan.FromMinutes(25);
     private static readonly TimeSpan WeatherCacheMaximumAge = TimeSpan.FromHours(6);
 
     private readonly HttpClient _client;
@@ -92,6 +95,7 @@ internal sealed class WeatherService : IDisposable
             var location = _location;
             var forecastTask = FetchForecastAsync(location, token);
             var observationTask = FetchArsoObservationAsync(location, token);
+            var radarTask = FetchRadarObservationAsync(location, token);
             var airTask = FetchAirQualityAsync(location, token);
             var warningTask = FetchWarningAsync(location, token);
             var outlookTask = FetchOfficialOutlookAsync(location, token);
@@ -103,13 +107,18 @@ internal sealed class WeatherService : IDisposable
             {
                 observation = null;
             }
+            RadarRainObservation? radar = await SafeAsync(radarTask).ConfigureAwait(false);
+            if (!IsFreshRadarObservation(radar, DateTimeOffset.UtcNow))
+            {
+                radar = null;
+            }
             AirQualitySnapshot? air = await SafeAsync(airTask).ConfigureAwait(false);
             WeatherAlert? warning = await SafeAsync(warningTask).ConfigureAwait(false);
             OfficialWeatherOutlook? outlook = await SafeAsync(outlookTask).ConfigureAwait(false);
 
             if (forecast is null)
             {
-                PublishStaleFallback(location, observation, air, warning, outlook);
+                PublishStaleFallback(location, observation, radar, air, warning, outlook);
                 return;
             }
 
@@ -121,13 +130,28 @@ internal sealed class WeatherService : IDisposable
             double feelsLike = usesStation
                 ? CalculateApparentTemperature(temperature, humidity, wind)
                 : current.FeelsLikeCelsius;
+            bool radarRain = radar is { IsRainDetected: true };
+            bool stationRain = observation?.PrecipitationMillimetres is > 0.05;
+            int weatherCode = radarRain
+                ? ResolveObservedWeatherCode(
+                    current.WeatherCode,
+                    radar!.LocalRainRateMillimetresPerHour)
+                : stationRain
+                    ? ResolveObservedWeatherCode(current.WeatherCode, 1)
+                    : current.WeatherCode;
+            IReadOnlyList<WeatherMinute> nowcast = ApplyRadarToNowcast(forecast.Nowcast, radar);
+            IReadOnlyList<WeatherHour> hourly = ApplyRadarToHourly(forecast.Hourly, radar);
             var snapshot = new WeatherSnapshot(
                 location,
                 DateTimeOffset.Now,
                 observation?.ObservedAt,
-                observation is null
-                    ? "Open-Meteo high-resolution blend"
-                    : "ARSO live station + 3-model forecast",
+                radar is not null
+                    ? observation is null
+                        ? "ARSO live radar + 3-model forecast"
+                        : "ARSO live radar + station + 3-model forecast"
+                    : observation is null
+                        ? "Open-Meteo high-resolution blend"
+                        : "ARSO live station + 3-model forecast",
                 observation is { } observed
                     ? $"{observed.StationName} · {observed.DistanceKilometres:0.0} km"
                     : location.Name,
@@ -141,22 +165,30 @@ internal sealed class WeatherService : IDisposable
                 observation?.DewPointCelsius ?? current.DewPointCelsius,
                 current.VisibilityKilometres,
                 current.CloudCover,
-                observation?.PrecipitationMillimetres ?? current.PrecipitationMillimetres,
+                radarRain
+                    ? Math.Max(
+                        observation?.PrecipitationMillimetres ?? current.PrecipitationMillimetres,
+                        radar!.LocalRainRateMillimetresPerHour / 4)
+                    : observation?.PrecipitationMillimetres ?? current.PrecipitationMillimetres,
                 current.PrecipitationProbability,
-                current.WeatherCode,
+                weatherCode,
                 air,
                 warning,
                 forecast.Confidence,
                 outlook,
-                forecast.Nowcast,
-                forecast.Hourly,
+                nowcast,
+                hourly,
                 forecast.Daily,
                 UvIndex: current.UvIndex,
                 SnowfallMillimetres: current.SnowfallMillimetres,
                 SnowDepthCentimetres: current.SnowDepthCentimetres,
                 FreezingLevelMetres: current.FreezingLevelMetres,
                 SoilTemperatureCelsius: current.SoilTemperatureCelsius,
-                IsDay: current.IsDay);
+                IsDay: current.IsDay,
+                RadarObservationTime: radar?.ObservedAt,
+                RadarRainRateMillimetresPerHour: radar?.LocalRainRateMillimetresPerHour,
+                RadarRainCoveragePercent: radar?.RainCoveragePercent,
+                RadarPeakRainRateMillimetresPerHour: radar?.PeakRainRateMillimetresPerHour);
             Current = snapshot;
             SaveCached(snapshot);
             SnapshotAvailable?.Invoke(this, snapshot);
@@ -509,6 +541,26 @@ internal sealed class WeatherService : IDisposable
             observedAt);
     }
 
+    private async Task<RadarRainObservation?> FetchRadarObservationAsync(
+        WeatherLocation location,
+        CancellationToken cancellationToken)
+    {
+        if (!IsSlovenian(location))
+        {
+            return null;
+        }
+
+        byte[] bytes = await _client.GetByteArrayAsync(
+            ArsoGroundRainRateUrl,
+            cancellationToken).ConfigureAwait(false);
+        return ParseRadarRainObservation(bytes, location);
+    }
+
+    internal static RadarRainObservation? ParseRadarRainObservation(
+        byte[] bytes,
+        WeatherLocation location) =>
+        ArsoRadarParser.Parse(bytes, location);
+
     private async Task<OfficialWeatherOutlook?> FetchOfficialOutlookAsync(
         WeatherLocation location,
         CancellationToken cancellationToken)
@@ -804,9 +856,106 @@ internal sealed class WeatherService : IDisposable
         double.IsFinite(uv[index]) &&
         codes[index] != int.MinValue;
 
+    private static IReadOnlyList<WeatherMinute> ApplyRadarToNowcast(
+        IReadOnlyList<WeatherMinute> source,
+        RadarRainObservation? radar)
+    {
+        if (radar is not { IsRainDetected: true } || source.Count == 0)
+        {
+            return source;
+        }
+
+        var result = source.ToArray();
+        WeatherMinute first = result[0];
+        DateTime radarTime = radar.ObservedAt.LocalDateTime;
+        if (Math.Abs((first.Time - radarTime).TotalMinutes) > 30)
+        {
+            return
+            [
+                new WeatherMinute(
+                    radarTime,
+                    radar.LocalRainRateMillimetresPerHour / 4,
+                    100,
+                    100,
+                    ResolveObservedWeatherCode(
+                        first.WeatherCode,
+                        radar.LocalRainRateMillimetresPerHour),
+                    IsObserved: true),
+                .. source.Take(15)
+            ];
+        }
+
+        result[0] = first with
+        {
+            PrecipitationMillimetres = Math.Max(
+                first.PrecipitationMillimetres,
+                radar.LocalRainRateMillimetresPerHour / 4),
+            PrecipitationProbability = 100,
+            ConfidenceScore = 100,
+            WeatherCode = ResolveObservedWeatherCode(
+                first.WeatherCode,
+                radar.LocalRainRateMillimetresPerHour),
+            IsObserved = true
+        };
+        return result;
+    }
+
+    private static IReadOnlyList<WeatherHour> ApplyRadarToHourly(
+        IReadOnlyList<WeatherHour> source,
+        RadarRainObservation? radar)
+    {
+        if (radar is not { IsRainDetected: true } || source.Count == 0)
+        {
+            return source;
+        }
+
+        var result = source.ToArray();
+        WeatherHour first = result[0];
+        if (Math.Abs((first.Time - radar.ObservedAt.LocalDateTime).TotalMinutes) > 45)
+        {
+            return source;
+        }
+
+        result[0] = first with
+        {
+            PrecipitationMillimetres = Math.Max(
+                first.PrecipitationMillimetres,
+                radar.LocalRainRateMillimetresPerHour / 4),
+            PrecipitationProbability = 100,
+            WeatherCode = ResolveObservedWeatherCode(
+                first.WeatherCode,
+                radar.LocalRainRateMillimetresPerHour)
+        };
+        return result;
+    }
+
+    internal static int RainRateWeatherCode(double millimetresPerHour) =>
+        millimetresPerHour switch
+        {
+            < 0.2 => 3,
+            < 0.8 => 51,
+            < 2 => 61,
+            < 8 => 80,
+            < 20 => 81,
+            _ => 82
+        };
+
+    internal static bool IsFreshRadarObservation(
+        RadarRainObservation? observation,
+        DateTimeOffset now) =>
+        observation is { } value &&
+        now - value.ObservedAt <= RadarMaximumAge &&
+        value.ObservedAt - now <= TimeSpan.FromMinutes(5);
+
+    private static int ResolveObservedWeatherCode(int forecastCode, double rainRate) =>
+        forecastCode is 95 or 96 or 99
+            ? forecastCode
+            : RainRateWeatherCode(rainRate);
+
     private void PublishStaleFallback(
         WeatherLocation location,
         ArsoObservation? observation,
+        RadarRainObservation? radar,
         AirQualitySnapshot? air,
         WeatherAlert? warning,
         OfficialWeatherOutlook? outlook)
@@ -816,12 +965,17 @@ internal sealed class WeatherService : IDisposable
             return;
         }
 
+        bool radarRain = radar is { IsRainDetected: true };
         WeatherSnapshot stale = previous with
         {
             ObservationTime = observation?.ObservedAt ?? previous.ObservationTime,
-            ObservationSource = observation is null
-                ? previous.ObservationSource
-                : "ARSO live station · cached forecast",
+            ObservationSource = radar is not null
+                ? observation is null
+                    ? "ARSO live radar · cached forecast"
+                    : "ARSO live radar + station · cached forecast"
+                : observation is null
+                    ? previous.ObservationSource
+                    : "ARSO live station · cached forecast",
             StationName = observation is null
                 ? previous.StationName
                 : $"{observation.StationName} · {observation.DistanceKilometres:0.0} km",
@@ -832,7 +986,26 @@ internal sealed class WeatherService : IDisposable
             WindDirection = observation?.WindDirection ?? previous.WindDirection,
             PressureHectopascals = observation?.PressureHectopascals ?? previous.PressureHectopascals,
             DewPointCelsius = observation?.DewPointCelsius ?? previous.DewPointCelsius,
-            PrecipitationMillimetres = observation?.PrecipitationMillimetres ?? previous.PrecipitationMillimetres,
+            PrecipitationMillimetres = radarRain
+                ? Math.Max(
+                    observation?.PrecipitationMillimetres ?? previous.PrecipitationMillimetres,
+                    radar!.LocalRainRateMillimetresPerHour / 4)
+                : observation?.PrecipitationMillimetres ?? previous.PrecipitationMillimetres,
+            WeatherCode = radarRain
+                ? ResolveObservedWeatherCode(
+                    previous.WeatherCode,
+                    radar!.LocalRainRateMillimetresPerHour)
+                : observation?.PrecipitationMillimetres is > 0.05
+                    ? ResolveObservedWeatherCode(previous.WeatherCode, 1)
+                    : previous.WeatherCode,
+            RadarObservationTime = radar?.ObservedAt ?? previous.RadarObservationTime,
+            RadarRainRateMillimetresPerHour = radar?.LocalRainRateMillimetresPerHour ??
+                                              previous.RadarRainRateMillimetresPerHour,
+            RadarRainCoveragePercent = radar?.RainCoveragePercent ?? previous.RadarRainCoveragePercent,
+            RadarPeakRainRateMillimetresPerHour = radar?.PeakRainRateMillimetresPerHour ??
+                                                  previous.RadarPeakRainRateMillimetresPerHour,
+            Nowcast = ApplyRadarToNowcast(previous.Nowcast, radar),
+            Hourly = ApplyRadarToHourly(previous.Hourly, radar),
             AirQuality = air ?? previous.AirQuality,
             Alert = warning ?? previous.Alert,
             OfficialOutlook = outlook ?? previous.OfficialOutlook,

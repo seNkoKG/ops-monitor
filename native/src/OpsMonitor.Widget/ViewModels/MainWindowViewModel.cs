@@ -934,14 +934,21 @@ internal sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         var metric = _metricIndex[WidgetModuleCatalog.Weather];
         metric.PrimaryValue = snapshot.TemperatureLabel;
-        metric.Progress = snapshot.PrecipitationProbability;
+        metric.Progress = snapshot.IsRadarRainDetected
+            ? Math.Clamp(
+                (snapshot.RadarRainRateMillimetresPerHour ?? 0) / 20 * 100,
+                8,
+                100)
+            : snapshot.PrecipitationProbability;
         metric.IsProgressAvailable = true;
         metric.State = snapshot.IsStale
             ? SensorState.Stale
             : snapshot.Alert is { Level: >= 2, IsActive: true }
                 ? SensorState.Warning
                 : SensorState.Available;
-        metric.Status = $"{snapshot.Location.Name} · {snapshot.Condition} · click for forecast and radar";
+        metric.Status = snapshot.IsRadarRainDetected
+            ? $"{snapshot.Location.Name} · {snapshot.RadarSignalLabel} · click for live radar"
+            : $"{snapshot.Location.Name} · {snapshot.Condition} · click for forecast and radar";
         metric.SetDetailValues(
             (snapshot.RainLabel, true),
             (snapshot.WindLabel, true),

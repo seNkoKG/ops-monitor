@@ -68,7 +68,8 @@ public sealed record WeatherMinute(
     double PrecipitationMillimetres,
     int PrecipitationProbability,
     int ConfidenceScore,
-    int WeatherCode)
+    int WeatherCode,
+    bool IsObserved = false)
 {
     public string TimeLabel => Time.ToString("HH:mm", System.Globalization.CultureInfo.CurrentCulture);
 
@@ -77,6 +78,10 @@ public sealed record WeatherMinute(
         : $"{PrecipitationMillimetres:0.0} mm";
 
     public bool IsDayValue => Time.Hour is >= 6 and < 21;
+
+    public string SignalLabel => IsObserved
+        ? "ARSO RADAR"
+        : $"{ConfidenceScore}% AGREE";
 
     public string Icon => WeatherPresentation.Icon(WeatherCode, Time.Hour is >= 6 and < 21);
 }
@@ -231,7 +236,11 @@ public sealed record WeatherSnapshot(
     double? SnowDepthCentimetres = null,
     double? FreezingLevelMetres = null,
     double? SoilTemperatureCelsius = null,
-    bool? IsDay = null)
+    bool? IsDay = null,
+    DateTimeOffset? RadarObservationTime = null,
+    double? RadarRainRateMillimetresPerHour = null,
+    int? RadarRainCoveragePercent = null,
+    double? RadarPeakRainRateMillimetresPerHour = null)
 {
     public string TemperatureLabel => $"{Math.Round(TemperatureCelsius):0}°";
 
@@ -283,16 +292,47 @@ public sealed record WeatherSnapshot(
         ? FormattableString.Invariant($"{soil:0.0}°")
         : "N/A";
 
-    public string RainLabel => $"{PrecipitationProbability}%";
+    public bool IsRadarRainDetected => RadarRainRateMillimetresPerHour is >= 0.2;
+
+    public string RainLabel => IsRadarRainDetected
+        ? RadarRainRateMillimetresPerHour is < 10
+            ? FormattableString.Invariant($"{RadarRainRateMillimetresPerHour:0.0} mm/h")
+            : FormattableString.Invariant($"{RadarRainRateMillimetresPerHour:0} mm/h")
+        : $"{PrecipitationProbability}%";
+
+    public string RainMetricTitle => IsRadarRainDetected
+        ? "RAIN NOW · ARSO RADAR"
+        : "RAIN NEXT HOUR";
+
+    public string RadarSignalLabel => RadarObservationTime is null
+        ? "Radar unavailable"
+        : IsRadarRainDetected
+            ? $"{RadarIntensityLabel} · {RainLabel} · {RadarRainCoveragePercent ?? 0}% local coverage"
+            : "No rain detected at this location";
+
+    public string RadarIntensityLabel => RadarRainRateMillimetresPerHour switch
+    {
+        < 0.2 => "Dry",
+        < 1 => "Light rain",
+        < 5 => "Moderate rain",
+        < 15 => "Heavy rain",
+        _ => "Very heavy rain"
+    };
 
     public string CoordinateLabel =>
         $"{Location.Latitude:0.0000}, {Location.Longitude:0.0000}";
 
     public string FreshnessLabel => IsStale
-        ? $"Last good update {UpdatedAt.LocalDateTime:t}"
-        : ObservationTime is { } observed
-            ? $"Observed {observed.LocalDateTime:t} · refreshed {UpdatedAt.LocalDateTime:t}"
-            : $"Forecast refreshed {UpdatedAt.LocalDateTime:t}";
+        ? RadarObservationTime is { } staleRadar
+            ? $"Radar {staleRadar.LocalDateTime:t} · forecast cached {UpdatedAt.LocalDateTime:t}"
+            : $"Last good update {UpdatedAt.LocalDateTime:t}"
+        : RadarObservationTime is { } radar
+            ? ObservationTime is { } station
+                ? $"Radar {radar.LocalDateTime:t} · station {station.LocalDateTime:t} · refreshed {UpdatedAt.LocalDateTime:t}"
+                : $"Radar {radar.LocalDateTime:t} · refreshed {UpdatedAt.LocalDateTime:t}"
+            : ObservationTime is { } observed
+                ? $"Observed {observed.LocalDateTime:t} · refreshed {UpdatedAt.LocalDateTime:t}"
+                : $"Forecast refreshed {UpdatedAt.LocalDateTime:t}";
 }
 
 public static class WeatherPresentation

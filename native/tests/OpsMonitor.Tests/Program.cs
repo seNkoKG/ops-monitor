@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Principal;
+using System.Text;
 using System.Text.Json;
 using OpsMonitor.Core.Alerts;
 using OpsMonitor.Core.Diagnostics;
@@ -194,7 +195,7 @@ static async Task<int> RunLiveWeatherProbeAsync()
     using var service = new WeatherService(location, TimeSpan.FromMinutes(15));
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-    Console.WriteLine("Collecting live Celje weather from ARSO and Open-Meteo...");
+    Console.WriteLine("Collecting live Celje weather from ARSO station/radar and Open-Meteo...");
     await service.RefreshNowAsync(timeout.Token);
     if (service.Current is not { } snapshot)
     {
@@ -205,6 +206,8 @@ static async Task<int> RunLiveWeatherProbeAsync()
     Console.WriteLine($"Source: {snapshot.ObservationSource}");
     Console.WriteLine($"Station: {snapshot.StationName}");
     Console.WriteLine($"Current: {snapshot.TemperatureCelsius:0.0} C, {snapshot.Condition}");
+    Console.WriteLine(
+        $"Radar: {(snapshot.RadarObservationTime is null ? "unavailable" : snapshot.RadarSignalLabel)}");
     Console.WriteLine($"Confidence: {snapshot.Confidence.Score}% ({snapshot.Confidence.ModelCount} models)");
     Console.WriteLine($"Nowcast/hourly/daily: {snapshot.Nowcast.Count}/{snapshot.Hourly.Count}/{snapshot.Daily.Count}");
     Console.WriteLine($"ARSO outlook: {(snapshot.OfficialOutlook is null ? "unavailable" : "available")}");
@@ -213,6 +216,7 @@ static async Task<int> RunLiveWeatherProbeAsync()
                     snapshot.Nowcast.Count > 0 &&
                     snapshot.Hourly.Count > 0 &&
                     snapshot.Daily.Count > 0 &&
+                    snapshot.RadarObservationTime is not null &&
                     snapshot.Confidence.ModelCount >= 2;
     Console.WriteLine($"Live weather result: {(complete ? "OK" : "INCOMPLETE")}");
     return complete ? 0 : 1;
@@ -1465,6 +1469,39 @@ static Task TestWeatherIntegrationAsync()
     Assert.Equal(18.1, observation.DewPointCelsius ?? double.NaN, "ARSO dew point");
     Assert.Equal(0.4, observation.PrecipitationMillimetres ?? double.NaN, "ARSO precipitation");
 
+    byte[] radarFixture = BuildRadarFixture(
+        new DateTimeOffset(2026, 8, 20, 21, 55, 0, TimeSpan.Zero),
+        rainLevel: (byte)'H');
+    var radar = WeatherService.ParseRadarRainObservation(radarFixture, location);
+    Assert.True(radar is not null, "ARSO ground-rain radar was not parsed");
+    Assert.True(radar!.IsRainDetected, "local radar rain was not detected");
+    Assert.True(
+        radar.LocalRainRateMillimetresPerHour is > 6.2 and < 6.4,
+        "radar dBR/h level was not converted to mm/h");
+    Assert.Equal(100, radar.RainCoveragePercent, "radar local rain coverage");
+    Assert.Equal(80, WeatherService.RainRateWeatherCode(6.3), "radar rain condition code");
+    Assert.True(
+        WeatherService.IsFreshRadarObservation(radar, radar.ObservedAt.AddMinutes(24)),
+        "fresh radar product was rejected");
+    Assert.False(
+        WeatherService.IsFreshRadarObservation(radar, radar.ObservedAt.AddMinutes(26)),
+        "stale radar product was accepted");
+    Assert.False(
+        WeatherService.IsFreshRadarObservation(radar, radar.ObservedAt.AddMinutes(-6)),
+        "future-dated radar product was accepted");
+    var dryRadar = WeatherService.ParseRadarRainObservation(
+        BuildRadarFixture(radar.ObservedAt, rainLevel: (byte)'@'),
+        location);
+    Assert.True(dryRadar is { IsRainDetected: false }, "dry radar was reported as rain");
+    Assert.True(
+        WeatherService.ParseRadarRainObservation(
+            radarFixture,
+            new WeatherLocation("New York", "United States", 40.7, -74, "America/New_York")) is null,
+        "out-of-coverage radar coordinate was accepted");
+    Assert.True(
+        WeatherService.ParseRadarRainObservation([1, 2, 3], location) is null,
+        "malformed radar input was accepted");
+
 using (JsonDocument nullableForecast = JsonDocument.Parse(
                """{"doubleValues":[15.2,null,16.1],"intValues":[72,null,81]}"""))
     {
@@ -1623,6 +1660,35 @@ var day = new WeatherDay(
     Assert.Equal("21.4°", snapshot.SoilTemperatureLabel, "current soil temperature label");
     Assert.True(snapshot.IsDayValue, "explicit is_day flag was ignored");
 
+    var radarSnapshot = snapshot with
+    {
+        WeatherCode = 80,
+        RadarObservationTime = new DateTimeOffset(2026, 8, 20, 21, 55, 0, TimeSpan.Zero),
+        RadarRainRateMillimetresPerHour = 6.3,
+        RadarRainCoveragePercent = 86,
+        RadarPeakRainRateMillimetresPerHour = 15.8
+    };
+    Assert.True(radarSnapshot.IsRadarRainDetected, "live radar rain flag");
+    Assert.Equal("6.3 mm/h", radarSnapshot.RainLabel, "live radar rain label");
+    Assert.Equal("RAIN NOW · ARSO RADAR", radarSnapshot.RainMetricTitle, "live radar title");
+    Assert.True(
+        radarSnapshot.RadarSignalLabel.Contains("Heavy rain", StringComparison.Ordinal),
+        "radar intensity was not surfaced");
+    Assert.Equal("Rain showers", radarSnapshot.Condition, "radar weather condition");
+
+    var observedMinute = new WeatherMinute(
+        new DateTime(2026, 8, 20, 21, 55, 0),
+        1.6,
+        100,
+        100,
+        80,
+        IsObserved: true);
+    Assert.Equal("ARSO RADAR", observedMinute.SignalLabel, "observed rain-track source label");
+    Assert.Equal(
+        "78% AGREE",
+        new WeatherMinute(observedMinute.Time, 0, 20, 78, 2).SignalLabel,
+        "forecast rain-track agreement label");
+
     var night = snapshot with { IsDay = false };
     Assert.False(
         string.Equals(snapshot.Icon, night.Icon, StringComparison.Ordinal),
@@ -1639,6 +1705,59 @@ var day = new WeatherDay(
     Assert.Equal("N", WeatherPresentation.Compass(360), "compass wrap-around");
     Assert.Equal(string.Empty, WeatherPresentation.Compass(null), "null compass is empty");
     return Task.CompletedTask;
+}
+
+static byte[] BuildRadarFixture(DateTimeOffset observedAt, byte rainLevel)
+{
+    const int width = 401;
+    const int height = 301;
+    const int celjeColumn = 236;
+    const int celjeRow = 131;
+    string header = string.Join('\n',
+        "SRD-3",
+        "domain    SI0",
+        "nrc       2",
+        "rc        SI2 SI1",
+        $"time      {observedAt.UtcDateTime:yyyy MM dd HH mm}",
+        "fdim      2",
+        $"ncell     {width} {height}",
+        "cellsize  1.0 1.0",
+        "proj      LCC",
+        "ellipse   6371.0 6371.0",
+        "par       46.120 46.120",
+        "origin    14.815 46.120",
+        "shift     -4.0 -6.0",
+        "nquant    1",
+        "encode    BYTE",
+        "quant     RRG",
+        "unit      DBR/H",
+        "scale     INC",
+        "nlevel    16",
+        "offset    64",
+        "start     -8.0",
+        "slope     2.0",
+        "nodata    126",
+        "DATA",
+        string.Empty);
+    using var stream = new MemoryStream();
+    stream.Write(Encoding.ASCII.GetBytes(header));
+    var row = Enumerable.Repeat((byte)'@', width).ToArray();
+    for (var y = 0; y < height; y++)
+    {
+        Array.Fill(row, (byte)'@');
+        if (Math.Abs(y - celjeRow) <= 4)
+        {
+            for (int x = celjeColumn - 4; x <= celjeColumn + 4; x++)
+            {
+                row[x] = rainLevel;
+            }
+        }
+
+        stream.Write(row);
+        stream.WriteByte((byte)'\n');
+    }
+
+    return stream.ToArray();
 }
 
 static Task TestWidgetBatterySaveAsync()

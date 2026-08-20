@@ -3,6 +3,25 @@
 All notable OPS Monitor changes are documented here. Versions follow semantic
 versioning.
 
+## [3.4.8] — 2026-08-21
+
+### Fixed
+
+- Current precipitation now uses ARSO's five-minute SI0 ground-rain radar at
+  the selected Slovenian coordinates instead of relying only on a forecast
+  model and a potentially distant, half-hourly rain gauge.
+- Live radar rain promotes the current condition, weather icon, widget detail,
+  and first rain-track/hourly slot, while preserving thunderstorm guidance.
+- Radar products are rejected when stale, malformed, outside coverage, or too
+  sparse around the requested coordinate; cached forecasts remain explicit.
+
+### Added
+
+- Weather Station now shows radar intensity in mm/h, local rain coverage,
+  radar/station timestamps, and clear source provenance.
+- Deterministic SRD-3 parsing and projection regression coverage for Celje,
+  plus a live release probe that requires current ARSO radar availability.
+
 ## [3.4.7] — 2026-08-17
 
 ### Changed
@@ -241,6 +260,7 @@ versioning.
 - Release artifacts contain package identity and version markers for safe
   in-place updates.
 
+[3.4.8]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.8
 [3.4.7]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.7
 [3.4.6]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.6
 [3.4.5]: https://github.com/seNkoKG/ops-monitor/releases/tag/v3.4.5
